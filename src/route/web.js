@@ -13,6 +13,11 @@ const initWebRoutes = (app) => {
     });
   });
 
+  // Root route - Redirect to health check
+  app.get("/", (req, res) => {
+    res.redirect("/api/health");
+  });
+
   // Authentication routes
   router.post("/auth/register", authController.register);
   router.post("/auth/login", authController.login);
@@ -21,6 +26,8 @@ const initWebRoutes = (app) => {
     "/auth/resend-verification",
     authController.resendVerificationEmail
   );
+  router.post("/auth/forgot-password", authController.forgotPassword);
+  router.post("/auth/reset-password/:token", authController.resetPassword);
 
   // User routes (protected)
   router.get("/users/profile", protect, userController.getUserProfile);

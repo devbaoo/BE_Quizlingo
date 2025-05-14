@@ -187,6 +187,74 @@ const resendVerificationEmail = async (email, baseUrl) => {
   }
 };
 
+// Khởi tạo quá trình reset password
+const forgotPassword = async (email, baseUrl) => {
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy tài khoản với email này",
+      };
+    }
+
+    const emailResult = await emailService.sendResetPasswordEmail(
+      user,
+      baseUrl
+    );
+
+    if (!emailResult.success) {
+      return {
+        success: false,
+        statusCode: 500,
+        message: "Không thể gửi email đặt lại mật khẩu",
+        error: emailResult.error,
+      };
+    }
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Email đặt lại mật khẩu đã được gửi",
+    };
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi hệ thống",
+      error: error.message,
+    };
+  }
+};
+
+// Thực hiện reset password
+const resetPasswordWithToken = async (token, newPassword) => {
+  try {
+    // Kiểm tra độ mạnh của mật khẩu (tùy chọn)
+    if (newPassword.length < 6) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Mật khẩu phải có ít nhất 6 ký tự",
+      };
+    }
+
+    const result = await emailService.resetPassword(token, newPassword);
+    return result;
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi hệ thống",
+      error: error.message,
+    };
+  }
+};
+
 export default {
   register,
   login,
@@ -194,4 +262,6 @@ export default {
   verifyToken,
   verifyEmailToken,
   resendVerificationEmail,
+  forgotPassword,
+  resetPasswordWithToken,
 };
