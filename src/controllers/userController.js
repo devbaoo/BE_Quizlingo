@@ -60,7 +60,7 @@ let getAllUsers = async (req, res) => {
 // Delete user (admin only)
 let deleteUser = async (req, res) => {
   try {
-    let result = await userService.deleteUser(req.params.id);
+    let result = await userService.softDeleteUser(req.params.id);
 
     return res.status(result.statusCode).json({
       success: result.success,

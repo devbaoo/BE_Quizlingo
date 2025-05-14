@@ -80,7 +80,8 @@ let updateUserProfile = async (userId, userData) => {
 // Get all users (admin only)
 let getAllUsers = async () => {
   try {
-    let users = await User.find().select("-password");
+    let query = User.find().select("-password");
+    let users = await query;
 
     return {
       success: true,
@@ -98,9 +99,11 @@ let getAllUsers = async () => {
   }
 };
 
-let deleteUser = async (userId) => {
+// Soft delete user
+let softDeleteUser = async (userId) => {
   try {
     let user = await User.findById(userId);
+
     if (!user) {
       return {
         success: false,
@@ -108,14 +111,16 @@ let deleteUser = async (userId) => {
         message: "User not found",
       };
     }
+
     await user.deleteOne();
+
     return {
       success: true,
-      statusCode: 204,
-      message: "User deleted successfully",
+      statusCode: 200,
+      message: "User soft deleted successfully",
     };
   } catch (error) {
-    console.error("Delete user error:", error);
+    console.error("Soft delete user error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -128,5 +133,5 @@ export default {
   getUserProfile,
   updateUserProfile,
   getAllUsers,
-  deleteUser,
+  softDeleteUser,
 };

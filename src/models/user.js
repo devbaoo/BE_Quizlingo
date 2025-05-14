@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import softDeletePlugin from "../plugins/mongoose-soft-delete.js";
 
 const UserSchema = new mongoose.Schema({
   firstName: {
@@ -32,6 +33,9 @@ const UserSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+// Apply soft delete plugin
+UserSchema.plugin(softDeletePlugin);
 
 const User = mongoose.model("User", UserSchema);
 export default User;
