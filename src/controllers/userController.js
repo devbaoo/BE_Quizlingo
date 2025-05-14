@@ -1,31 +1,82 @@
-import userService from '../services/userService';
+import userService from "../services/userService.js";
 
-let handleLoging = async (req, res) => {
-    let email = req.body.email;
-    let password = req.body.password;
+// Get user profile
+let getUserProfile = async (req, res) => {
+  try {
+    let result = await userService.getUserProfile(req.user._id);
 
-    if (!email || !password) {
-        return res.status(500).json({
-            errCode: 1,
-            message: 'Missing inputs parameter!'
-        })
-    }
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      user: result.user,
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 
-    let userData = await userService.handleUserLogin(email, password)
-    //check email exist
-    //password nhap vao ko dung
-    //return userInfor
-    // access_token :JWT json web token
+// Update user profile
+let updateUserProfile = async (req, res) => {
+  try {
+    let result = await userService.updateUserProfile(req.user._id, req.body);
 
-    return res.status(200).json({
-        errCode: userData.errCode,
-        message: userData.errMessage,
-        user: userData.user ? userData.user : {}
-    })
-}
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      user: result.user,
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 
+// Get all users (admin only)
+let getAllUsers = async (req, res) => {
+  try {
+    let result = await userService.getAllUsers();
 
+    return res.status(result.statusCode).json({
+      success: result.success,
+      count: result.count,
+      users: result.users,
+    });
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 
-module.exports = {
-    handleLoging: handleLoging
-}
+// Delete user (admin only)
+let deleteUser = async (req, res) => {
+  try {
+    let result = await userService.softDeleteUser(req.params.id);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("Delete user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+export default {
+  getUserProfile,
+  updateUserProfile,
+  getAllUsers,
+  deleteUser,
+};

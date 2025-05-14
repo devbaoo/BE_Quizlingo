@@ -1,0 +1,119 @@
+import authService from "../services/authService.js";
+
+// Đăng ký tài khoản mới
+const register = async (req, res) => {
+  try {
+    // Lấy hostname và protocol để tạo URL gốc cho email xác thực
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const result = await authService.register(req.body, baseUrl);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      token: result.token,
+      user: result.user,
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Đăng nhập
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const result = await authService.login(email, password);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      token: result.token,
+      user: result.user,
+      needVerification: result.needVerification || false,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Xác thực email
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    // Lấy returnUrl từ query string (do frontend gửi)
+    const { returnUrl } = req.query;
+
+    const result = await authService.verifyEmailToken(token, returnUrl);
+
+    if (!result.success) {
+      return res.status(result.statusCode).json({
+        success: false,
+        message: result.message,
+      });
+    }
+
+    // Nếu yêu cầu API JSON, trả về JSON
+    if (req.headers.accept && req.headers.accept.includes("application/json")) {
+      return res.status(result.statusCode).json({
+        success: true,
+        message: result.message,
+        user: result.user,
+      });
+    }
+
+    // Nếu có returnUrl (từ frontend), chuyển hướng đến đó
+    if (result.returnUrl) {
+      return res.redirect(result.returnUrl);
+    }
+
+    // Fallback nếu không có returnUrl: trả về JSON
+    return res.status(result.statusCode).json({
+      success: true,
+      message: result.message,
+      user: result.user,
+    });
+  } catch (error) {
+    console.error("Verify email error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Gửi lại email xác thực
+const resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const result = await authService.resendVerificationEmail(email, baseUrl);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+export default {
+  register,
+  login,
+  verifyEmail,
+  resendVerificationEmail,
+};

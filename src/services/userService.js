@@ -1,78 +1,137 @@
-import db from '../models/index';
-import bcrypt from 'bcryptjs';
+import User from "../models/user.js";
+import bcrypt from "bcryptjs";
 
+// Get user profile
+let getUserProfile = async (userId) => {
+  try {
+    let user = await User.findById(userId).select("-password");
 
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "User not found",
+      };
+    }
 
-let handleUserLogin = (email, password) => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            let userData = {};
-            let isExist = await checkUserEmail(email);
-            if (isExist) {
-                //user already exist
-                let user = await db.User.findOne({
-                    attributes: ['email', 'roleId', 'password'],
-                    where: { email: email },
-                    raw: true,
+    return {
+      success: true,
+      statusCode: 200,
+      user,
+    };
+  } catch (error) {
+    console.error("Get user profile error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Server error",
+    };
+  }
+};
 
-                });
-                if (user) {
-                    //compare password: dùng cách 1 hay cách 2 đều chạy đúng cả =))
-                    // Cách 1: dùng asynchronous (bất đồng bộ)
-                    let check = await bcrypt.compare(password, user.password);
+// Update user profile
+let updateUserProfile = async (userId, userData) => {
+  try {
+    let user = await User.findById(userId);
 
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "User not found",
+      };
+    }
 
-                    // Cách 2: dùng synchronous  (đồng bộ)
-                    // let check = bcrypt.compareSync(password, user.password);
+    // Update fields
+    if (userData.firstName) user.firstName = userData.firstName;
+    if (userData.lastName) user.lastName = userData.lastName;
+    if (userData.email) user.email = userData.email;
 
-                    if (check) {
-                        userData.errCode = 0;
-                        userData.errMessage = 'OK';
+    // Update password if provided
+    if (userData.password) {
+      let salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(userData.password, salt);
+    }
 
-                        delete user.password;
-                        userData.user = user;
-                    }
-                    else {
-                        userData.errCode = 3;
-                        userData.errMessage = 'Wrong password';
-                    }
-                } else {
-                    userData.errCode = 2;
-                    userData.errMessage = `User not found`;
-                }
+    await user.save();
 
-            } else {
-                //return error
-                userData.errCode = 1;
-                userData.errMessage = `Your's Email isn't exist in our system, plz try other email`
-            }
-            resolve(userData)
-        } catch (e) {
-            reject(e);
-        }
-    })
-}
+    return {
+      success: true,
+      statusCode: 200,
+      message: "User profile updated",
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  } catch (error) {
+    console.error("Update user profile error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Server error",
+    };
+  }
+};
 
-let checkUserEmail = (userEmail) => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            let user = await db.User.findOne({
-                where: { email: userEmail }
-            })
-            if (user) {
-                resolve(true)
-            } else {
-                resolve(false)
-            }
+// Get all users (admin only)
+let getAllUsers = async () => {
+  try {
+    let query = User.find().select("-password");
+    let users = await query;
 
-        } catch (e) {
-            reject(e)
-        }
-    })
-}
+    return {
+      success: true,
+      statusCode: 200,
+      count: users.length,
+      users,
+    };
+  } catch (error) {
+    console.error("Get all users error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Server error",
+    };
+  }
+};
 
+// Soft delete user
+let softDeleteUser = async (userId) => {
+  try {
+    let user = await User.findById(userId);
 
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "User not found",
+      };
+    }
 
-module.exports = {
-    handleUserLogin: handleUserLogin,
-}
+    await user.deleteOne();
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "User soft deleted successfully",
+    };
+  } catch (error) {
+    console.error("Soft delete user error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Server error",
+    };
+  }
+};
+
+export default {
+  getUserProfile,
+  updateUserProfile,
+  getAllUsers,
+  softDeleteUser,
+};
