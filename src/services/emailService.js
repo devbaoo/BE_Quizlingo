@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { sendEmail, verificationEmailTemplate } from "../config/emailConfig.js";
 import Token from "../models/token.js";
 import User from "../models/user.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // Tạo token xác thực
 const generateVerificationToken = async (userId) => {
@@ -24,8 +27,10 @@ const sendVerificationEmail = async (user, baseUrl) => {
     // Tạo token xác thực
     const token = await generateVerificationToken(user._id);
 
+    const frontendUrl = process.env.FRONTEND_URL || baseUrl;
+
     // Tạo link xác thực
-    const verificationLink = `${baseUrl}/api/auth/verify-email/${token}`;
+    const verificationLink = `${frontendUrl}/verify-email/${token}`;
 
     // Thiết lập thông tin email
     const emailContent = verificationEmailTemplate(
