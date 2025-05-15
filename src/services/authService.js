@@ -76,6 +76,34 @@ let login = async (email, password) => {
       message: "Invalid credentials",
     };
   }
+  // Streak logic implementation
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to start of the day
+
+  if (user.lastLoginDate) {
+    const lastLogin = new Date(user.lastLoginDate);
+    lastLogin.setHours(0, 0, 0, 0); // Reset to start of the day
+
+    // Calculate the difference in days
+    const timeDiff = today.getTime() - lastLogin.getTime();
+    const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+
+    if (dayDiff === 1) {
+      // User logged in the next day - increase streak
+      user.streak += 1;
+    } else if (dayDiff > 1) {
+      // User missed login for more than 1 day - reset streak
+      user.streak = 1;
+    }
+    // If dayDiff === 0, user already logged in today, don't change streak
+  } else {
+    // First login ever
+    user.streak = 1;
+  }
+
+  // Update last login date to today
+  user.lastLoginDate = new Date();
+  await user.save();
 
   let token = generateToken(user);
 
@@ -92,6 +120,11 @@ let login = async (email, password) => {
       role: user.role,
       isVerify: user.isVerify,
       avatar: user.avatar,
+      streak: user.streak,
+      lives: user.lives,
+      xp: user.xp,
+      userLevel: user.userLevel,
+      level: user.level,
     },
     needVerification: !user.isVerify,
   };
@@ -110,16 +143,16 @@ const verifyToken = async (token) => {
       return {
         success: false,
         statusCode: 401,
-        message: 'Token không chứa ID người dùng'
+        message: "Token không chứa ID người dùng",
       };
     }
 
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       return {
         success: false,
         statusCode: 401,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       };
     }
 
@@ -131,15 +164,15 @@ const verifyToken = async (token) => {
         role: user.role,
         email: user.email,
         level: user.level,
-        userLevel: user.userLevel
-      }
+        userLevel: user.userLevel,
+      },
     };
   } catch (error) {
-    console.error('Verify token error:', error);
+    console.error("Verify token error:", error);
     return {
       success: false,
       statusCode: 401,
-      message: 'Token không hợp lệ hoặc đã hết hạn'
+      message: "Token không hợp lệ hoặc đã hết hạn",
     };
   }
 };
