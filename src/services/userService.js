@@ -46,6 +46,7 @@ let updateUserProfile = async (userId, userData) => {
     if (userData.firstName) user.firstName = userData.firstName;
     if (userData.lastName) user.lastName = userData.lastName;
     if (userData.email) user.email = userData.email;
+    if (userData.avatar) user.avatar = userData.avatar;
 
     // Update password if provided
     if (userData.password) {
@@ -65,6 +66,7 @@ let updateUserProfile = async (userId, userData) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
       },
     };
   } catch (error) {

@@ -91,6 +91,7 @@ let login = async (email, password) => {
       email: user.email,
       role: user.role,
       isVerify: user.isVerify,
+      avatar: user.avatar,
     },
     needVerification: !user.isVerify,
   };
