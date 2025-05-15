@@ -4,6 +4,7 @@ import authController from "../controllers/authController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
 const initWebRoutes = (app) => {
   // Health check route
   router.get("/health", (req, res) => {
@@ -32,6 +33,14 @@ const initWebRoutes = (app) => {
   // User routes (protected)
   router.get("/users/profile", protect, userController.getUserProfile);
   router.put("/users/profile", protect, userController.updateUserProfile);
+
+  // Route avatar sử dụng middleware từ controller
+  router.post(
+    "/users/avatar",
+    protect,
+    userController.handleAvatarUpload,
+    userController.uploadAvatar
+  );
 
   // Admin routes
   router.get("/users", protect, authorize("admin"), userController.getAllUsers);
