@@ -1,6 +1,7 @@
 import userService from '../services/userService.js';
 import cloudinaryService from "../services/cloudinaryService.js";
 import fs from "fs";
+import userService from "../services/userService.js";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
@@ -53,13 +54,13 @@ const getUserProfile = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      user: result.user
+      user: result.user,
     });
   } catch (error) {
     console.error("Get profile error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 };
@@ -71,13 +72,13 @@ const updateUserProfile = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      user: result.user
+      user: result.user,
     });
   } catch (error) {
     console.error("Update profile error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 };
@@ -131,13 +132,13 @@ const getAllUsers = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       count: result.count,
-      users: result.users
+      users: result.users,
     });
   } catch (error) {
     console.error("Get all users error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 };
@@ -148,13 +149,13 @@ const deleteUser = async (req, res) => {
     const result = await userService.softDeleteUser(req.params.id);
     return res.status(result.statusCode).json({
       success: result.success,
-      message: result.message
+      message: result.message,
     });
   } catch (error) {
     console.error("Delete user error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 };
@@ -167,13 +168,13 @@ const chooseLevel = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      user: result.user
+      user: result.user,
     });
   } catch (error) {
     console.error("Choose level error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 };
@@ -186,17 +187,16 @@ const chooseSkill = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      user: result.user
+      user: result.user,
     });
   } catch (error) {
     console.error("Choose skill error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 };
-
 
 export default {
   getUserProfile,
@@ -206,6 +206,5 @@ export default {
   deleteUser,
   chooseLevel,
   chooseSkill,
-
   handleAvatarUpload,
 };
