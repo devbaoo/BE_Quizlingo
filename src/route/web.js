@@ -1,5 +1,5 @@
 import express from "express";
-import multer from 'multer';
+import multer from "multer";
 const upload = multer({ storage: multer.memoryStorage() });
 import userController from "../controllers/userController.js";
 import authController from "../controllers/authController.js";
@@ -37,8 +37,8 @@ const initWebRoutes = (app) => {
   // User routes (protected)
   router.get("/users/profile", protect, userController.getUserProfile);
   router.put("/users/profile", protect, userController.updateUserProfile);
-  router.post('/user/level', protect, userController.chooseLevel);
-  router.post('/user/skill', protect, userController.chooseSkill);
+  router.post("/user/level", protect, userController.chooseLevel);
+  router.post("/user/skill", protect, userController.chooseSkill);
 
   // Route avatar sử dụng middleware từ controller
   router.post(
@@ -56,21 +56,47 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     userController.deleteUser
   );
+  router.get(
+    "/admin/lessons",
+    protect,
+    authorize("admin"),
+    lessonController.getAllLessons
+  );
 
   // Lesson routes
-  router.post('/lessons', protect, authorize('admin'), lessonController.createLesson);
-  router.get('/lessons', protect, lessonController.getLessons);
-  router.get('/lessons/:id', protect, lessonController.getLessonById);
-  router.post('/progress', protect, lessonController.completeLesson);
-  router.post('/lessons/retry', protect, lessonController.retryLesson);
-  router.get('/topics', lessonController.getTopics);
-  router.get('/skills', lessonController.getSkills);
+  router.post(
+    "/lessons",
+    protect,
+    authorize("admin"),
+    lessonController.createLesson
+  );
+  router.get("/lessons", protect, lessonController.getLessons);
+  router.get("/lessons/:id", protect, lessonController.getLessonById);
+  router.post("/progress", protect, lessonController.completeLesson);
+  router.post("/lessons/retry", protect, lessonController.retryLesson);
+  router.get("/topics", lessonController.getTopics);
+  router.get("/skills", lessonController.getSkills);
+  router.delete(
+    "/lessons/:id",
+    protect,
+    authorize("admin"),
+    lessonController.deleteLesson
+  );
 
   // Groq AI routes
-  router.post('/speech/text-to-speech', protect, groqController.textToSpeech);
-  router.post('/speech/speech-to-text', protect, upload.single('audio'), groqController.speechToText);
-  router.post('/speech/evaluate-pronunciation', protect, upload.single('audio'), groqController.evaluatePronunciation);
-
+  router.post("/speech/text-to-speech", protect, groqController.textToSpeech);
+  router.post(
+    "/speech/speech-to-text",
+    protect,
+    upload.single("audio"),
+    groqController.speechToText
+  );
+  router.post(
+    "/speech/evaluate-pronunciation",
+    protect,
+    upload.single("audio"),
+    groqController.evaluatePronunciation
+  );
 
   app.use("/api", router);
 };
