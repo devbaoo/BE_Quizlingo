@@ -1,11 +1,12 @@
 import Lesson from '../models/lesson.js';
 import User from '../models/user.js';
-import Progress from '../models/Progress.js';
+import Progress from '../models/progress.js';
 import Question from '../models/question.js';
+import groqService from './groqService.js';
 
 // Danh sách enum từ schema
 const TOPICS = ['travel', 'business', 'daily_life', 'education', 'food'];
-const SKILLS = ['vocabulary', 'reading', 'writing'];
+const SKILLS = ['vocabulary', 'reading', 'writing', 'listening', 'speaking'];
 
 // Lấy danh sách topic
 const getTopics = async () => {
@@ -74,6 +75,28 @@ const createLesson = async (lessonData) => {
             };
         }
 
+        if (lessonData.type === 'multiple_choice' && !['vocabulary', 'reading', 'listening'].includes(lessonData.skill)) {
+            return {
+                success: false,
+                statusCode: 400,
+                message: 'Loại multiple_choice chỉ áp dụng cho kỹ năng vocabulary, reading hoặc listening'
+            };
+        }
+        if (lessonData.type === 'text_input' && lessonData.skill !== 'writing') {
+            return {
+                success: false,
+                statusCode: 400,
+                message: 'Loại text_input chỉ áp dụng cho kỹ năng writing'
+            };
+        }
+        if (lessonData.type === 'audio_input' && lessonData.skill !== 'speaking') {
+            return {
+                success: false,
+                statusCode: 400,
+                message: 'Loại audio_input chỉ áp dụng cho kỹ năng speaking'
+            };
+        }
+
         const lesson = await Lesson.create({
             title: lessonData.title,
             type: lessonData.type,
@@ -87,12 +110,20 @@ const createLesson = async (lessonData) => {
 
         const questionIds = [];
         for (const q of lessonData.questions) {
+            if (lessonData.skill === 'listening' && q.content) {
+                const audioResult = await groqService.textToSpeech(q.content);
+                if (audioResult.success) {
+                    q.audioContent = audioResult.audioContent;
+                }
+            }
+
             const question = await Question.create({
                 lessonId: lesson._id,
                 content: q.content,
                 options: q.options || [],
                 correctAnswer: q.correctAnswer,
-                score: q.score || 100
+                score: q.score || 100,
+                audioContent: q.audioContent
             });
             questionIds.push(question._id);
         }
@@ -133,7 +164,6 @@ const getLessons = async (userId, queryParams) => {
 
         const { topic, level, skill, preferredSkills } = queryParams;
 
-        // Kiểm tra dữ liệu đầu vào
         if (!topic || !TOPICS.includes(topic)) {
             console.error(`Invalid topic: ${topic}`);
             return {
@@ -181,7 +211,6 @@ const getLessons = async (userId, queryParams) => {
             }
         }
 
-        // Xử lý preferredSkills
         let sortOptions = {};
         if (preferredSkills) {
             const skillsArray = preferredSkills.split(',').map(s => s.trim());
@@ -198,7 +227,7 @@ const getLessons = async (userId, queryParams) => {
                         message: 'Không có kỹ năng hợp lệ trong preferredSkills'
                     };
                 }
-                sortOptions = { skill: { $in: validSkills } ? -1 : 1 };
+                sortOptions = { skill: -1 }; // Ưu tiên skill trong preferredSkills
             }
         }
 
@@ -320,6 +349,35 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
             };
         }
 
+        if (lesson.skill === 'speaking') {
+            for (let i = 0; i < questionResults.length; i++) {
+                const result = questionResults[i];
+                const question = questions.find(q => q._id.toString() === result.questionId);
+
+                if (result.audioAnswer && question) {
+                    // Giả sử audioAnswer là binary buffer (từ multipart/form-data)
+                    const evaluationResult = await groqService.evaluatePronunciation(
+                        question.correctAnswer,
+                        Buffer.from(result.audioAnswer)
+                    );
+
+                    if (evaluationResult.success) {
+                        questionResults[i].score = evaluationResult.score;
+                        questionResults[i].feedback = evaluationResult.feedback;
+                        questionResults[i].transcription = evaluationResult.transcription;
+                    } else {
+                        console.error(`Pronunciation evaluation failed for question ${result.questionId}:`, evaluationResult.message);
+                        questionResults[i].score = 0;
+                        questionResults[i].feedback = evaluationResult.message;
+                    }
+                }
+            }
+
+            if (questionResults.some(r => r.score !== undefined)) {
+                score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
+            }
+        }
+
         if (user.level !== 'beginner' && lesson.timeLimit > 0) {
             const hasTimeout = questionResults.some(result => result.isTimeout);
             if (hasTimeout && user.lives > 0) {
@@ -410,7 +468,7 @@ const retryLesson = async (userId, lessonId) => {
             return {
                 success: false,
                 statusCode: 403,
-                message: 'Không đủ mạng để làm lại'
+                message: 'Không đủ lượt chơi để làm lại'
             };
         }
 

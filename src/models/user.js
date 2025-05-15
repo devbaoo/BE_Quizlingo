@@ -69,8 +69,8 @@ const UserSchema = new mongoose.Schema({
   preferredSkills: [{
     type: String,
     enum: {
-      values: ['vocabulary', 'reading', 'writing'],
-      message: 'Kỹ năng phải là vocabulary, reading, hoặc writing'
+      values: ['vocabulary', 'reading', 'writing', 'listening', 'speaking'],
+      message: 'Kỹ năng phải là vocabulary, reading, writing, listening, hoặc speaking'
     }
   }],
   createdAt: {
