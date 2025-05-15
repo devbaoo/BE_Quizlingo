@@ -19,6 +19,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Mật khẩu là bắt buộc'],
   },
+  avatar: {
+    type: String,
+    default: "",
+  },
   role: {
     type: String,
     enum: ['admin', 'user'],

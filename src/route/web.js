@@ -5,6 +5,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 import lessonController from "../controllers/lessonController.js";
 
 const router = express.Router();
+
 const initWebRoutes = (app) => {
   // Health check route
   router.get("/health", (req, res) => {
@@ -12,6 +13,11 @@ const initWebRoutes = (app) => {
       success: true,
       message: "Server is running",
     });
+  });
+
+  // Root route - Redirect to health check
+  app.get("/", (req, res) => {
+    res.redirect("/api/health");
   });
 
   // Authentication routes
@@ -22,12 +28,23 @@ const initWebRoutes = (app) => {
     "/auth/resend-verification",
     authController.resendVerificationEmail
   );
+  router.post("/auth/forgot-password", authController.forgotPassword);
+  router.post("/auth/reset-password/:token", authController.resetPassword);
 
   // User routes (protected)
   router.get("/users/profile", protect, userController.getUserProfile);
   router.put("/users/profile", protect, userController.updateUserProfile);
   router.post('/user/level', protect, userController.chooseLevel);
   router.post('/user/skill', protect, userController.chooseSkill);
+
+  // Route avatar sử dụng middleware từ controller
+  router.post(
+    "/users/avatar",
+    protect,
+    userController.handleAvatarUpload,
+    userController.uploadAvatar
+  );
+
   // Admin routes
   router.get("/users", protect, authorize("admin"), userController.getAllUsers);
   router.delete(

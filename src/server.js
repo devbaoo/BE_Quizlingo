@@ -12,8 +12,14 @@ let app = express();
 
 viewEngine(app);
 app.use(cors({ origin: true }));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// Tăng giới hạn kích thước cho JSON và URL-encoded payloads
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
+
+// Ghi đè lên limit các kiểu request
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 initWebRoutes(app);
 

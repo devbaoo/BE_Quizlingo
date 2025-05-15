@@ -111,9 +111,53 @@ const resendVerificationEmail = async (req, res) => {
   }
 };
 
+// Quên mật khẩu - gửi email reset
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const result = await authService.forgotPassword(email, baseUrl);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Reset mật khẩu với token
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const result = await authService.resetPasswordWithToken(token, password);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 export default {
   register,
   login,
   verifyEmail,
   resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 };
