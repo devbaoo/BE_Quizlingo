@@ -102,28 +102,43 @@ let generateToken = (user) => {
   });
 };
 
-let verifyToken = async (token) => {
+const verifyToken = async (token) => {
   try {
-    let decoded = jwt.verify(token, jwtConfig.secret);
-    let user = await User.findById(decoded.id).select("-password");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Giả sử jwtConfig.secret là process.env.JWT_SECRET
+    if (!decoded.id) {
+      return {
+        success: false,
+        statusCode: 401,
+        message: 'Token không chứa ID người dùng'
+      };
+    }
 
+    const user = await User.findById(decoded.id).select('-password');
     if (!user) {
       return {
         success: false,
         statusCode: 401,
-        message: "User not found",
+        message: 'Không tìm thấy người dùng'
       };
     }
 
     return {
       success: true,
-      user,
+      statusCode: 200,
+      user: {
+        id: user._id.toString(),
+        role: user.role,
+        email: user.email,
+        level: user.level,
+        userLevel: user.userLevel
+      }
     };
   } catch (error) {
+    console.error('Verify token error:', error);
     return {
       success: false,
       statusCode: 401,
-      message: "Invalid token",
+      message: 'Token không hợp lệ hoặc đã hết hạn'
     };
   }
 };
