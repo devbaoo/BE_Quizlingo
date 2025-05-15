@@ -1,8 +1,11 @@
 import express from "express";
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage() });
 import userController from "../controllers/userController.js";
 import authController from "../controllers/authController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import lessonController from "../controllers/lessonController.js";
+import groqController from "../controllers/groqController.js";
 
 const router = express.Router();
 
@@ -62,6 +65,11 @@ const initWebRoutes = (app) => {
   router.post('/lessons/retry', protect, lessonController.retryLesson);
   router.get('/topics', lessonController.getTopics);
   router.get('/skills', lessonController.getSkills);
+
+  // Groq AI routes
+  router.post('/speech/text-to-speech', protect, groqController.textToSpeech);
+  router.post('/speech/speech-to-text', protect, upload.single('audio'), groqController.speechToText);
+  router.post('/speech/evaluate-pronunciation', protect, upload.single('audio'), groqController.evaluatePronunciation);
 
 
   app.use("/api", router);

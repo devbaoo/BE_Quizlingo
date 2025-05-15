@@ -10,8 +10,8 @@ const lessonSchema = new mongoose.Schema({
     type: {
         type: String,
         enum: {
-            values: ['multiple_choice', 'text_input'],
-            message: 'Loại bài học phải là multiple_choice hoặc text_input'
+            values: ['multiple_choice', 'text_input', 'audio_input'],
+            message: 'Loại bài học phải là multiple_choice, text_input hoặc audio_input'
         },
         required: [true, 'Loại bài học là bắt buộc']
     },
@@ -34,8 +34,8 @@ const lessonSchema = new mongoose.Schema({
     skill: {
         type: String,
         enum: {
-            values: ['vocabulary', 'reading', 'writing'],
-            message: 'Kỹ năng phải là vocabulary, reading, hoặc writing'
+            values: ['vocabulary', 'reading', 'writing', 'listening', 'speaking'],
+            message: 'Kỹ năng phải là vocabulary, reading, writing, listening, hoặc speaking'
         },
         required: [true, 'Kỹ năng bài học là bắt buộc']
     },
@@ -65,11 +65,14 @@ const lessonSchema = new mongoose.Schema({
 });
 
 lessonSchema.pre('validate', function (next) {
-    if (this.type === 'multiple_choice' && !['vocabulary', 'reading'].includes(this.skill)) {
-        next(new Error('Loại multiple_choice chỉ áp dụng cho kỹ năng vocabulary hoặc reading'));
+    if (this.type === 'multiple_choice' && !['vocabulary', 'reading', 'listening'].includes(this.skill)) {
+        next(new Error('Loại multiple_choice chỉ áp dụng cho kỹ năng vocabulary, reading hoặc listening'));
     }
     if (this.type === 'text_input' && this.skill !== 'writing') {
         next(new Error('Loại text_input chỉ áp dụng cho kỹ năng writing'));
+    }
+    if (this.type === 'audio_input' && this.skill !== 'speaking') {
+        next(new Error('Loại audio_input chỉ áp dụng cho kỹ năng speaking'));
     }
     next();
 });

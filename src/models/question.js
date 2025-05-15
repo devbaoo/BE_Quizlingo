@@ -25,6 +25,10 @@ const questionSchema = new mongoose.Schema({
         default: 100,
         min: [0, 'Điểm không được nhỏ hơn 0']
     },
+    audioContent: {
+        type: String,
+        trim: true
+    },
     createdAt: {
         type: Date,
         default: Date.now

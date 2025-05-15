@@ -65,6 +65,21 @@ const UserSchema = new mongoose.Schema({
     min: [0, "Số mạng không được nhỏ hơn 0"],
     max: [5, "Số mạng không được lớn hơn 5"],
   },
+  completedBasicVocab: [{
+    type: String,
+    enum: {
+      values: ['travel', 'business', 'daily_life', 'education', 'food'],
+      message: 'Chủ đề hoàn thành phải là travel, business, daily_life, education, hoặc food'
+    }
+  }],
+  preferredSkills: [{
+    type: String,
+    enum: {
+      values: ['vocabulary', 'reading', 'writing', 'listening', 'speaking'],
+      message: 'Kỹ năng phải là vocabulary, reading, writing, listening, hoặc speaking'
+    }
+  }],
+
   completedBasicVocab: [
     {
       type: String,
