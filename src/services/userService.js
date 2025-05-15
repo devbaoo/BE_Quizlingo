@@ -56,9 +56,10 @@ const updateUserProfile = async (userId, updateData) => {
       };
     }
 
-    if (updateData.firstName) user.firstName = updateData.firstName;
-    if (updateData.lastName) user.lastName = updateData.lastName;
-    if (updateData.email) user.email = updateData.email;
+    if (userData.firstName) user.firstName = userData.firstName;
+    if (userData.lastName) user.lastName = userData.lastName;
+    if (userData.email) user.email = userData.email;
+    if (userData.avatar) user.avatar = userData.avatar;
 
     await user.save();
 
@@ -72,6 +73,7 @@ const updateUserProfile = async (userId, updateData) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        avatar: user.avatar,
         level: user.level,
         userLevel: user.userLevel,
         xp: user.xp,
@@ -120,6 +122,7 @@ const chooseLevel = async (userId, level) => {
         message: 'Không tìm thấy người dùng'
       };
     }
+
 
     user.level = level;
     if (level === 'beginner') {
