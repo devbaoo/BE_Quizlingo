@@ -100,9 +100,10 @@ let uploadAvatar = async (req, res) => {
     const imageId = file.filename || file.public_id;
 
     // Cập nhật profile với URL từ Cloudinary
-    const updateResult = await userService.updateUserProfile(req.user._id, {
+    const updateResult = await userService.updateUserProfile(req.user.id, {
       avatar: imageUrl,
     });
+    console.log("Update result:", updateResult);
 
     return res.status(200).json({
       success: true,
