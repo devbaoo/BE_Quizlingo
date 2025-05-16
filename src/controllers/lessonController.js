@@ -162,6 +162,20 @@ const deleteLesson = async (req, res) => {
   }
 };
 
+const updateLesson = async (req, res) => {
+  try {
+    const result = await lessonService.updateLesson(req.params.id, req.body);
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      lesson: result.lesson,
+    });
+  } catch (error) {
+    console.error("Update lesson error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export default {
   createLesson,
   getLessons,
@@ -172,4 +186,5 @@ export default {
   getSkills,
   getAllLessons,
   deleteLesson,
+  updateLesson,
 };

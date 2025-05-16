@@ -177,6 +177,180 @@ const createLesson = async (lessonData) => {
   }
 };
 
+// Cập nhật bài học (admin)
+const updateLesson = async (lessonId, lessonData) => {
+  try {
+    // Tìm bài học cần cập nhật
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy bài học",
+      };
+    }
+
+    // Validate các trường cần thiết khi cả type và skill được cung cấp
+    if (lessonData.type && lessonData.skill) {
+      if (
+        lessonData.type === "multiple_choice" &&
+        !["vocabulary", "reading", "listening"].includes(lessonData.skill)
+      ) {
+        return {
+          success: false,
+          statusCode: 400,
+          message:
+            "Loại multiple_choice chỉ áp dụng cho kỹ năng vocabulary, reading hoặc listening",
+        };
+      }
+      if (lessonData.type === "text_input" && lessonData.skill !== "writing") {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Loại text_input chỉ áp dụng cho kỹ năng writing",
+        };
+      }
+      if (
+        lessonData.type === "audio_input" &&
+        lessonData.skill !== "speaking"
+      ) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Loại audio_input chỉ áp dụng cho kỹ năng speaking",
+        };
+      }
+    } else if (lessonData.type) {
+      // Validate khi chỉ cung cấp type mới, dựa vào skill hiện tại
+      if (
+        lessonData.type === "multiple_choice" &&
+        !["vocabulary", "reading", "listening"].includes(lesson.skill)
+      ) {
+        return {
+          success: false,
+          statusCode: 400,
+          message:
+            "Loại multiple_choice chỉ áp dụng cho kỹ năng vocabulary, reading hoặc listening",
+        };
+      }
+      if (lessonData.type === "text_input" && lesson.skill !== "writing") {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Loại text_input chỉ áp dụng cho kỹ năng writing",
+        };
+      }
+      if (lessonData.type === "audio_input" && lesson.skill !== "speaking") {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Loại audio_input chỉ áp dụng cho kỹ năng speaking",
+        };
+      }
+    } else if (lessonData.skill) {
+      // Validate khi chỉ cung cấp skill mới, dựa vào type hiện tại
+      if (
+        lesson.type === "multiple_choice" &&
+        !["vocabulary", "reading", "listening"].includes(lessonData.skill)
+      ) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Kỹ năng không tương thích với loại multiple_choice",
+        };
+      }
+      if (lesson.type === "text_input" && lessonData.skill !== "writing") {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Kỹ năng không tương thích với loại text_input",
+        };
+      }
+      if (lesson.type === "audio_input" && lessonData.skill !== "speaking") {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Kỹ năng không tương thích với loại audio_input",
+        };
+      }
+    }
+
+    // Cập nhật thông tin bài học
+    if (lessonData.title !== undefined) lesson.title = lessonData.title;
+    if (lessonData.type !== undefined) lesson.type = lessonData.type;
+    if (lessonData.topic !== undefined) lesson.topic = lessonData.topic;
+    if (lessonData.level !== undefined) lesson.level = lessonData.level;
+    if (lessonData.skill !== undefined) lesson.skill = lessonData.skill;
+
+    // Cập nhật maxScore và timeLimit dựa trên level mới
+    if (lessonData.level) {
+      lesson.maxScore =
+        lessonData.level === "beginner"
+          ? 1000
+          : lessonData.level === "intermediate"
+          ? 1500
+          : 2000;
+      lesson.timeLimit = lessonData.level === "beginner" ? 0 : 30;
+    }
+
+    // Xử lý cập nhật câu hỏi (nếu có)
+    if (lessonData.questions && lessonData.questions.length > 0) {
+      // Xóa các câu hỏi cũ
+      await Question.deleteMany({ lessonId: lesson._id });
+
+      // Tạo câu hỏi mới
+      const questionIds = [];
+      for (const q of lessonData.questions) {
+        if (lesson.skill === "listening" && q.content) {
+          const audioResult = await groqService.textToSpeech(q.content);
+          if (audioResult.success) {
+            q.audioContent = audioResult.audioContent;
+          }
+        }
+
+        const question = await Question.create({
+          lessonId: lesson._id,
+          content: q.content,
+          options: q.options || [],
+          correctAnswer: q.correctAnswer,
+          score: q.score || 100,
+          audioContent: q.audioContent,
+        });
+        questionIds.push(question._id);
+      }
+
+      lesson.questions = questionIds;
+    }
+
+    // Lưu bài học vào database
+    const updatedLesson = await lesson.save();
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Cập nhật bài học thành công",
+      lesson: {
+        lessonId: updatedLesson._id,
+        title: updatedLesson.title,
+        type: updatedLesson.type,
+        topic: updatedLesson.topic,
+        level: updatedLesson.level,
+        skill: updatedLesson.skill,
+        maxScore: updatedLesson.maxScore,
+        timeLimit: updatedLesson.timeLimit,
+        updatedAt: new Date(),
+      },
+    };
+  } catch (error) {
+    console.error("Update lesson error:", error);
+    return {
+      success: false,
+      statusCode: 400,
+      message: error.message || "Lỗi khi cập nhật bài học",
+    };
+  }
+};
+
 // Lấy danh sách bài học
 const getLessons = async (userId, queryParams) => {
   try {
@@ -675,4 +849,5 @@ export default {
   getSkills,
   getAllLessonsForAdmin,
   deleteLesson,
+  updateLesson,
 };

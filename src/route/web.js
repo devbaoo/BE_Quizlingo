@@ -62,6 +62,12 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     lessonController.getAllLessons
   );
+  router.put(
+    "/admin/lessons/:id",
+    protect,
+    authorize("admin"),
+    lessonController.updateLesson
+  );
 
   // Lesson routes
   router.post(
