@@ -1,7 +1,8 @@
 import userService from "../services/userService.js";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinaryService from "../services/cloudinaryService.js";
+import { v2 as cloudinary } from "cloudinary";
 
 // Cấu hình Cloudinary storage cho multer
 const storage = new CloudinaryStorage({
