@@ -97,7 +97,7 @@ const verifyEmail = async (token) => {
         success: false,
         statusCode: 404,
         message: "Không tìm thấy người dùng",
-      };
+      };  
     }
 
     // Xóa token sau khi đã sử dụng
