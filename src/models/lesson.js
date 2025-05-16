@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import softDeletePlugin from "../plugins/mongoose-soft-delete.js";
+
 const lessonSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -90,7 +90,6 @@ lessonSchema.pre("validate", function (next) {
 });
 
 lessonSchema.index({ type: 1, topic: 1, level: 1, skill: 1 });
-lessonSchema.plugin(softDeletePlugin);
 
 const Lesson = mongoose.model("Lesson", lessonSchema);
 export default Lesson;
