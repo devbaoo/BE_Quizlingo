@@ -41,7 +41,7 @@ async function fixUserData() {
     }
 }
 
-mongoose.connect(`mongodb+srv://admin:Khacbao0712@devbaoo.j8s947t.mongodb.net/quizlingo?retryWrites=true&w=majority`, {
+mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 }).then(() => {
