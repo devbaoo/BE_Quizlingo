@@ -6,7 +6,9 @@ import authController from "../controllers/authController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import lessonController from "../controllers/lessonController.js";
 import groqController from "../controllers/groqController.js";
-import metadataController from "../controllers/metadataController.js";
+import topicController from "../controllers/topicController.js";
+import levelController from "../controllers/levelController.js";
+import skillController from "../controllers/skillController.js";
 
 const router = express.Router();
 
@@ -70,21 +72,68 @@ const initWebRoutes = (app) => {
     lessonController.updateLesson
   );
 
-  // Metadata routes
-  router.get('/topics', metadataController.getTopics);
-  router.post('/topics', protect, authorize('admin'), metadataController.createTopic);
-  router.put('/topics/:id', protect, authorize('admin'), metadataController.updateTopic);
-  router.delete('/topics/:id', protect, authorize('admin'), metadataController.deleteTopic);
+  // Topic routes
+  router.get("/topics", topicController.getTopics);
+  router.post(
+    "/topics",
+    protect,
+    authorize("admin"),
+    topicController.createTopic
+  );
+  router.put(
+    "/topics/:id",
+    protect,
+    authorize("admin"),
+    topicController.updateTopic
+  );
+  router.delete(
+    "/topics/:id",
+    protect,
+    authorize("admin"),
+    topicController.deleteTopic
+  );
 
-  router.get('/levels', metadataController.getLevels);
-  router.post('/levels', protect, authorize('admin'), metadataController.createLevel);
-  router.put('/levels/:id', protect, authorize('admin'), metadataController.updateLevel);
-  router.delete('/levels/:id', protect, authorize('admin'), metadataController.deleteTopic);
+  // Level routes
+  router.get("/levels", levelController.getLevels);
+  router.post(
+    "/levels",
+    protect,
+    authorize("admin"),
+    levelController.createLevel
+  );
+  router.put(
+    "/levels/:id",
+    protect,
+    authorize("admin"),
+    levelController.updateLevel
+  );
+  router.delete(
+    "/levels/:id",
+    protect,
+    authorize("admin"),
+    levelController.deleteLevel
+  );
 
-  router.get('/skills', metadataController.getSkills);
-  router.post('/skills', protect, authorize('admin'), metadataController.createSkill);
-  router.put('/skills/:id', protect, authorize('admin'), metadataController.updateSkill);
-  router.delete('/skills/:id', protect, authorize('admin'), metadataController.deleteSkill);
+  // Skill routes
+  router.get("/skills", skillController.getSkills);
+  router.post(
+    "/skills",
+    protect,
+    authorize("admin"),
+    skillController.createSkill
+  );
+  router.put(
+    "/skills/:id",
+    protect,
+    authorize("admin"),
+    skillController.updateSkill
+  );
+  router.delete(
+    "/skills/:id",
+    protect,
+    authorize("admin"),
+    skillController.deleteSkill
+  );
 
   // Lesson routes
   router.post(

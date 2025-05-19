@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import jwtConfig from "../config/jwtConfig.js";
 import emailService from "./emailService.js";
+import moment from "moment-timezone";
 
 let register = async (userData, baseUrl) => {
   let { firstName, lastName, email, password } = userData;
@@ -58,7 +59,7 @@ let register = async (userData, baseUrl) => {
 };
 
 let login = async (email, password) => {
-  let user = await User.findOne({ email });
+  let user = await User.findOne({ email }).populate("level", "name");
 
   if (!user) {
     return {
@@ -76,17 +77,18 @@ let login = async (email, password) => {
       message: "Invalid credentials",
     };
   }
-  // Streak logic implementation
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Reset to start of the day
+
+  // Streak logic implementation with Vietnam timezone
+  const now = moment().tz("Asia/Ho_Chi_Minh");
+  const today = now.clone().startOf("day");
 
   if (user.lastLoginDate) {
-    const lastLogin = new Date(user.lastLoginDate);
-    lastLogin.setHours(0, 0, 0, 0); // Reset to start of the day
+    const lastLogin = moment(user.lastLoginDate)
+      .tz("Asia/Ho_Chi_Minh")
+      .startOf("day");
 
     // Calculate the difference in days
-    const timeDiff = today.getTime() - lastLogin.getTime();
-    const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+    const dayDiff = today.diff(lastLogin, "days");
 
     if (dayDiff === 1) {
       // User logged in the next day - increase streak
@@ -101,8 +103,8 @@ let login = async (email, password) => {
     user.streak = 1;
   }
 
-  // Update last login date to today
-  user.lastLoginDate = new Date();
+  // Update last login date to current Vietnam time
+  user.lastLoginDate = now.toDate();
   await user.save();
 
   let token = generateToken(user);
@@ -124,7 +126,7 @@ let login = async (email, password) => {
       lives: user.lives,
       xp: user.xp,
       userLevel: user.userLevel,
-      level: user.level,
+      level: user.level ? user.level.name : null,
     },
     needVerification: !user.isVerify,
   };
