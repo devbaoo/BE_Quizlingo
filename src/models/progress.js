@@ -4,29 +4,56 @@ const progressSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: [true, 'UserId là bắt buộc']
+        required: [true, 'User ID là bắt buộc']
     },
     lessonId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Lesson',
-        required: [true, 'LessonId là bắt buộc']
+        required: [true, 'Lesson ID là bắt buộc']
     },
     score: {
         type: Number,
         required: [true, 'Điểm là bắt buộc'],
-        min: [0, 'Điểm không được nhỏ hơn 0'],
-        max: [10000, 'Điểm không được lớn hơn 10000']
+        min: [0, 'Điểm không được nhỏ hơn 0']
     },
     isRetried: {
         type: Boolean,
         default: false
     },
-    questionResults: [{
-        questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question', required: true },
-        isCorrect: { type: Boolean, required: true },
-        score: { type: Number, required: true },
-        isTimeout: { type: Boolean, default: false }
-    }],
+    questionResults: [
+        {
+            questionId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Question',
+                required: true
+            },
+            answer: {
+                type: String,
+                required: [true, 'Câu trả lời là bắt buộc']
+            },
+            isCorrect: {
+                type: Boolean,
+                required: true
+            },
+            score: {
+                type: Number,
+                required: true,
+                min: 0
+            },
+            isTimeout: {
+                type: Boolean,
+                default: false
+            },
+            transcription: {
+                type: String,
+                default: null
+            },
+            feedback: {
+                type: String,
+                default: null
+            }
+        }
+    ],
     completedAt: {
         type: Date,
         default: Date.now

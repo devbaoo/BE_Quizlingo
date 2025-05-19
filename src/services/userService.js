@@ -1,8 +1,7 @@
 import User from "../models/user.js";
+import Level from "../models/level.js";
+import Skill from "../models/skill.js";
 
-// Danh sách level và skill hợp lệ
-const LEVELS = ["beginner", "intermediate", "advanced"];
-const SKILLS = ["vocabulary", "reading", "writing"];
 
 // Lấy profile người dùng
 const getUserProfile = async (userId) => {
@@ -60,7 +59,7 @@ const updateUserProfile = async (userId, updateData) => {
     if (updateData.firstName) user.firstName = updateData.firstName;
     if (updateData.lastName) user.lastName = updateData.lastName;
     if (updateData.email) user.email = updateData.email;
-    if (updateData.avatar) user.avatar = updateData.avatar;   
+    if (updateData.avatar) user.avatar = updateData.avatar;
 
     await user.save();
 
@@ -94,30 +93,19 @@ const updateUserProfile = async (userId, updateData) => {
 };
 
 // Chọn Knowledge Level
-const chooseLevel = async (userId, level) => {
+const chooseLevel = async (userId, levelName) => {
   try {
-    console.log(`Choosing level for userId: ${userId}, level: ${level}`);
-
-    if (!userId) {
-      return {
-        success: false,
-        statusCode: 401,
-        message: "Vui lòng đăng nhập để chọn trình độ",
-      };
-    }
-
-    if (!LEVELS.includes(level)) {
+    const levelDoc = await Level.findOne({ name: levelName });
+    if (!levelDoc) {
       return {
         success: false,
         statusCode: 400,
-        message:
-          "Trình độ không hợp lệ, phải là beginner, intermediate, hoặc advanced",
+        message: `Không tìm thấy cấp độ "${levelName}"`,
       };
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      console.error(`User not found: ${userId}`);
       return {
         success: false,
         statusCode: 404,
@@ -125,53 +113,44 @@ const chooseLevel = async (userId, level) => {
       };
     }
 
-    user.level = level;
-    if (level === "beginner") {
-      user.completedBasicVocab = [];
-    }
+    user.level = levelDoc._id;
+    if (levelName === "beginner") user.completedBasicVocab = [];
     await user.save();
 
     return {
       success: true,
       statusCode: 200,
       message: "Chọn trình độ thành công",
-      user: {
-        id: user._id,
-        email: user.email,
-        level: user.level,
-        userLevel: user.userLevel,
-        xp: user.xp,
-        lives: user.lives,
-        completedBasicVocab: user.completedBasicVocab,
-        preferredSkills: user.preferredSkills,
-      },
+      user: { ...user.toObject(), level: levelDoc },
     };
-  } catch (error) {
-    console.error("Choose level error:", error);
+  } catch (err) {
+    console.error("ChooseLevel error:", err);
     return {
       success: false,
       statusCode: 500,
-      message: `Lỗi khi chọn trình độ: ${error.message}`,
+      message: "Lỗi hệ thống",
     };
   }
 };
 
 // Chọn skill ưu tiên
-const chooseSkill = async (userId, skills) => {
-  try {
-    console.log(`Choosing skills for userId: ${userId}, skills: ${skills}`);
 
-    if (!userId) {
+const chooseSkill = async (userId, skillNames) => {
+  try {
+    const skills = await Skill.find({ name: { $in: skillNames } });
+
+    if (skills.length !== skillNames.length) {
+      const foundNames = skills.map(s => s.name);
+      const invalid = skillNames.filter(name => !foundNames.includes(name));
       return {
         success: false,
-        statusCode: 401,
-        message: "Vui lòng đăng nhập để chọn kỹ năng",
+        statusCode: 400,
+        message: `Kỹ năng không hợp lệ: ${invalid.join(", ")}`,
       };
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      console.error(`User not found: ${userId}`);
       return {
         success: false,
         statusCode: 404,
@@ -179,49 +158,21 @@ const chooseSkill = async (userId, skills) => {
       };
     }
 
-    if (Array.isArray(skills) && skills.includes("all")) {
-      user.preferredSkills = [...SKILLS];
-    } else if (Array.isArray(skills)) {
-      const invalidSkills = skills.filter((skill) => !SKILLS.includes(skill));
-      if (invalidSkills.length > 0) {
-        return {
-          success: false,
-          statusCode: 400,
-          message: `Kỹ năng không hợp lệ: ${invalidSkills.join(", ")}`,
-        };
-      }
-      user.preferredSkills = skills;
-    } else {
-      return {
-        success: false,
-        statusCode: 400,
-        message: "Skills phải là mảng các kỹ năng",
-      };
-    }
-
+    user.preferredSkills = skills.map(skill => skill._id);
     await user.save();
 
     return {
       success: true,
       statusCode: 200,
       message: "Chọn kỹ năng thành công",
-      user: {
-        id: user._id,
-        email: user.email,
-        level: user.level,
-        userLevel: user.userLevel,
-        xp: user.xp,
-        lives: user.lives,
-        completedBasicVocab: user.completedBasicVocab,
-        preferredSkills: user.preferredSkills,
-      },
+      user: { ...user.toObject(), preferredSkills: skills },
     };
   } catch (error) {
-    console.error("Choose skill error:", error);
+    console.error("ChooseSkill error:", error);
     return {
       success: false,
       statusCode: 500,
-      message: `Lỗi khi chọn kỹ năng: ${error.message}`,
+      message: "Lỗi hệ thống"
     };
   }
 };

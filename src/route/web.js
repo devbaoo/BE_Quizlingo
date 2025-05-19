@@ -6,6 +6,7 @@ import authController from "../controllers/authController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import lessonController from "../controllers/lessonController.js";
 import groqController from "../controllers/groqController.js";
+import metadataController from "../controllers/metadataController.js";
 
 const router = express.Router();
 
@@ -68,6 +69,22 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     lessonController.updateLesson
   );
+
+  // Metadata routes
+  router.get('/topics', metadataController.getTopics);
+  router.post('/topics', protect, authorize('admin'), metadataController.createTopic);
+  router.put('/topics/:id', protect, authorize('admin'), metadataController.updateTopic);
+  router.delete('/topics/:id', protect, authorize('admin'), metadataController.deleteTopic);
+
+  router.get('/levels', metadataController.getLevels);
+  router.post('/levels', protect, authorize('admin'), metadataController.createLevel);
+  router.put('/levels/:id', protect, authorize('admin'), metadataController.updateLevel);
+  router.delete('/levels/:id', protect, authorize('admin'), metadataController.deleteTopic);
+
+  router.get('/skills', metadataController.getSkills);
+  router.post('/skills', protect, authorize('admin'), metadataController.createSkill);
+  router.put('/skills/:id', protect, authorize('admin'), metadataController.updateSkill);
+  router.delete('/skills/:id', protect, authorize('admin'), metadataController.deleteSkill);
 
   // Lesson routes
   router.post(
