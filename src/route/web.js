@@ -157,7 +157,7 @@ const initWebRoutes = (app) => {
   );
 
   // Groq AI routes
-  router.post("/speech/text-to-speech", protect, groqController.textToSpeech);
+  router.post("/speech/text-to-speech", groqController.textToSpeech);
   router.post(
     "/speech/speech-to-text",
     protect,
