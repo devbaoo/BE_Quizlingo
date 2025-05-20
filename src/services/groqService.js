@@ -82,10 +82,8 @@ const speechToText = async (audioBuffer) => {
     const fileType = await fileTypeFromBuffer(audioBuffer);
     const extension = fileType?.ext || "mp3";
     const mimeType = fileType?.mime || "audio/mpeg";
-    console.log("Detected file type:", { extension, mimeType });
 
     const uploadUrl = await uploadAudio(audioBuffer);
-    console.log("Uploaded audio URL:", uploadUrl);
 
     const transcriptResponse = await fetch(ASSEMBLYAI_TRANSCRIPT_URL, {
       method: "POST",
@@ -119,7 +117,6 @@ const speechToText = async (audioBuffer) => {
       );
 
       const statusData = await statusResponse.json();
-      console.log(`Polling attempt ${attempts + 1}:`, statusData.status);
 
       if (statusData.status === "completed") {
         transcription = statusData.text;
@@ -134,7 +131,6 @@ const speechToText = async (audioBuffer) => {
       attempts++;
     }
 
-    console.log("Final transcription result:", transcription);
 
     if (typeof transcription !== "string" || transcription.trim() === "") {
       throw new Error("Transcription failed or returned empty result");
