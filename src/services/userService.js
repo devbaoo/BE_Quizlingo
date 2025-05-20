@@ -2,11 +2,13 @@ import User from "../models/user.js";
 import Level from "../models/level.js";
 import Skill from "../models/skill.js";
 
-
 // Lấy profile người dùng
 const getUserProfile = async (userId) => {
   try {
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findById(userId)
+      .select("-password")
+      .populate("level", "name")
+      .populate("preferredSkills", "name");
     if (!user) {
       return {
         success: false,
@@ -25,13 +27,14 @@ const getUserProfile = async (userId) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        level: user.level,
+        level: user.level?.name || null,
         avatar: user.avatar,
         userLevel: user.userLevel,
         xp: user.xp,
+        streak: user.streak,
         lives: user.lives,
         completedBasicVocab: user.completedBasicVocab,
-        preferredSkills: user.preferredSkills,
+        preferredSkills: user.preferredSkills?.map((skill) => skill.name) || [],
       },
     };
   } catch (error) {
@@ -140,8 +143,8 @@ const chooseSkill = async (userId, skillNames) => {
     const skills = await Skill.find({ name: { $in: skillNames } });
 
     if (skills.length !== skillNames.length) {
-      const foundNames = skills.map(s => s.name);
-      const invalid = skillNames.filter(name => !foundNames.includes(name));
+      const foundNames = skills.map((s) => s.name);
+      const invalid = skillNames.filter((name) => !foundNames.includes(name));
       return {
         success: false,
         statusCode: 400,
@@ -158,7 +161,7 @@ const chooseSkill = async (userId, skillNames) => {
       };
     }
 
-    user.preferredSkills = skills.map(skill => skill._id);
+    user.preferredSkills = skills.map((skill) => skill._id);
     await user.save();
 
     return {
@@ -172,7 +175,7 @@ const chooseSkill = async (userId, skillNames) => {
     return {
       success: false,
       statusCode: 500,
-      message: "Lỗi hệ thống"
+      message: "Lỗi hệ thống",
     };
   }
 };
