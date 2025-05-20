@@ -67,7 +67,6 @@ const getSkills = async (userId, topic, level) => {
       if (user.level && user.level.toString() === levelDoc._id.toString() && levelDoc.name === 'beginner') {
         const completedVocab = user.completedBasicVocab.map(id => id.toString());
         if (!completedVocab.includes(topic.toString())) {
-          console.log(`User ${userId} is beginner, restricting to vocabulary for topic ${topic}`);
           skills = skills.filter(skill => skill.name === 'vocabulary');
         }
       }
@@ -402,7 +401,6 @@ const updateLesson = async (lessonId, lessonData) => {
 // Lấy danh sách bài học
 const getLessons = async (userId, queryParams) => {
   try {
-    console.log(`Get lessons called with userId: ${userId}, queryParams:`, queryParams);
 
     const { topic, level, skill, preferredSkills } = queryParams;
 
@@ -473,7 +471,6 @@ const getLessons = async (userId, queryParams) => {
       if (user.level && levelDoc && levelDoc.name === 'beginner' && topic) {
         const completedVocab = user.completedBasicVocab.map(id => id.toString());
         if (!completedVocab.includes(topic.toString())) {
-          console.log(`User ${userId} is beginner, restricting to vocabulary for topic ${topic}`);
           query.skill = (await Skill.findOne({ name: 'vocabulary' }))?._id;
         }
       }
@@ -482,7 +479,6 @@ const getLessons = async (userId, queryParams) => {
     let sortOptions = {};
     if (preferredSkills) {
       const skillsArray = preferredSkills.split(',').map(s => s.trim());
-      console.log(`Preferred skills: ${skillsArray}`);
       if (skillsArray.includes('all')) {
         sortOptions = {};
       } else {
@@ -499,7 +495,6 @@ const getLessons = async (userId, queryParams) => {
       }
     }
 
-    console.log(`Querying lessons with query:`, query, `sortOptions:`, sortOptions);
     const lessons = await Lesson.find(query)
       .populate('questions topic level skill')
       .select('title type topic level skill maxScore timeLimit createdAt')
@@ -558,10 +553,8 @@ const getLessonById = async (lessonId) => {
 // Hoàn thành bài học
 const completeLesson = async (userId, lessonId, score, questionResults, isRetried = false) => {
   try {
-    console.log(`Complete lesson called with userId: ${userId}, lessonId: ${lessonId}, score: ${score}`);
 
     if (!userId) {
-      console.log('No userId provided, handling as guest');
       return {
         success: true,
         statusCode: 200,
@@ -602,7 +595,6 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     if (userLevel.name === 'beginner' && lessonSkill !== 'vocabulary') {
       const completedVocab = user.completedBasicVocab.map(id => id.toString());
       if (!completedVocab.includes(lessonTopic)) {
-        console.log(`User ${userId} is beginner and has not completed vocab for topic ${lessonTopic}`);
         return {
           success: false,
           statusCode: 403,
@@ -612,7 +604,6 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     }
 
     const questionIds = questionResults.map(result => result.questionId);
-    console.log(`Checking questionIds: ${questionIds}`);
     const questions = await Question.find({ _id: { $in: questionIds }, lessonId });
     if (questions.length !== questionIds.length) {
       console.error(`Invalid questionIds: ${questionIds}, found: ${questions.map(q => q._id)}`);
@@ -669,11 +660,9 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       const hasTimeout = questionResults.some(result => result.isTimeout);
       if (hasTimeout && user.lives > 0) {
         user.lives -= 1;
-        console.log(`User ${userId} lost 1 life due to timeout. Lives remaining: ${user.lives}`);
       }
     }
 
-    console.log(`Creating progress for user ${userId}, lesson ${lessonId}`);
     const progress = await Progress.create({
       userId,
       lessonId,
@@ -686,7 +675,6 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       const completedVocab = user.completedBasicVocab.map(id => id.toString());
       if (!completedVocab.includes(lessonTopic)) {
         user.completedBasicVocab.push(lessonTopic);
-        console.log(`Added ${lessonTopic} to completedBasicVocab for user ${userId}`);
       }
     }
 
@@ -694,17 +682,13 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     if (user.xp >= user.userLevel * 1000) {
       user.userLevel += 1;
       user.lives = Math.min(user.lives + 1, 5);
-      console.log(`User ${userId} leveled up to userLevel ${user.userLevel}, lives: ${user.lives}`);
     }
     if (user.xp >= 1000 && userLevel.name === 'beginner') {
       user.level = (await Level.findOne({ name: 'intermediate' }))?._id;
-      console.log(`User ${userId} advanced to knowledge level: intermediate`);
     } else if (user.xp >= 2000 && userLevel.name === 'intermediate') {
       user.level = (await Level.findOne({ name: 'advanced' }))?._id;
-      console.log(`User ${userId} advanced to knowledge level: advanced`);
     }
 
-    console.log(`Saving user ${userId} with xp: ${user.xp}, level: ${user.level}, userLevel: ${user.userLevel}`);
     await user.save();
 
     return {
