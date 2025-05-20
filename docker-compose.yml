@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  # Backend service
+  backend:
+    build: .
+    container_name: quizlingo-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # Server Configuration
+      - PORT=8080
+      - NODE_ENV=${NODE_ENV:-development}
+      - HOST=${HOST:-0.0.0.0}
+
+      # MongoDB Configuration
+      - MONGODB_URI=mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-password}@mongodb:27017/${MONGODB_DATABASE:-quizlingo}?authSource=admin
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-quizlingo}
+
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-30d}
+
+      # Cloudinary Configuration
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - CLOUDINARY_FOLDER=${CLOUDINARY_FOLDER:-quizlingo}
+
+      # Email Configuration
+      - EMAIL_SERVICE=${EMAIL_SERVICE:-gmail}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM:-Quizlingo <noreply@quizlingo.com>}
+
+      # Frontend Configuration
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+
+      # Other Configuration
+      - TIMEZONE=${TIMEZONE:-Asia/Ho_Chi_Minh}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_PREFIX=${API_PREFIX:-/api/v1}
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - quizlingo-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/api/v1/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MongoDB service
+  mongodb:
+    image: mongo:latest
+    container_name: quizlingo-mongodb
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGODB_DATABASE:-quizlingo}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - quizlingo-network
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  quizlingo-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
