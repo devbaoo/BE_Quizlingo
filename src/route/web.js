@@ -9,6 +9,7 @@ import groqController from "../controllers/groqController.js";
 import topicController from "../controllers/topicController.js";
 import levelController from "../controllers/levelController.js";
 import skillController from "../controllers/skillController.js";
+import notificationController from "../controllers/notificationController.js";
 
 const router = express.Router();
 
@@ -168,6 +169,47 @@ const initWebRoutes = (app) => {
     protect,
     upload.single("audio"),
     groqController.evaluatePronunciation
+  );
+
+  // Notification routes
+  router.get(
+    "/notifications",
+    protect,
+    notificationController.getNotifications
+  );
+  router.patch(
+    "/notifications/:notificationId/read",
+    protect,
+    notificationController.markAsRead
+  );
+  router.patch(
+    "/notifications/mark-all-read",
+    protect,
+    notificationController.markAllAsRead
+  );
+  router.patch(
+    "/notifications/settings",
+    protect,
+    notificationController.updateSettings
+  );
+
+  // Admin notification routes
+  router.post(
+    "/admin/notifications",
+    protect,
+    authorize("admin"),
+    notificationController.createUserNotification
+  );
+  router.post(
+    "/admin/notifications/bulk",
+    protect,
+    authorize("admin"),
+    notificationController.createBulkNotifications
+  );
+  router.post(
+    "/admin/notifications/all",
+    protect,
+    notificationController.createNotificationForAllUsers
   );
 
   app.use("/api", router);
