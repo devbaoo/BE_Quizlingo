@@ -89,24 +89,26 @@ const getSkills = async (userId, topic, level) => {
 };
 
 // Tạo bài học (admin)
-const createLesson = async (lessonData) => {
+const createLesson = async (lessonData, token) => {
   try {
     const { title, type, topic, level, skill, questions } = lessonData;
 
+    // Kiểm tra các trường bắt buộc
     if (!title || !type || !topic || !level || !skill || !questions) {
       return {
         success: false,
         statusCode: 400,
-        message: 'Thiếu các trường bắt buộc: title, type, topic, level, skill, questions'
+        message: 'Thiếu các trường bắt buộc: title, type, topic, level, skill, questions',
       };
     }
 
+    // Kiểm tra topic, level, skill
     const topicDoc = await Topic.findById(topic);
     if (!topicDoc || !topicDoc.isActive) {
       return {
         success: false,
         statusCode: 400,
-        message: 'Chủ đề không hợp lệ hoặc không hoạt động'
+        message: 'Chủ đề không hợp lệ hoặc không hoạt động',
       };
     }
 
@@ -115,7 +117,7 @@ const createLesson = async (lessonData) => {
       return {
         success: false,
         statusCode: 400,
-        message: 'Cấp độ không hợp lệ hoặc không hoạt động'
+        message: 'Cấp độ không hợp lệ hoặc không hoạt động',
       };
     }
 
@@ -124,32 +126,36 @@ const createLesson = async (lessonData) => {
       return {
         success: false,
         statusCode: 400,
-        message: 'Kỹ năng không hợp lệ hoặc không hoạt động'
+        message: 'Kỹ năng không hợp lệ hoặc không hoạt động',
       };
     }
 
+    // Kiểm tra loại câu hỏi theo kỹ năng
     if (type === 'multiple_choice' && !skillDoc.supportedTypes.includes('multiple_choice')) {
       return {
         success: false,
         statusCode: 400,
-        message: 'Loại multiple_choice không được hỗ trợ bởi kỹ năng này'
-      };
-    }
-    if (type === 'text_input' && skillDoc.name !== 'writing') {
-      return {
-        success: false,
-        statusCode: 400,
-        message: 'Loại text_input chỉ áp dụng cho kỹ năng writing'
-      };
-    }
-    if (type === 'audio_input' && skillDoc.name !== 'speaking') {
-      return {
-        success: false,
-        statusCode: 400,
-        message: 'Loại audio_input chỉ áp dụng cho kỹ năng speaking'
+        message: 'Loại multiple_choice không được hỗ trợ bởi kỹ năng này',
       };
     }
 
+    if (type === 'text_input' && skillDoc.name.toLowerCase() !== 'writing') {
+      return {
+        success: false,
+        statusCode: 400,
+        message: 'Loại text_input chỉ áp dụng cho kỹ năng writing',
+      };
+    }
+
+    if (type === 'audio_input' && skillDoc.name.toLowerCase() !== 'speaking') {
+      return {
+        success: false,
+        statusCode: 400,
+        message: 'Loại audio_input chỉ áp dụng cho kỹ năng speaking',
+      };
+    }
+
+    // Tạo lesson mới
     const lesson = await Lesson.create({
       title,
       type,
@@ -158,29 +164,53 @@ const createLesson = async (lessonData) => {
       skill,
       maxScore: levelDoc.maxScore,
       timeLimit: levelDoc.timeLimit,
-      questions: []
+      questions: [],
     });
 
     const questionIds = [];
+
     for (const q of questions) {
-      if (skillDoc.name === 'listening' && q.content) {
-        const audioResult = await groqService.textToSpeech(q.content);
-        if (audioResult.success) {
-          q.audioContent = audioResult.audioContent;
+      // Gọi Groq TTS nếu là kỹ năng listening
+      if (skillDoc.name.toLowerCase() === 'listening' && q.content) {
+        console.log("→ Gọi TTS với nội dung:", q.content);
+
+        try {
+          const ttsResponse = await fetch(`${process.env.BASE_URL}/api/speech/text-to-speech`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ text: q.content, voice: 'female' }),
+          });
+
+          const ttsData = await ttsResponse.json();
+          console.log("← Kết quả TTS:", ttsData);
+
+          if (ttsData.success) {
+            q.audioContent = ttsData.audioContent;
+          } else {
+            console.warn(`TTS thất bại: ${ttsData.message}`);
+          }
+        } catch (err) {
+          console.error('Gọi TTS thất bại:', err.message);
         }
       }
 
+      // Tạo câu hỏi
       const question = await Question.create({
         lessonId: lesson._id,
         content: q.content,
         options: q.options || [],
         correctAnswer: q.correctAnswer,
         score: q.score || 100,
-        audioContent: q.audioContent
+        audioContent: q.audioContent,
       });
+
       questionIds.push(question._id);
     }
 
+    // Cập nhật danh sách câu hỏi
     lesson.questions = questionIds;
     await lesson.save();
 
@@ -197,15 +227,15 @@ const createLesson = async (lessonData) => {
         skill: lesson.skill,
         maxScore: lesson.maxScore,
         timeLimit: lesson.timeLimit,
-        createdAt: lesson.createdAt
-      }
+        createdAt: lesson.createdAt,
+      },
     };
   } catch (error) {
     console.error('Create lesson error:', error);
     return {
       success: false,
       statusCode: 400,
-      message: error.message || 'Lỗi khi tạo bài học'
+      message: error.message || 'Lỗi khi tạo bài học',
     };
   }
 };
