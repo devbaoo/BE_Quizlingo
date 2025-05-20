@@ -47,7 +47,7 @@ const uploadImage = async (file) => {
     return {
       success: true,
       statusCode: 200,
-      message: "Image uploaded successfully",
+      message: "Tải ảnh lên thành công",
       imageUrl: result.secure_url,
       imageId: result.public_id,
       imageData: result,
@@ -57,7 +57,7 @@ const uploadImage = async (file) => {
     return {
       success: false,
       statusCode: 500,
-      message: "Error uploading image to Cloudinary",
+      message: "Lỗi khi tải ảnh lên Cloudinary",
       error: error.message,
     };
   }
@@ -75,13 +75,13 @@ const deleteImage = async (publicId) => {
     if (result.result === "ok" || result.result === "not found") {
       return {
         success: true,
-        message: "Image deleted successfully",
+        message: "Xóa ảnh thành công",
         result,
       };
     } else {
       return {
         success: false,
-        message: "Failed to delete image",
+        message: "Không thể xóa ảnh",
         result,
       };
     }
@@ -89,7 +89,7 @@ const deleteImage = async (publicId) => {
     console.error("Cloudinary delete error:", error);
     return {
       success: false,
-      message: "Error deleting image",
+      message: "Lỗi khi xóa ảnh",
       error: error.message,
     };
   }

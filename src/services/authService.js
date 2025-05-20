@@ -13,7 +13,7 @@ let register = async (userData, baseUrl) => {
     return {
       success: false,
       statusCode: 400,
-      message: "Email already registered",
+      message: "Email đã được đăng ký",
     };
   }
 
@@ -45,7 +45,7 @@ let register = async (userData, baseUrl) => {
     success: true,
     statusCode: 201,
     message:
-      "User registered successfully. Please verify your account when convenient.",
+      "Đăng ký thành công. Vui lòng xác thực tài khoản của bạn khi thuận tiện.",
     token,
     user: {
       id: user._id,
@@ -65,7 +65,7 @@ let login = async (email, password) => {
     return {
       success: false,
       statusCode: 400,
-      message: "Invalid credentials",
+      message: "Thông tin đăng nhập không hợp lệ",
     };
   }
 
@@ -74,7 +74,7 @@ let login = async (email, password) => {
     return {
       success: false,
       statusCode: 400,
-      message: "Invalid credentials",
+      message: "Thông tin đăng nhập không hợp lệ",
     };
   }
 
@@ -112,7 +112,7 @@ let login = async (email, password) => {
   return {
     success: true,
     statusCode: 200,
-    message: "Login successful",
+    message: "Đăng nhập thành công",
     token,
     user: {
       id: user._id,
@@ -199,7 +199,7 @@ const resendVerificationEmail = async (email, baseUrl) => {
       return {
         success: false,
         statusCode: 404,
-        message: "User not found",
+        message: "Không tìm thấy người dùng",
       };
     }
 
@@ -207,7 +207,7 @@ const resendVerificationEmail = async (email, baseUrl) => {
       return {
         success: false,
         statusCode: 400,
-        message: "User already verified",
+        message: "Người dùng đã được xác thực",
       };
     }
 
@@ -217,7 +217,7 @@ const resendVerificationEmail = async (email, baseUrl) => {
       return {
         success: false,
         statusCode: 500,
-        message: "Failed to send verification email",
+        message: "Không thể gửi email xác thực",
         error: emailResult.error,
       };
     }
@@ -225,14 +225,14 @@ const resendVerificationEmail = async (email, baseUrl) => {
     return {
       success: true,
       statusCode: 200,
-      message: "Verification email sent successfully",
+      message: "Đã gửi email xác thực thành công",
     };
   } catch (error) {
     console.error("Resend verification error:", error);
     return {
       success: false,
       statusCode: 500,
-      message: "Server error",
+      message: "Lỗi máy chủ",
       error: error.message,
     };
   }
