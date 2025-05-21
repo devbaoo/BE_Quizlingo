@@ -10,6 +10,7 @@ import topicController from "../controllers/topicController.js";
 import levelController from "../controllers/levelController.js";
 import skillController from "../controllers/skillController.js";
 import notificationController from "../controllers/notificationController.js";
+import progressController from "../controllers/progressController.js";
 
 const router = express.Router();
 
@@ -156,6 +157,11 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     lessonController.deleteLesson
   );
+
+  // Progress routes
+  router.get('/check-completion/:lessonId', protect, progressController.checkLessonCompletion);
+  router.get('/progression', protect, progressController.getUserLessonProgression);
+
 
   // Groq AI routes
   router.post("/speech/text-to-speech", groqController.textToSpeech);

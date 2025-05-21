@@ -636,11 +636,13 @@ const upgradeUserLevel = async (user, currentLevelId) => {
 
 const completeLesson = async (userId, lessonId, score, questionResults, isRetried = false) => {
   try {
+
     if (!userId) {
       return {
         success: true,
         statusCode: 200,
         message: 'Hoàn thành bài học (guest)',
+        status: 'COMPLETE', // Add status for guest users too
         score,
         questionResults
       };
@@ -659,11 +661,9 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       user.level = firstLevel?._id;
     }
 
-
     const lessonSkill = lesson.skill.name;
     const lessonTopic = lesson.topic._id.toString();
     const userLevel = await Level.findById(user.level);
-
     if (userLevel.name === 'beginner' && lessonSkill !== 'vocabulary') {
       const completedVocab = user.completedBasicVocab.map(id => id.toString());
       if (!completedVocab.includes(lessonTopic)) {
@@ -721,16 +721,27 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
     const correctAnswers = questionResults.filter(r => r.isCorrect).length;
     const accuracy = (correctAnswers / questionResults.length) * 100;
+
+    // Determine lesson completion status based on accuracy
+    const lessonStatus = accuracy >= 70 ? 'COMPLETE' : 'FAILED';
+
     if (accuracy < 70 && user.lives > 0) {
       user.lives -= 1;
       user.lastLivesRegenerationTime = new Date();
     }
 
-    const progress = await Progress.create({ userId, lessonId, score, isRetried, questionResults });
+    const progress = await Progress.create({
+      userId,
+      lessonId,
+      score,
+      status: lessonStatus,
+      isRetried,
+      questionResults
+    });
 
     if (userLevel.name === 'beginner' && lessonSkill === 'vocabulary') {
       const completedVocab = user.completedBasicVocab.map(id => id.toString());
-      if (!completedVocab.includes(lessonTopic)) {
+      if (!completedVocab.includes(lessonTopic) && lessonStatus === 'COMPLETE') {
         user.completedBasicVocab.push(lessonTopic);
       }
     }
@@ -751,8 +762,8 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     return {
       success: true,
       statusCode: 201,
-      message: 'Hoàn thành bài học thành công',
-      status: 'COMPLETE',
+      message: lessonStatus === 'COMPLETE' ? 'Hoàn thành bài học thành công' : 'Bài học chưa được hoàn thành',
+      status: lessonStatus,
       progress,
       user: {
         level: user.level,
@@ -948,5 +959,5 @@ export default {
   getAllLessonsForAdmin,
   deleteLesson,
   updateLesson,
-  checkAndRegenerateLives
+  checkAndRegenerateLives,
 };
