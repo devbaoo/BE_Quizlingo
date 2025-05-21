@@ -61,6 +61,10 @@ const UserSchema = new mongoose.Schema({
     min: [0, "Số mạng không được nhỏ hơn 0"],
     max: [5, "Số mạng không được lớn hơn 5"],
   },
+  lastLivesRegenerationTime: {
+    type: Date,
+    default: Date.now,
+  },
   completedBasicVocab: [
     {
       type: mongoose.Schema.Types.ObjectId,

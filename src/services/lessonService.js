@@ -8,6 +8,29 @@ import Level from '../models/level.js';
 import Skill from '../models/skill.js';
 import groqService from './groqService.js';
 
+// Function to check and regenerate lives
+const checkAndRegenerateLives = async (user) => {
+  if (!user || user.lives >= 5) return;
+
+  const now = new Date();
+  const lastRegeneration = user.lastLivesRegenerationTime || now;
+  const timeDiff = Math.floor((now - lastRegeneration) / (1000 * 60)); // Time difference in minutes
+
+  if (timeDiff >= 10) {
+    // Calculate how many lives to regenerate (1 per 10 minutes, up to max 5)
+    const livesToRegenerate = Math.min(Math.floor(timeDiff / 10), 5 - user.lives);
+
+    if (livesToRegenerate > 0) {
+      user.lives = Math.min(user.lives + livesToRegenerate, 5);
+      user.lastLivesRegenerationTime = now;
+      await user.save();
+      console.log(`Regenerated ${livesToRegenerate} lives for user ${user._id}`);
+    }
+  }
+
+  return user;
+};
+
 // Lấy danh sách topic
 const getTopics = async () => {
   try {
@@ -614,6 +637,9 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       };
     }
 
+    // Check and regenerate lives
+    await checkAndRegenerateLives(user);
+
     if (!user.level) {
       console.warn(`User ${userId} has no level, setting default to 'beginner'`);
       user.level = (await Level.findOne({ name: 'beginner' }))?._id;
@@ -690,6 +716,7 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       const hasTimeout = questionResults.some(result => result.isTimeout);
       if (hasTimeout && user.lives > 0) {
         user.lives -= 1;
+        user.lastLivesRegenerationTime = new Date();
       }
     }
 
@@ -725,6 +752,7 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       success: true,
       statusCode: 201,
       message: 'Hoàn thành bài học thành công',
+      status: 'COMPLETE',
       progress,
       user: {
         level: user.level,
@@ -735,6 +763,7 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
         preferredSkills: user.preferredSkills
       }
     };
+
   } catch (error) {
     console.error('Complete lesson error:', {
       message: error.message,
@@ -766,6 +795,9 @@ const retryLesson = async (userId, lessonId) => {
       };
     }
 
+    // Check and regenerate lives before checking if user has enough lives
+    await checkAndRegenerateLives(user);
+
     if (user.lives <= 0) {
       return {
         success: false,
@@ -776,6 +808,7 @@ const retryLesson = async (userId, lessonId) => {
 
     await Progress.deleteMany({ userId, lessonId });
     user.lives -= 1;
+    user.lastLivesRegenerationTime = new Date();
     await user.save();
 
     return {
@@ -920,5 +953,6 @@ export default {
   getSkills,
   getAllLessonsForAdmin,
   deleteLesson,
-  updateLesson
+  updateLesson,
+  checkAndRegenerateLives
 };
