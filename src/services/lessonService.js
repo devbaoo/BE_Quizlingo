@@ -10,6 +10,28 @@ import groqService from "./groqService.js";
 import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 
+const checkAndRegenerateLives = async (user) => {
+  if (!user || user.lives >= 5) return;
+
+  const now = new Date();
+  const lastRegeneration = user.lastLivesRegenerationTime || now;
+  const timeDiff = Math.floor((now - lastRegeneration) / (1000 * 60)); // Time difference in minutes
+
+  if (timeDiff >= 10) {
+    // Calculate how many lives to regenerate (1 per 10 minutes, up to max 5)
+    const livesToRegenerate = Math.min(Math.floor(timeDiff / 10), 5 - user.lives);
+
+    if (livesToRegenerate > 0) {
+      user.lives = Math.min(user.lives + livesToRegenerate, 5);
+      user.lastLivesRegenerationTime = now;
+      await user.save();
+      console.log(`Regenerated ${livesToRegenerate} lives for user ${user._id}`);
+    }
+  }
+
+  return user;
+};
+
 // Lấy danh sách topic
 const getTopics = async () => {
   try {
@@ -623,48 +645,74 @@ const getLessonById = async (lessonId) => {
   }
 };
 
+// Calculate XP required for the next level
+const getRequiredXpForLevel = (level) => {
+  return Math.floor(200 * Math.pow(1.5, level - 1));
+};
+
+const upgradeUserLevel = async (user, currentLevelId) => {
+  const allLevels = await Level.find().sort({ order: 1 });
+  const currentIndex = allLevels.findIndex(l => l._id.toString() === currentLevelId.toString());
+
+  // Nếu user đang ở level cuối cùng, hoặc không tồn tại trong danh sách -> return
+  if (currentIndex === -1 || currentIndex >= allLevels.length - 1) return;
+
+  const nextLevel = allLevels[currentIndex + 1];
+
+  // Đếm số bài học đạt yêu cầu
+  const passedLessons = await Progress.countDocuments({
+    userId: user._id,
+    score: { $gte: nextLevel.minScoreRequired || 70 }
+  });
+
+  const enoughXp = user.userLevel >= nextLevel.minUserLevel;
+  const enoughLessons = passedLessons >= nextLevel.minLessonPassed;
+
+  // Chỉ nâng cấp nếu user đang ở cấp thấp hơn
+  if (enoughXp && enoughLessons) {
+    user.level = nextLevel._id;
+    console.log(`User ${user._id} upgraded to ${nextLevel.name}`);
+  }
+};
+
 // Hoàn thành bài học
-const completeLesson = async (
-  userId,
-  lessonId,
-  score,
-  questionResults,
-  isRetried = false
-) => {
+const completeLesson = async (userId, lessonId, score, questionResults, isRetried = false) => {
   try {
     if (!userId) {
       return {
         success: true,
         statusCode: 200,
-        message: "Hoàn thành bài học (guest)",
+        message: 'Hoàn thành bài học (guest)',
+        status: 'COMPLETE',
         score,
-        questionResults,
+        questionResults
       };
     }
 
-    const lesson = await Lesson.findById(lessonId).populate(
-      "skill topic level"
-    );
-    if (!lesson) {
-      console.error(`Lesson not found: ${lessonId}`);
+    // Kiểm tra nếu đã hoàn thành rồi thì không xử lý lại
+    const existingProgress = await Progress.findOne({ userId, lessonId });
+    if (existingProgress && existingProgress.status === 'COMPLETE') {
       return {
         success: false,
-        statusCode: 404,
-        message: "Không tìm thấy bài học",
+        statusCode: 409,
+        message: 'Bài học đã được hoàn thành trước đó',
+        status: existingProgress.status,
+        progress: existingProgress
       };
+    }
+
+    const lesson = await Lesson.findById(lessonId).populate('skill topic level');
+    if (!lesson) {
+      return { success: false, statusCode: 404, message: 'Không tìm thấy bài học' };
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      console.error(`User not found: ${userId}`);
-      return {
-        success: false,
-        statusCode: 404,
-        message: "Không tìm thấy người dùng",
-      };
+      return { success: false, statusCode: 404, message: 'Không tìm thấy người dùng' };
     }
 
-    // Kiểm tra package premium
+    await checkAndRegenerateLives(user);
+
     const now = moment().tz("Asia/Ho_Chi_Minh");
     const activePackage = await UserPackage.findOne({
       user: userId,
@@ -678,141 +726,108 @@ const completeLesson = async (
     const unlimitedLives = hasPremium.unlimitedLives || false;
 
     if (!user.level) {
-      console.warn(
-        `User ${userId} has no level, setting default to 'beginner'`
-      );
       user.level = (await Level.findOne({ name: "beginner" }))?._id;
     }
 
     const lessonSkill = lesson.skill.name;
     const lessonTopic = lesson.topic._id.toString();
     const userLevel = await Level.findById(user.level);
-    if (userLevel.name === "beginner" && lessonSkill !== "vocabulary") {
-      const completedVocab = user.completedBasicVocab.map((id) =>
-        id.toString()
-      );
+
+    if (userLevel.name === 'beginner' && lessonSkill !== 'vocabulary') {
+      const completedVocab = user.completedBasicVocab.map(id => id.toString());
       if (!completedVocab.includes(lessonTopic)) {
-        return {
-          success: false,
-          statusCode: 403,
-          message: "Vui lòng hoàn thành từ vựng cơ bản trước",
+        return { success: false, statusCode: 403, message: 'Vui lòng hoàn thành từ vựng cơ bản trước' };
+      }
+    }
+
+    const questionIds = questionResults.map(r => r.questionId);
+    const questions = await Question.find({ _id: { $in: questionIds }, lessonId });
+    if (questions.length !== questionIds.length) {
+      return { success: false, statusCode: 400, message: 'Một hoặc nhiều questionId không hợp lệ hoặc không thuộc lesson' };
+    }
+
+    for (let i = 0; i < questionResults.length; i++) {
+      const result = questionResults[i];
+      const question = questions.find(q => q._id.toString() === result.questionId.toString());
+
+      if (lessonSkill === 'speaking' && result.audioAnswer && question) {
+        const evalRes = await groqService.evaluatePronunciation(
+          question.correctAnswer,
+          Buffer.from(result.audioAnswer, 'base64')
+        );
+        questionResults[i] = evalRes.success ? {
+          ...result,
+          score: evalRes.score,
+          feedback: evalRes.feedback,
+          transcription: evalRes.transcription,
+          isCorrect: evalRes.score >= 70,
+          answer: evalRes.transcription || '[UNANSWERED]'
+        } : {
+          ...result,
+          score: 0,
+          feedback: evalRes.message,
+          isCorrect: false,
+          answer: '[ERROR]'
+        };
+      } else {
+        const answer = result.answer || (result.isTimeout ? '[TIMEOUT]' : '[UNANSWERED]');
+        const isCorrect = answer === question.correctAnswer;
+        const questionScore = isCorrect ? question.score : 0;
+        questionResults[i] = {
+          ...result,
+          answer,
+          isCorrect,
+          score: questionScore
         };
       }
     }
 
-    const questionIds = questionResults.map((result) => result.questionId);
-    const questions = await Question.find({
-      _id: { $in: questionIds },
-      lessonId,
-    });
-    if (questions.length !== questionIds.length) {
-      console.error(
-        `Invalid questionIds: ${questionIds}, found: ${questions.map(
-          (q) => q._id
-        )}`
-      );
-      return {
-        success: false,
-        statusCode: 400,
-        message:
-          "Một hoặc nhiều questionId không hợp lệ hoặc không thuộc lesson",
-      };
-    }
+    score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
+    const correctAnswers = questionResults.filter(r => r.isCorrect).length;
+    const accuracy = (correctAnswers / questionResults.length) * 100;
+    const lessonStatus = accuracy >= 70 ? 'COMPLETE' : 'FAILED';
 
-    // Xử lý đánh giá phát âm nếu là bài speaking
-    if (lessonSkill === "speaking") {
-      for (let i = 0; i < questionResults.length; i++) {
-        const result = questionResults[i];
-        const question = questions.find(
-          (q) => q._id.toString() === result.questionId.toString()
-        );
-
-        if (result.audioAnswer && question) {
-          const evaluationResult = await groqService.evaluatePronunciation(
-            question.correctAnswer,
-            Buffer.from(result.audioAnswer, "base64") // Giả sử audioAnswer là base64
-          );
-
-          if (evaluationResult.success) {
-            questionResults[i].score = evaluationResult.score;
-            questionResults[i].feedback = evaluationResult.feedback;
-            questionResults[i].transcription = evaluationResult.transcription;
-            questionResults[i].isCorrect = evaluationResult.score >= 70;
-            questionResults[i].answer = evaluationResult.transcription;
-          } else {
-            questionResults[i].score = 0;
-            questionResults[i].feedback = evaluationResult.message;
-            questionResults[i].isCorrect = false;
-            questionResults[i].answer = "";
-          }
-        } else {
-          questionResults[i].isCorrect =
-            result.answer === question.correctAnswer;
-          questionResults[i].answer = result.answer || "";
-        }
-      }
-
-      score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
-    } else {
-      for (let i = 0; i < questionResults.length; i++) {
-        const result = questionResults[i];
-        const question = questions.find(
-          (q) => q._id.toString() === result.questionId.toString()
-        );
-        questionResults[i].isCorrect = result.answer === question.correctAnswer;
-        questionResults[i].score = result.isCorrect ? question.score : 0;
-        questionResults[i].answer = result.answer || "";
-      }
-      score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
-    }
-
-    if (userLevel.name !== "beginner" && lesson.timeLimit > 0) {
-      const hasTimeout = questionResults.some((result) => result.isTimeout);
-      if (hasTimeout && user.lives > 0 && !unlimitedLives) {
-        user.lives -= 1;
-      }
+    const hasTimeout = questionResults.some(r => r.isTimeout);
+    if ((accuracy < 70 || hasTimeout) && user.lives > 0 && !unlimitedLives) {
+      user.lives -= 1;
+      user.lastLivesRegenerationTime = new Date();
     }
 
     const progress = await Progress.create({
       userId,
       lessonId,
       score,
+      status: lessonStatus,
       isRetried,
-      questionResults,
+      questionResults
     });
 
-    if (userLevel.name === "beginner" && lessonSkill === "vocabulary") {
-      const completedVocab = user.completedBasicVocab.map((id) =>
-        id.toString()
-      );
+    if (userLevel.name === 'beginner' && lessonSkill === 'vocabulary' && lessonStatus === 'COMPLETE') {
+      const completedVocab = user.completedBasicVocab.map(id => id.toString());
       if (!completedVocab.includes(lessonTopic)) {
         user.completedBasicVocab.push(lessonTopic);
       }
     }
 
-    // Tính XP với premium
     let earnedXP = Math.round(score / 10);
-    if (doubleXP) {
-      earnedXP *= 2;
-    }
+    if (doubleXP) earnedXP *= 2;
     user.xp += earnedXP;
 
-    if (user.xp >= user.userLevel * 1000) {
+    const requiredXp = getRequiredXpForLevel(user.userLevel);
+    if (user.xp >= requiredXp) {
       user.userLevel += 1;
+      user.xp = 0;
       user.lives = Math.min(user.lives + 1, 5);
     }
-    if (user.xp >= 1000 && userLevel.name === "beginner") {
-      user.level = (await Level.findOne({ name: "intermediate" }))?._id;
-    } else if (user.xp >= 5000 && userLevel.name === "intermediate") {
-      user.level = (await Level.findOne({ name: "advanced" }))?._id;
-    }
 
+    await upgradeUserLevel(user, user.level);
     await user.save();
 
     return {
       success: true,
       statusCode: 201,
-      message: "Hoàn thành bài học thành công",
+      message: lessonStatus === 'COMPLETE' ? 'Hoàn thành bài học thành công' : 'Bài học chưa được hoàn thành',
+      status: lessonStatus,
       progress,
       user: {
         level: user.level,
@@ -821,12 +836,13 @@ const completeLesson = async (
         lives: user.lives,
         completedBasicVocab: user.completedBasicVocab,
         preferredSkills: user.preferredSkills,
+        nextLevelXp: getRequiredXpForLevel(user.userLevel) - user.xp
       },
       premium: {
         doubleXP,
         unlimitedLives,
-        earnedXP,
-      },
+        earnedXP
+      }
     };
   } catch (error) {
     console.error("Complete lesson error:", {
@@ -840,10 +856,11 @@ const completeLesson = async (
     return {
       success: false,
       statusCode: 500,
-      message: `Lỗi khi hoàn thành bài học: ${error.message}`,
+      message: `Lỗi khi hoàn thành bài học: ${error.message}`
     };
   }
 };
+
 
 // Làm lại bài học
 const retryLesson = async (userId, lessonId) => {
@@ -855,11 +872,14 @@ const retryLesson = async (userId, lessonId) => {
       return {
         success: false,
         statusCode: 404,
-        message: "Không tìm thấy người dùng hoặc bài học",
+        message: 'Không tìm thấy người dùng hoặc bài học'
       };
     }
 
-    // Kiểm tra package premium
+    // Regenerate lives trước nếu cần
+    await checkAndRegenerateLives(user);
+
+    // Kiểm tra gói premium
     const now = moment().tz("Asia/Ho_Chi_Minh");
     const activePackage = await UserPackage.findOne({
       user: userId,
@@ -871,38 +891,40 @@ const retryLesson = async (userId, lessonId) => {
     const hasPremium = activePackage?.package?.features || {};
     const unlimitedLives = hasPremium.unlimitedLives || false;
 
-    // Chỉ kiểm tra lives nếu không có unlimitedLives
+    // Nếu không có quyền lợi lives không giới hạn thì phải kiểm tra
     if (!unlimitedLives && user.lives <= 0) {
       return {
         success: false,
         statusCode: 403,
-        message: "Không đủ lượt chơi để làm lại",
+        message: 'Không đủ lượt chơi để làm lại'
       };
     }
 
+    // Xoá tiến trình bài học cũ
     await Progress.deleteMany({ userId, lessonId });
 
-    // Chỉ trừ lives nếu không có unlimitedLives
+    // Trừ lives nếu không phải là premium
     if (!unlimitedLives) {
       user.lives -= 1;
+      user.lastLivesRegenerationTime = new Date();
       await user.save();
     }
 
     return {
       success: true,
       statusCode: 200,
-      message: "Có thể làm lại bài học",
+      message: 'Có thể làm lại bài học',
       lives: user.lives,
       premium: {
-        unlimitedLives,
-      },
+        unlimitedLives
+      }
     };
   } catch (error) {
-    console.error("Retry lesson error:", error);
+    console.error('Retry lesson error:', error);
     return {
       success: false,
       statusCode: 500,
-      message: "Lỗi khi làm lại bài học",
+      message: 'Lỗi khi làm lại bài học'
     };
   }
 };
@@ -1034,4 +1056,5 @@ export default {
   getAllLessonsForAdmin,
   deleteLesson,
   updateLesson,
+  checkAndRegenerateLives
 };
