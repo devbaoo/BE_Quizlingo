@@ -233,6 +233,73 @@ const softDeleteUser = async (userId) => {
   }
 };
 
+const checkAndRegenerateLives = async (user) => {
+  if (!user || user.lives >= 5) return;
+
+  const now = new Date();
+  const lastRegeneration = user.lastLivesRegenerationTime || now;
+  const timeDiff = Math.floor((now - lastRegeneration) / (1000 * 60)); // Time difference in minutes
+
+  if (timeDiff >= 10) {
+    // Calculate how many lives to regenerate (1 per 10 minutes, up to max 5)
+    const livesToRegenerate = Math.min(Math.floor(timeDiff / 10), 5 - user.lives);
+
+    if (livesToRegenerate > 0) {
+      user.lives = Math.min(user.lives + livesToRegenerate, 5);
+      user.lastLivesRegenerationTime = now;
+      await user.save();
+      console.log(`Regenerated ${livesToRegenerate} lives for user ${user._id}`);
+    }
+  }
+
+  return user;
+};
+
+const getUserLivesStatus = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: 'Không tìm thấy người dùng'
+      };
+    }
+
+    // Check and regenerate lives
+    await checkAndRegenerateLives(user);
+
+    // Calculate time until next life regeneration
+    let timeUntilNextLife = null;
+    if (user.lives < 5) {
+      const lastRegeneration = user.lastLivesRegenerationTime || new Date();
+      const now = new Date();
+      const timeSinceLastRegen = Math.floor((now - lastRegeneration) / (1000 * 60)); // minutes
+      timeUntilNextLife = 10 - (timeSinceLastRegen % 10); // minutes until next 10-minute mark
+      if (timeUntilNextLife === 10) timeUntilNextLife = 0;
+    }
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy thông tin lives thành công',
+      data: {
+        lives: user.lives,
+        maxLives: 5,
+        timeUntilNextLife: timeUntilNextLife,
+        lastRegenerationTime: user.lastLivesRegenerationTime
+      }
+    };
+  } catch (error) {
+    console.error('Get user lives status error:', error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: 'Lỗi khi lấy thông tin lives'
+    };
+  }
+};
+
 export default {
   getUserProfile,
   updateUserProfile,
@@ -240,4 +307,6 @@ export default {
   softDeleteUser,
   chooseLevel,
   chooseSkill,
+  getUserLivesStatus,
+  checkAndRegenerateLives
 };
