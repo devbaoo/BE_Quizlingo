@@ -71,6 +71,7 @@ const completeLesson = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
+      status: result.status,
       progress: result.progress,
       user: result.user,
     });

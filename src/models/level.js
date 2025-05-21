@@ -1,3 +1,4 @@
+// Updated Level Schema with upgrade conditions
 import mongoose from 'mongoose';
 
 const levelSchema = new mongoose.Schema({
@@ -17,6 +18,22 @@ const levelSchema = new mongoose.Schema({
         type: Number,
         required: [true, 'Thời gian giới hạn là bắt buộc'],
         min: [0, 'Thời gian giới hạn không được nhỏ hơn 0']
+    },
+    minUserLevel: {
+        type: Number,
+        default: 1
+    },
+    minLessonPassed: {
+        type: Number,
+        default: 0
+    },
+    minScoreRequired: {
+        type: Number,
+        default: 70
+    },
+    order: {
+        type: Number,
+        required: true
     },
     isActive: {
         type: Boolean,
