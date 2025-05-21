@@ -197,6 +197,25 @@ const chooseSkill = async (req, res) => {
   }
 };
 
+const getUserLivesStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await userService.getUserLivesStatus(userId);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      data: result.data || null
+    });
+  } catch (error) {
+    console.error('GetUserLivesStatus controller error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 export default {
   getUserProfile,
   updateUserProfile,
@@ -206,4 +225,5 @@ export default {
   chooseLevel,
   chooseSkill,
   handleAvatarUpload,
+  getUserLivesStatus,
 };
