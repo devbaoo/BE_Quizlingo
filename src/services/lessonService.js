@@ -608,25 +608,31 @@ const getRequiredXpForLevel = (level) => {
   return Math.floor(200 * Math.pow(1.5, level - 1));
 };
 
-const upgradeUserLevel = async (user, userLevelId) => {
+const upgradeUserLevel = async (user, currentLevelId) => {
   const allLevels = await Level.find().sort({ order: 1 });
-  const currentLevelIndex = allLevels.findIndex(l => l._id.toString() === userLevelId.toString());
-  if (currentLevelIndex === -1 || currentLevelIndex >= allLevels.length - 1) return;
+  const currentIndex = allLevels.findIndex(l => l._id.toString() === currentLevelId.toString());
 
-  const nextLevel = allLevels[currentLevelIndex + 1];
+  // Nếu user đang ở level cuối cùng, hoặc không tồn tại trong danh sách -> return
+  if (currentIndex === -1 || currentIndex >= allLevels.length - 1) return;
+
+  const nextLevel = allLevels[currentIndex + 1];
+
+  // Đếm số bài học đạt yêu cầu
   const passedLessons = await Progress.countDocuments({
     userId: user._id,
     score: { $gte: nextLevel.minScoreRequired || 70 }
   });
 
-  const hasEnoughXpLevel = user.userLevel >= nextLevel.minUserLevel;
-  const hasEnoughLessons = passedLessons >= nextLevel.minLessonPassed;
+  const enoughXp = user.userLevel >= nextLevel.minUserLevel;
+  const enoughLessons = passedLessons >= nextLevel.minLessonPassed;
 
-  if (hasEnoughXpLevel && hasEnoughLessons) {
+  // Chỉ nâng cấp nếu user đang ở cấp thấp hơn
+  if (enoughXp && enoughLessons) {
     user.level = nextLevel._id;
     console.log(`User ${user._id} upgraded to ${nextLevel.name}`);
   }
 };
+
 
 const completeLesson = async (userId, lessonId, score, questionResults, isRetried = false) => {
   try {
@@ -649,8 +655,10 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     await checkAndRegenerateLives(user);
 
     if (!user.level) {
-      user.level = (await Level.findOne({ name: 'beginner' }))?._id;
+      const firstLevel = await Level.findOne().sort({ order: 1 });
+      user.level = firstLevel?._id;
     }
+
 
     const lessonSkill = lesson.skill.name;
     const lessonTopic = lesson.topic._id.toString();

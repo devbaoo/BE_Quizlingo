@@ -23,12 +23,22 @@ const getLevels = async () => {
 
 const createLevel = async (levelData) => {
   try {
-    const { name, maxScore, timeLimit, description } = levelData;
-    if (!name || !maxScore || timeLimit === undefined) {
+    const {
+      name,
+      maxScore,
+      timeLimit,
+      description,
+      minUserLevel = 1,
+      minLessonPassed = 0,
+      minScoreRequired = 70,
+      order
+    } = levelData;
+
+    if (!name || !maxScore || timeLimit === undefined || order === undefined) {
       return {
         success: false,
         statusCode: 400,
-        message: "Tên cấp độ, điểm tối đa, và thời gian giới hạn là bắt buộc",
+        message: "Thiếu các trường bắt buộc: name, maxScore, timeLimit, order",
       };
     }
 
@@ -37,7 +47,12 @@ const createLevel = async (levelData) => {
       maxScore,
       timeLimit,
       description,
+      minUserLevel,
+      minLessonPassed,
+      minScoreRequired,
+      order
     });
+
     return {
       success: true,
       statusCode: 201,
@@ -53,6 +68,7 @@ const createLevel = async (levelData) => {
     };
   }
 };
+
 
 const updateLevel = async (id, levelData) => {
   try {
