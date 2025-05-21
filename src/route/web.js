@@ -10,7 +10,10 @@ import topicController from "../controllers/topicController.js";
 import levelController from "../controllers/levelController.js";
 import skillController from "../controllers/skillController.js";
 import notificationController from "../controllers/notificationController.js";
+import packageController from "../controllers/packageController.js";
+import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
+
 
 const router = express.Router();
 
@@ -217,6 +220,72 @@ const initWebRoutes = (app) => {
     "/admin/notifications/all",
     protect,
     notificationController.createNotificationForAllUsers
+  );
+
+  // Package routes (public)
+  router.get("/packages", packageController.getActivePackages);
+  router.get("/packages/:packageId", packageController.getPackageDetails);
+  router.get(
+    "/packages/user/active",
+    protect,
+    packageController.getUserActivePackage
+  );
+  router.post(
+    "/packages/purchase",
+    protect,
+    packageController.createPackagePurchase
+  );
+  router.post(
+    "/packages/payment/webhook",
+    packageController.handlePaymentWebhook
+  );
+  router.get(
+    "/packages/payment/:transactionId/status",
+    protect,
+    packageController.checkPaymentStatus
+  );
+  router.post(
+    "/packages/payment/:transactionId/cancel",
+    protect,
+    packageController.cancelPayment
+  );
+
+  // Admin package routes
+  router.get(
+    "/admin/packages",
+    protect,
+    authorize("admin"),
+    adminPackageController.getAllPackages
+  );
+  router.post(
+    "/admin/packages",
+    protect,
+    authorize("admin"),
+    adminPackageController.createPackage
+  );
+  router.put(
+    "/admin/packages/:packageId",
+    protect,
+    authorize("admin"),
+    adminPackageController.updatePackage
+  );
+  router.delete(
+    "/admin/packages/:packageId",
+    protect,
+    authorize("admin"),
+    adminPackageController.deletePackage
+  );
+  router.get(
+    "/admin/packages/stats",
+    protect,
+    authorize("admin"),
+    adminPackageController.getPackageStats
+  );
+  router.post(
+    "/admin/packages/user/:userId",
+    protect,
+    authorize("admin"),
+    adminPackageController.manageUserPackage
   );
 
   app.use("/api", router);
