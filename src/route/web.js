@@ -14,7 +14,6 @@ import packageController from "../controllers/packageController.js";
 import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
 
-
 const router = express.Router();
 
 const initWebRoutes = (app) => {
@@ -47,7 +46,7 @@ const initWebRoutes = (app) => {
   router.put("/users/profile", protect, userController.updateUserProfile);
   router.post("/user/level", protect, userController.chooseLevel);
   router.post("/user/skill", protect, userController.chooseSkill);
-  router.get('/user/lives-status', protect, userController.getUserLivesStatus)
+  router.get("/user/lives-status", protect, userController.getUserLivesStatus);
 
   // Route avatar sử dụng middleware từ controller
   router.post(
@@ -162,9 +161,16 @@ const initWebRoutes = (app) => {
   );
 
   // Progress routes
-  router.get('/check-completion/:lessonId', protect, progressController.checkLessonCompletion);
-  router.get('/progression', protect, progressController.getUserLessonProgression);
-
+  router.get(
+    "/check-completion/:lessonId",
+    protect,
+    progressController.checkLessonCompletion
+  );
+  router.get(
+    "/progression",
+    protect,
+    progressController.getUserLessonProgression
+  );
 
   // Groq AI routes
   router.post("/speech/text-to-speech", groqController.textToSpeech);
@@ -280,12 +286,6 @@ const initWebRoutes = (app) => {
     protect,
     authorize("admin"),
     adminPackageController.getPackageStats
-  );
-  router.post(
-    "/admin/packages/user/:userId",
-    protect,
-    authorize("admin"),
-    adminPackageController.manageUserPackage
   );
 
   app.use("/api", router);

@@ -30,18 +30,6 @@ const packageSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
-      noAds: {
-        type: Boolean,
-        default: false,
-      },
-      customAvatar: {
-        type: Boolean,
-        default: false,
-      },
-      prioritySupport: {
-        type: Boolean,
-        default: false,
-      },
     },
     isActive: {
       type: Boolean,

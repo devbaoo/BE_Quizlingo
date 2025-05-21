@@ -1,6 +1,8 @@
 import User from "../models/user.js";
 import Level from "../models/level.js";
 import Skill from "../models/skill.js";
+import UserPackage from "../models/userPackage.js";
+import moment from "moment-timezone";
 
 // Lấy profile người dùng
 const getUserProfile = async (userId) => {
@@ -9,11 +11,34 @@ const getUserProfile = async (userId) => {
       .select("-password")
       .populate("level", "name")
       .populate("preferredSkills", "name");
+
     if (!user) {
       return {
         success: false,
         statusCode: 404,
         message: "Không tìm thấy người dùng",
+      };
+    }
+
+    // Lấy thông tin package đang active
+    const now = moment().tz("Asia/Ho_Chi_Minh");
+    const activePackage = await UserPackage.findOne({
+      user: userId,
+      isActive: true,
+      endDate: { $gt: now.toDate() },
+      paymentStatus: "completed",
+    }).populate("package");
+
+    // Tính số ngày còn lại của package
+    let packageInfo = null;
+    if (activePackage) {
+      const daysRemaining = moment(activePackage.endDate).diff(now, "days");
+      packageInfo = {
+        name: activePackage.package.name,
+        startDate: activePackage.startDate,
+        endDate: activePackage.endDate,
+        daysRemaining,
+        isExpiringSoon: daysRemaining <= 7,
       };
     }
 
@@ -35,6 +60,7 @@ const getUserProfile = async (userId) => {
         lives: user.lives,
         completedBasicVocab: user.completedBasicVocab,
         preferredSkills: user.preferredSkills?.map((skill) => skill.name) || [],
+        activePackage: packageInfo, // Thêm thông tin package
       },
     };
   } catch (error) {
@@ -242,13 +268,18 @@ const checkAndRegenerateLives = async (user) => {
 
   if (timeDiff >= 10) {
     // Calculate how many lives to regenerate (1 per 10 minutes, up to max 5)
-    const livesToRegenerate = Math.min(Math.floor(timeDiff / 10), 5 - user.lives);
+    const livesToRegenerate = Math.min(
+      Math.floor(timeDiff / 10),
+      5 - user.lives
+    );
 
     if (livesToRegenerate > 0) {
       user.lives = Math.min(user.lives + livesToRegenerate, 5);
       user.lastLivesRegenerationTime = now;
       await user.save();
-      console.log(`Regenerated ${livesToRegenerate} lives for user ${user._id}`);
+      console.log(
+        `Regenerated ${livesToRegenerate} lives for user ${user._id}`
+      );
     }
   }
 
@@ -262,7 +293,7 @@ const getUserLivesStatus = async (userId) => {
       return {
         success: false,
         statusCode: 404,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       };
     }
 
@@ -274,7 +305,9 @@ const getUserLivesStatus = async (userId) => {
     if (user.lives < 5) {
       const lastRegeneration = user.lastLivesRegenerationTime || new Date();
       const now = new Date();
-      const timeSinceLastRegen = Math.floor((now - lastRegeneration) / (1000 * 60)); // minutes
+      const timeSinceLastRegen = Math.floor(
+        (now - lastRegeneration) / (1000 * 60)
+      ); // minutes
       timeUntilNextLife = 10 - (timeSinceLastRegen % 10); // minutes until next 10-minute mark
       if (timeUntilNextLife === 10) timeUntilNextLife = 0;
     }
@@ -282,20 +315,20 @@ const getUserLivesStatus = async (userId) => {
     return {
       success: true,
       statusCode: 200,
-      message: 'Lấy thông tin lives thành công',
+      message: "Lấy thông tin lives thành công",
       data: {
         lives: user.lives,
         maxLives: 5,
         timeUntilNextLife: timeUntilNextLife,
-        lastRegenerationTime: user.lastLivesRegenerationTime
-      }
+        lastRegenerationTime: user.lastLivesRegenerationTime,
+      },
     };
   } catch (error) {
-    console.error('Get user lives status error:', error);
+    console.error("Get user lives status error:", error);
     return {
       success: false,
       statusCode: 500,
-      message: 'Lỗi khi lấy thông tin lives'
+      message: "Lỗi khi lấy thông tin lives",
     };
   }
 };
@@ -308,5 +341,5 @@ export default {
   chooseLevel,
   chooseSkill,
   getUserLivesStatus,
-  checkAndRegenerateLives
+  checkAndRegenerateLives,
 };
