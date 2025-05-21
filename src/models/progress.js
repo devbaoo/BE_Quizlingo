@@ -16,6 +16,11 @@ const progressSchema = new mongoose.Schema({
         required: [true, 'Điểm là bắt buộc'],
         min: [0, 'Điểm không được nhỏ hơn 0']
     },
+    status: {
+        type: String,
+        enum: ['COMPLETE', 'FAILED', 'IN_PROGRESS'],
+        default: 'IN_PROGRESS'
+    },
     isRetried: {
         type: Boolean,
         default: false
