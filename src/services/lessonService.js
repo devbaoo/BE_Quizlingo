@@ -676,6 +676,11 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
         const result = questionResults[i];
         const question = questions.find(q => q._id.toString() === result.questionId.toString());
 
+        // Ensure timeout answers have a valid value
+        if (result.isTimeout) {
+          questionResults[i].answer = result.answer || "[TIMEOUT]";
+        }
+
         if (result.audioAnswer && question) {
           const evaluationResult = await groqService.evaluatePronunciation(
             question.correctAnswer,
@@ -687,16 +692,16 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
             questionResults[i].feedback = evaluationResult.feedback;
             questionResults[i].transcription = evaluationResult.transcription;
             questionResults[i].isCorrect = evaluationResult.score >= 70;
-            questionResults[i].answer = evaluationResult.transcription;
+            questionResults[i].answer = evaluationResult.transcription || "[UNANSWERED]";
           } else {
             questionResults[i].score = 0;
             questionResults[i].feedback = evaluationResult.message;
             questionResults[i].isCorrect = false;
-            questionResults[i].answer = '';
+            questionResults[i].answer = "[ERROR]";
           }
         } else {
           questionResults[i].isCorrect = result.answer === question.correctAnswer;
-          questionResults[i].answer = result.answer || '';
+          questionResults[i].answer = result.answer || (result.isTimeout ? "[TIMEOUT]" : "[UNANSWERED]");
         }
       }
 
@@ -705,9 +710,16 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       for (let i = 0; i < questionResults.length; i++) {
         const result = questionResults[i];
         const question = questions.find(q => q._id.toString() === result.questionId.toString());
+
+        // Ensure timeout answers have a valid value
+        if (result.isTimeout) {
+          questionResults[i].answer = result.answer || "[TIMEOUT]";
+        } else {
+          questionResults[i].answer = result.answer || "[UNANSWERED]";
+        }
+
         questionResults[i].isCorrect = result.answer === question.correctAnswer;
         questionResults[i].score = result.isCorrect ? question.score : 0;
-        questionResults[i].answer = result.answer || '';
       }
       score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
     }
