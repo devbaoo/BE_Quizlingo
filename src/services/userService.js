@@ -1,6 +1,7 @@
 import User from "../models/user.js";
 import Level from "../models/level.js";
 import Skill from "../models/skill.js";
+import Topic from "../models/topic.js";
 import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 
@@ -206,6 +207,48 @@ const chooseSkill = async (userId, skillNames) => {
   }
 };
 
+const chooseTopic = async (userId, topicNames) => {
+  try {
+    const topics = await Topic.find({ name: { $in: topicNames } });
+
+    if (topics.length !== topicNames.length) {
+      const foundNames = topics.map((s) => s.name);
+      const invalid = topicNames.filter((name) => !foundNames.includes(name));
+      return {
+        success: false,
+        statusCode: 400,
+        message: `Chủ đề không hợp lệ: ${invalid.join(", ")}`,
+      };
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy người dùng",
+      };
+    }
+
+    user.preferredTopics = topics.map((topic) => topic._id);
+    await user.save();
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Chọn chủ đề thành công",
+      user: { ...user.toObject(), preferredTopics: topics },
+    };
+  } catch (error) {
+    console.error("ChooseTopic error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi hệ thống",
+    };
+  }
+};
+
 // Lấy tất cả user (admin)
 const getAllUsers = async () => {
   try {
@@ -340,6 +383,7 @@ export default {
   softDeleteUser,
   chooseLevel,
   chooseSkill,
+  chooseTopic,
   getUserLivesStatus,
   checkAndRegenerateLives,
 };
