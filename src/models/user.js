@@ -77,6 +77,12 @@ const UserSchema = new mongoose.Schema({
       ref: "Skill",
     },
   ],
+  preferredTopics: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Topic",
+    },
+  ],
   notifications: [
     {
       type: mongoose.Schema.Types.ObjectId,

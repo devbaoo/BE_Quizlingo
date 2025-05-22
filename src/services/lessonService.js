@@ -486,50 +486,9 @@ const getLessons = async (userId, queryParams) => {
 
     let query = {};
     let topicDoc, levelDoc, skillDoc;
-
-    // Kiểm tra topic
-    if (topic) {
-      topicDoc = await Topic.findById(topic);
-      if (!topicDoc || !topicDoc.isActive) {
-        console.error(`Invalid topic: ${topic}`);
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Chủ đề không hợp lệ hoặc không hoạt động",
-        };
-      }
-      query.topic = topic;
-    }
-
-    // Kiểm tra level
-    if (level) {
-      levelDoc = await Level.findById(level);
-      if (!levelDoc || !levelDoc.isActive) {
-        console.error(`Invalid level: ${level}`);
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Trình độ không hợp lệ hoặc không hoạt động",
-        };
-      }
-      query.level = level;
-    }
-
-    // Kiểm tra skill
-    if (skill) {
-      skillDoc = await Skill.findById(skill);
-      if (!skillDoc || !skillDoc.isActive) {
-        console.error(`Invalid skill: ${skill}`);
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Kỹ năng không hợp lệ hoặc không hoạt động",
-        };
-      }
-      query.skill = skill;
-    }
-
     let user = null;
+
+    // Nếu có user thì tìm user
     if (userId) {
       user = await User.findById(userId);
       if (!user) {
@@ -540,51 +499,80 @@ const getLessons = async (userId, queryParams) => {
           message: "Không tìm thấy người dùng",
         };
       }
-      if (
-        user.level &&
-        levelDoc &&
-        user.level.toString() !== levelDoc._id.toString()
-      ) {
-        console.error(
-          `Level mismatch: user level ${user.level}, requested level ${level}`
-        );
+    }
+
+    // Ưu tiên topic từ query, nếu không có thì dùng preferredTopics
+    if (topic) {
+      topicDoc = await Topic.findById(topic);
+      if (!topicDoc || !topicDoc.isActive) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Chủ đề không hợp lệ hoặc không hoạt động",
+        };
+      }
+      query.topic = topic;
+    } else if (user && user.preferredTopics?.length > 0) {
+      query.topic = { $in: user.preferredTopics };
+    }
+
+    // Kiểm tra level
+    if (level) {
+      levelDoc = await Level.findById(level);
+      if (!levelDoc || !levelDoc.isActive) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Trình độ không hợp lệ hoặc không hoạt động",
+        };
+      }
+      query.level = level;
+
+      if (user?.level && user.level.toString() !== levelDoc._id.toString()) {
         return {
           success: false,
           statusCode: 400,
           message: "Cấp độ không khớp với người dùng",
         };
       }
-      if (user.level && levelDoc && levelDoc.name === "beginner" && topic) {
-        const completedVocab = user.completedBasicVocab.map((id) =>
-          id.toString()
-        );
-        if (!completedVocab.includes(topic.toString())) {
-          query.skill = (await Skill.findOne({ name: "vocabulary" }))?._id;
+
+      // Nếu là beginner, bắt buộc học từ vựng trước
+      if (user?.level && levelDoc.name === "beginner" && query.topic) {
+        const completedVocab = user.completedBasicVocab.map((id) => id.toString());
+        if (!completedVocab.includes(query.topic.toString())) {
+          const vocabSkill = await Skill.findOne({ name: "vocabulary" });
+          query.skill = vocabSkill?._id;
         }
       }
     }
 
+    // Kiểm tra skill
+    if (skill) {
+      skillDoc = await Skill.findById(skill);
+      if (!skillDoc || !skillDoc.isActive) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Kỹ năng không hợp lệ hoặc không hoạt động",
+        };
+      }
+      query.skill = skill;
+    }
+
+    // Xử lý preferredSkills (chỉ để sắp xếp)
     let sortOptions = {};
     if (preferredSkills) {
       const skillsArray = preferredSkills.split(",").map((s) => s.trim());
-      if (skillsArray.includes("all")) {
-        sortOptions = {};
-      } else {
-        const validSkills = await Skill.find({
-          _id: { $in: skillsArray },
-          isActive: true,
-        });
+      if (!skillsArray.includes("all")) {
+        const validSkills = await Skill.find({ _id: { $in: skillsArray }, isActive: true });
         if (validSkills.length === 0) {
-          console.error(
-            `No valid skills in preferredSkills: ${preferredSkills}`
-          );
           return {
             success: false,
             statusCode: 400,
             message: "Không có kỹ năng hợp lệ trong preferredSkills",
           };
         }
-        sortOptions = { skill: -1 };
+        sortOptions = { skill: -1 }; // hoặc tuỳ vào UX bạn muốn
       }
     }
 
@@ -613,6 +601,7 @@ const getLessons = async (userId, queryParams) => {
     };
   }
 };
+
 
 // Lấy chi tiết bài học
 const getLessonById = async (lessonId) => {

@@ -197,6 +197,24 @@ const chooseSkill = async (req, res) => {
   }
 };
 
+const chooseTopic = async (req, res) => {
+  try {
+    const { topics } = req.body;
+    const result = await userService.chooseTopic(req.user.id, topics);
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      user: result.user,
+    });
+  } catch (error) {
+    console.error("Choose topic error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 const getUserLivesStatus = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -224,6 +242,7 @@ export default {
   deleteUser,
   chooseLevel,
   chooseSkill,
+  chooseTopic,
   handleAvatarUpload,
   getUserLivesStatus,
 };
