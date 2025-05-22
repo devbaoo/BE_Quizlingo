@@ -11,7 +11,8 @@ const getUserProfile = async (userId) => {
     const user = await User.findById(userId)
       .select("-password")
       .populate("level", "name")
-      .populate("preferredSkills", "name");
+      .populate("preferredSkills", "name")
+      .populate("preferredTopics", "name");
 
     if (!user) {
       return {
@@ -61,7 +62,8 @@ const getUserProfile = async (userId) => {
         lives: user.lives,
         completedBasicVocab: user.completedBasicVocab,
         preferredSkills: user.preferredSkills?.map((skill) => skill.name) || [],
-        activePackage: packageInfo, // Thêm thông tin package
+        preferredTopics: user.preferredTopics?.map((topic) => topic.name) || [],
+        activePackage: packageInfo,
       },
     };
   } catch (error) {
