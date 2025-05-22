@@ -1,6 +1,8 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import dotenv from "dotenv";
+const path = await import("path");
+const os = await import("os");
 
 dotenv.config();
 
@@ -63,6 +65,34 @@ const uploadImage = async (file) => {
   }
 };
 
+const uploadAudioBuffer = async (buffer, filename = "speech.wav") => {
+  try {
+    const tempPath = path.join(os.tmpdir(), `${Date.now()}-${filename}`);
+    await fs.promises.writeFile(tempPath, buffer);
+
+    const result = await cloudinary.uploader.upload(tempPath, {
+      resource_type: "video", // audio nằm trong "video" ở Cloudinary
+      folder: "lesson_audio",
+      use_filename: true,
+    });
+
+    // cleanup temp
+    await fs.promises.unlink(tempPath);
+
+    return {
+      success: true,
+      audioUrl: result.secure_url,
+      publicId: result.public_id,
+    };
+  } catch (error) {
+    console.error("Upload audio error:", error);
+    return {
+      success: false,
+      message: error.message,
+    };
+  }
+};
+
 /**
  * Xóa ảnh khỏi Cloudinary
  * @param {string} publicId - Public ID của ảnh
@@ -98,4 +128,5 @@ const deleteImage = async (publicId) => {
 export default {
   uploadImage,
   deleteImage,
+  uploadAudioBuffer,
 };
