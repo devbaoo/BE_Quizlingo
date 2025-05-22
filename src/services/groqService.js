@@ -250,9 +250,61 @@ const evaluatePronunciation = async (referenceText, audioBuffer) => {
   }
 };
 
+const evaluateListeningTextInput = async (correctText, userInput) => {
+  try {
+    const response = await fetch(process.env.GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          {
+            role: "system",
+            content: `You are a listening comprehension evaluator. Compare the student's response with the original transcript and return a score from 0 to 100, with feedback. Minor typos and grammatical differences should be tolerated.`
+          },
+          {
+            role: "user",
+            content: `Correct transcript: \"${correctText}\"\nStudent response: \"${userInput}\"\nPlease rate the accuracy, give a score out of 100, and explain the differences.`
+          }
+        ],
+        max_tokens: 512
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+
+    const scoreMatch = content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
+
+    return {
+      success: true,
+      score,
+      isCorrect: score >= 70,
+      feedback: content,
+    };
+  } catch (error) {
+    console.error("evaluateListeningTextInput error:", error);
+    return {
+      success: false,
+      score: 0,
+      isCorrect: false,
+      feedback: error.message,
+    };
+  }
+};
+
 export default {
   textToSpeech,
   speechToText,
   evaluatePronunciation,
   textToSpeechAndUpload,
+  evaluateListeningTextInput,
 };

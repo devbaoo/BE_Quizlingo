@@ -127,7 +127,6 @@ const createLesson = async (lessonData, token) => {
   try {
     const { title, type, topic, level, skill, questions } = lessonData;
 
-    // Kiểm tra các trường bắt buộc
     if (!title || !type || !topic || !level || !skill || !questions) {
       return {
         success: false,
@@ -137,7 +136,6 @@ const createLesson = async (lessonData, token) => {
       };
     }
 
-    // Kiểm tra topic, level, skill
     const topicDoc = await Topic.findById(topic);
     if (!topicDoc || !topicDoc.isActive) {
       return {
@@ -165,35 +163,15 @@ const createLesson = async (lessonData, token) => {
       };
     }
 
-    // Kiểm tra loại câu hỏi theo kỹ năng
-    if (
-      type === "multiple_choice" &&
-      !skillDoc.supportedTypes.includes("multiple_choice")
-    ) {
+    // Kiểm tra loại câu hỏi có được hỗ trợ bởi skill không
+    if (!skillDoc.supportedTypes.includes(type)) {
       return {
         success: false,
         statusCode: 400,
-        message: "Loại multiple_choice không được hỗ trợ bởi kỹ năng này",
+        message: `Kỹ năng ${skillDoc.name} không hỗ trợ loại câu hỏi ${type}`,
       };
     }
 
-    if (type === "text_input" && skillDoc.name.toLowerCase() !== "writing") {
-      return {
-        success: false,
-        statusCode: 400,
-        message: "Loại text_input chỉ áp dụng cho kỹ năng writing",
-      };
-    }
-
-    if (type === "audio_input" && skillDoc.name.toLowerCase() !== "speaking") {
-      return {
-        success: false,
-        statusCode: 400,
-        message: "Loại audio_input chỉ áp dụng cho kỹ năng speaking",
-      };
-    }
-
-    // Tạo lesson mới
     const lesson = await Lesson.create({
       title,
       type,
@@ -208,7 +186,6 @@ const createLesson = async (lessonData, token) => {
     const questionIds = [];
 
     for (const q of questions) {
-      // Gọi Groq TTS nếu là kỹ năng listening
       if (skillDoc.name.toLowerCase() === "listening" && q.content) {
         const ttsResult = await groqService.textToSpeechAndUpload(q.content);
         if (ttsResult.success) {
@@ -217,7 +194,7 @@ const createLesson = async (lessonData, token) => {
           console.warn("TTS failed:", ttsResult.message);
         }
       }
-      // Tạo câu hỏi
+
       const question = await Question.create({
         lessonId: lesson._id,
         content: q.content,
@@ -230,7 +207,6 @@ const createLesson = async (lessonData, token) => {
       questionIds.push(question._id);
     }
 
-    // Cập nhật danh sách câu hỏi
     lesson.questions = questionIds;
     await lesson.save();
 
@@ -259,6 +235,7 @@ const createLesson = async (lessonData, token) => {
     };
   }
 };
+
 
 // Cập nhật bài học (admin)
 const updateLesson = async (lessonId, lessonData) => {
@@ -657,7 +634,6 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       };
     }
 
-    // Kiểm tra nếu đã hoàn thành rồi thì không xử lý lại
     const existingProgress = await Progress.findOne({ userId, lessonId });
     if (existingProgress && existingProgress.status === 'COMPLETE') {
       return {
@@ -669,15 +645,15 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
       };
     }
 
-    const lesson = await Lesson.findById(lessonId).populate('skill topic level');
-    if (!lesson) {
-      return { success: false, statusCode: 404, message: 'Không tìm thấy bài học' };
-    }
+    const lesson = await Lesson.findById(lessonId)
+      .populate('skill')
+      .populate('topic')
+      .populate('level');
+
+    if (!lesson) return { success: false, statusCode: 404, message: 'Không tìm thấy bài học' };
 
     const user = await User.findById(userId);
-    if (!user) {
-      return { success: false, statusCode: 404, message: 'Không tìm thấy người dùng' };
-    }
+    if (!user) return { success: false, statusCode: 404, message: 'Không tìm thấy người dùng' };
 
     await checkAndRegenerateLives(user);
 
@@ -717,6 +693,26 @@ const completeLesson = async (userId, lessonId, score, questionResults, isRetrie
     for (let i = 0; i < questionResults.length; i++) {
       const result = questionResults[i];
       const question = questions.find(q => q._id.toString() === result.questionId.toString());
+
+      if (
+        lesson.type === 'text_input' &&
+        lesson.skill?.name?.toLowerCase() === 'listening' &&
+        question.correctAnswer &&
+        result.answer
+      ) {
+        const evalRes = await groqService.evaluateListeningTextInput(
+          question.correctAnswer,
+          result.answer
+        );
+
+        questionResults[i] = {
+          ...result,
+          score: evalRes.score,
+          isCorrect: evalRes.isCorrect,
+          feedback: evalRes.feedback,
+        };
+        continue;
+      }
 
       if (lessonSkill === 'speaking' && result.audioAnswer && question) {
         const evalRes = await groqService.evaluatePronunciation(

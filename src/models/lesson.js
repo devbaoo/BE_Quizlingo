@@ -64,16 +64,12 @@ lessonSchema.pre('validate', async function (next) {
     if (!skill || !skill.isActive) {
       return next(new Error('Kỹ năng không hợp lệ hoặc không hoạt động'));
     }
-    const skillName = skill.name;
 
-    if (this.type === 'multiple_choice' && !skill.supportedTypes.includes('multiple_choice')) {
-      next(new Error('Loại multiple_choice không được hỗ trợ bởi kỹ năng này'));
-    }
-    if (this.type === 'text_input' && skillName !== 'writing') {
-      next(new Error('Loại text_input chỉ áp dụng cho kỹ năng writing'));
-    }
-    if (this.type === 'audio_input' && skillName !== 'speaking') {
-      next(new Error('Loại audio_input chỉ áp dụng cho kỹ năng speaking'));
+    // ✅ Kiểm tra xem skill có hỗ trợ loại bài học này không
+    if (!skill.supportedTypes.includes(this.type)) {
+      return next(
+        new Error(`Kỹ năng ${skill.name} không hỗ trợ loại bài học ${this.type}`)
+      );
     }
 
     const topic = await mongoose.model('Topic').findById(this.topic);
@@ -85,6 +81,7 @@ lessonSchema.pre('validate', async function (next) {
     if (!level || !level.isActive) {
       return next(new Error('Cấp độ không hợp lệ hoặc không hoạt động'));
     }
+
     this.maxScore = level.maxScore;
     this.timeLimit = level.timeLimit;
 
