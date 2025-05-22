@@ -210,34 +210,13 @@ const createLesson = async (lessonData, token) => {
     for (const q of questions) {
       // Gọi Groq TTS nếu là kỹ năng listening
       if (skillDoc.name.toLowerCase() === "listening" && q.content) {
-        console.log("→ Gọi TTS với nội dung:", q.content);
-
-        try {
-          const ttsResponse = await fetch(
-            `${process.env.BASE_URL}/api/speech/text-to-speech`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ text: q.content, voice: "female" }),
-            }
-          );
-
-          const ttsData = await ttsResponse.json();
-          console.log("← Kết quả TTS:", ttsData);
-
-          if (ttsData.success) {
-            q.audioContent = ttsData.audioContent;
-          } else {
-            console.warn(`TTS thất bại: ${ttsData.message}`);
-          }
-        } catch (err) {
-          console.error("Gọi TTS thất bại:", err.message);
+        const ttsResult = await groqService.textToSpeechAndUpload(q.content);
+        if (ttsResult.success) {
+          q.audioContent = ttsResult.audioUrl;
+        } else {
+          console.warn("TTS failed:", ttsResult.message);
         }
       }
-
       // Tạo câu hỏi
       const question = await Question.create({
         lessonId: lesson._id,

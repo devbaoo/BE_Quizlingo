@@ -1,11 +1,17 @@
 import fetch from "node-fetch";
 import { fileTypeFromBuffer } from "file-type";
+import { Groq } from "groq-sdk";
+import cloudinaryService from "./cloudinaryService.js";
+
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = process.env.GROQ_API_URL;
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 const ASSEMBLYAI_UPLOAD_URL = process.env.ASSEMBLYAI_UPLOAD_URL;
 const ASSEMBLYAI_TRANSCRIPT_URL = process.env.ASSEMBLYAI_TRANSCRIPT_URL;
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
 
 // Step 1: Upload audio to AssemblyAI
 const uploadAudio = async (audioBuffer) => {
@@ -73,6 +79,33 @@ const textToSpeech = async (text, voice = "female") => {
       success: false,
       message: `Lỗi khi chuyển đổi text sang speech: ${error.message}`,
     };
+  }
+};
+
+const textToSpeechAndUpload = async (text, voice = "Fritz-PlayAI") => {
+  try {
+    const response = await groq.audio.speech.create({
+      model: "playai-tts",
+      voice,
+      input: text,
+      response_format: "wav",
+    });
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    const uploadResult = await cloudinaryService.uploadAudioBuffer(buffer, "tts.wav");
+
+    if (!uploadResult.success) {
+      return { success: false, message: uploadResult.message };
+    }
+
+    return {
+      success: true,
+      audioUrl: uploadResult.audioUrl,
+    };
+  } catch (error) {
+    console.error("TTS + Upload error:", error);
+    return { success: false, message: error.message };
   }
 };
 
@@ -221,4 +254,5 @@ export default {
   textToSpeech,
   speechToText,
   evaluatePronunciation,
+  textToSpeechAndUpload,
 };
