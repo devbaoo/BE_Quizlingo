@@ -108,6 +108,24 @@ const getUserActivePackage = async (userId) => {
 // Tạo đơn mua package mới
 const createPackagePurchase = async (userId, packageId, paymentMethod) => {
   try {
+    // Kiểm tra xem user đã có gói active chưa
+    const now = moment().tz("Asia/Ho_Chi_Minh");
+    const existingActivePackage = await UserPackage.findOne({
+      user: userId,
+      isActive: true,
+      endDate: { $gt: now.toDate() },
+      paymentStatus: "completed",
+    });
+
+    if (existingActivePackage) {
+      return {
+        success: false,
+        statusCode: 400,
+        message:
+          "Bạn đang có gói Premium đang hoạt động, không thể mua thêm gói mới",
+      };
+    }
+
     const packageData = await Package.findById(packageId);
     if (!packageData) {
       return {
@@ -198,7 +216,6 @@ const createPackagePurchase = async (userId, packageId, paymentMethod) => {
         paymentUrl: paymentResult.checkoutUrl,
         qrCode: paymentResult.qrCode,
         orderCode: orderCode,
-        checkoutUrl: paymentResult.checkoutUrl,
       },
     };
   } catch (error) {

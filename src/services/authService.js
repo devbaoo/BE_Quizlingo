@@ -306,6 +306,72 @@ const resetPasswordWithToken = async (token, newPassword) => {
   }
 };
 
+const changePassword = async (userId, oldPassword, newPassword) => {
+  try {
+    if (!oldPassword || !newPassword) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Vui lòng nhập đầy đủ mật khẩu cũ và mật khẩu mới",
+      };
+    }
+
+    if (newPassword.length < 6) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Mật khẩu mới phải có ít nhất 6 ký tự",
+      };
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy người dùng",
+      };
+    }
+
+    const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!isValidPassword) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Mật khẩu cũ không chính xác",
+      };
+    }
+
+    if (oldPassword === newPassword) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Mật khẩu mới không được trùng với mật khẩu cũ",
+      };
+    }
+
+    // Hash and save new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    await user.save();
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Mật khẩu đã được thay đổi thành công",
+    };
+  } catch (error) {
+    console.error("Change password error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi khi thay đổi mật khẩu",
+      error: error.message,
+    };
+  }
+};
+
 export default {
   register,
   login,
@@ -315,4 +381,5 @@ export default {
   resendVerificationEmail,
   forgotPassword,
   resetPasswordWithToken,
+  changePassword,
 };
