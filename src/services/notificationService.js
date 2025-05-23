@@ -615,6 +615,21 @@ class NotificationService {
       throw error;
     }
   }
+
+  static async getNotificationSetting(userId) {
+    try {
+      // Kiểm tra user tồn tại
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error("Không tìm thấy người dùng");
+      }
+      // Trả về cài đặt thông báo của user
+      return user.notificationSettings;
+    } catch (error) {
+      console.error("[DEBUG] Error in getNotificationSetting:", error);
+      throw error;
+    }
+  }
 }
 
 export default NotificationService;

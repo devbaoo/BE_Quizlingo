@@ -198,6 +198,23 @@ class NotificationController {
       });
     }
   }
+  static async getNotificationsSetting(req, res) {
+    try {
+      const userId = req.user.id;
+      const settings = await NotificationService.getNotificationSetting(userId);
+
+      res.json({
+        success: true,
+        settings,
+      });
+    } catch (error) {
+      console.error("Error in getNotificationsSetting:", error);
+      res.status(500).json({
+        success: false,
+        message: "Lỗi khi lấy cài đặt thông báo",
+      });
+    }
+  }
 }
 
 export default NotificationController;
