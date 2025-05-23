@@ -322,6 +322,23 @@ class NotificationService {
       throw error;
     }
   }
+  // Tạo thông báo khi user level up
+  static async createLevelUpNotification(userId, newLevel) {
+    try {
+      const title = "🎉 Chúc mừng Level Up!";
+      const message = `Bạn đã đạt đến level ${newLevel}! Tiếp tục phấn đấu để đạt được những level cao hơn nhé!`;
+
+      return await this.createNotification(userId, {
+        title,
+        message,
+        type: "achievement",
+        link: "/profile",
+      });
+    } catch (error) {
+      console.error("Error creating level up notification:", error);
+      throw error;
+    }
+  }
 }
 
 export default NotificationService;
