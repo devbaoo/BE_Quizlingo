@@ -628,7 +628,6 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   if (currentIndex === -1 || currentIndex >= allLevels.length - 1) return;
 
   const nextLevel = allLevels[currentIndex + 1];
-  const oldLevel = await Level.findById(currentLevelId);
 
   const passedLessons = await Progress.countDocuments({
     userId: user._id,
@@ -640,15 +639,13 @@ const upgradeUserLevel = async (user, currentLevelId) => {
 
   if (enoughXp && enoughLessons) {
     user.level = nextLevel._id;
-    console.log(
-      `User ${user._id} upgraded from ${oldLevel.name} to ${nextLevel.name}`
-    );
+    console.log(`User ${user._id} upgraded to level ${user.userLevel}`);
 
     // Gửi thông báo khi user lên level
     try {
       await NotificationService.createLevelUpNotification(
         user._id,
-        nextLevel.name
+        user.userLevel
       );
     } catch (error) {
       console.error("Error sending level up notification:", error);

@@ -323,10 +323,10 @@ class NotificationService {
     }
   }
   // Tạo thông báo khi user level up
-  static async createLevelUpNotification(userId, newLevel) {
+  static async createLevelUpNotification(userId, newUserLevel) {
     try {
       const title = "🎉 Chúc mừng Level Up!";
-      const message = `Bạn đã đạt đến level ${newLevel}! Tiếp tục phấn đấu để đạt được những level cao hơn nhé!`;
+      const message = `Bạn đã đạt đến cấp độ ${newUserLevel}! Tiếp tục phấn đấu để đạt được những cấp độ cao hơn nhé!`;
 
       return await this.createNotification(userId, {
         title,
