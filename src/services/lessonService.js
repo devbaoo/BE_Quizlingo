@@ -685,24 +685,11 @@ const completeLesson = async (
       };
     }
 
-    const lesson = await Lesson.findById(lessonId)
-      .populate("topic")
-      .populate("level");
-
-    if (!lesson)
-      return {
-        success: false,
-        statusCode: 404,
-        message: "Không tìm thấy bài học",
-      };
+    const lesson = await Lesson.findById(lessonId).populate("topic").populate("level");
+    if (!lesson) return { success: false, statusCode: 404, message: "Không tìm thấy bài học" };
 
     const user = await User.findById(userId);
-    if (!user)
-      return {
-        success: false,
-        statusCode: 404,
-        message: "Không tìm thấy người dùng",
-      };
+    if (!user) return { success: false, statusCode: 404, message: "Không tìm thấy người dùng" };
 
     await checkAndRegenerateLives(user);
 
@@ -737,60 +724,40 @@ const completeLesson = async (
     }
 
     const questionIds = questionResults.map((r) => r.questionId);
-    const questions = await Question.find({
-      _id: { $in: questionIds },
-      lessonId,
-    }).populate("skill");
+    const questions = await Question.find({ _id: { $in: questionIds }, lessonId }).populate("skill");
 
     if (questions.length !== questionIds.length) {
-      return {
-        success: false,
-        statusCode: 400,
-        message: "Một hoặc nhiều questionId không hợp lệ hoặc không thuộc lesson",
-      };
+      return { success: false, statusCode: 400, message: "Một hoặc nhiều questionId không hợp lệ hoặc không thuộc lesson" };
     }
 
     for (let i = 0; i < questionResults.length; i++) {
       const result = questionResults[i];
-      const question = questions.find(
-        (q) => q._id.toString() === result.questionId.toString()
-      );
-
+      const question = questions.find((q) => q._id.toString() === result.questionId.toString());
       const answer = result.answer || (result.isTimeout ? "[TIMEOUT]" : "[UNANSWERED]");
 
       switch (question.type) {
-        case "text_input":
+        case "text_input": {
           const skillName = question.skill?.name?.toLowerCase();
 
           if (skillName === "writing") {
-            const evalRes = await groqService.evaluateWritingTextInput(
-              question.content,
-              answer
-            );
-
+            const evalRes = await groqService.evaluateWritingTextInput(question.content, answer);
             questionResults[i] = {
               ...result,
               answer,
-              score: evalRes.score,
-              isCorrect: evalRes.isCorrect,
-              feedback: evalRes.feedback,
+              score: typeof evalRes.score === "number" ? evalRes.score : 0,
+              isCorrect: typeof evalRes.isCorrect === "boolean" ? evalRes.isCorrect : false,
+              feedback: evalRes.feedback || "Lỗi chấm điểm",
             };
-
           } else if (skillName === "listening") {
-            const evalRes = await groqService.evaluateListeningTextInput(
-              question.correctAnswer,
-              answer
-            );
-
+            const evalRes = await groqService.evaluateListeningTextInput(question.correctAnswer, answer);
             questionResults[i] = {
               ...result,
               answer,
-              score: evalRes.score,
-              isCorrect: evalRes.isCorrect,
-              feedback: evalRes.feedback,
+              score: evalRes.score ?? 0,
+              isCorrect: evalRes.isCorrect ?? false,
+              feedback: evalRes.feedback || "",
             };
           } else {
-            // fallback cho các skill khác
             questionResults[i] = {
               ...result,
               answer,
@@ -799,13 +766,15 @@ const completeLesson = async (
             };
           }
           break;
-        case "audio_input":
+        }
+
+        case "audio_input": {
           if (result.audioAnswer) {
             const audioBuffer = Buffer.from(result.audioAnswer, "base64");
+            const skillName = question.skill?.name?.toLowerCase();
 
-            if (question.skill?.name?.toLowerCase() === "speaking") {
-              const evalRes = await groqService.evaluatePronunciationFromAudio(audioBuffer, question.correctAnswer);
-
+            if (skillName === "speaking") {
+              const evalRes = await groqService.evaluatePronunciationFromAudio(audioBuffer, question.content);
               questionResults[i] = evalRes.success
                 ? {
                   ...result,
@@ -823,12 +792,7 @@ const completeLesson = async (
                   answer: "[ERROR]",
                 };
             } else {
-              // Default fallback: dùng evaluatePronunciation cũ
-              const evalRes = await groqService.evaluatePronunciation(
-                question.correctAnswer,
-                audioBuffer
-              );
-
+              const evalRes = await groqService.evaluatePronunciation(question.correctAnswer, audioBuffer);
               questionResults[i] = evalRes.success
                 ? {
                   ...result,
@@ -848,7 +812,14 @@ const completeLesson = async (
             }
           }
           break;
+        }
       }
+    }
+
+    // Fallback để đảm bảo score luôn có
+    for (let i = 0; i < questionResults.length; i++) {
+      if (typeof questionResults[i].score !== "number") questionResults[i].score = 0;
+      if (typeof questionResults[i].isCorrect !== "boolean") questionResults[i].isCorrect = false;
     }
 
     score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
@@ -876,9 +847,7 @@ const completeLesson = async (
       lessonStatus === "COMPLETE" &&
       lesson.skills?.some((s) => s.name === "vocabulary")
     ) {
-      const completedVocab = user.completedBasicVocab.map((id) =>
-        id.toString()
-      );
+      const completedVocab = user.completedBasicVocab.map((id) => id.toString());
       if (!completedVocab.includes(lessonTopic)) {
         user.completedBasicVocab.push(lessonTopic);
       }
@@ -893,17 +862,11 @@ const completeLesson = async (
       user.userLevel += 1;
       user.xp = 0;
       user.lives = Math.min(user.lives + 1, 5);
-
-      // Create level up notification
       try {
-        await NotificationService.createLevelUpNotification(
-          user._id,
-          user.userLevel
-        );
+        await NotificationService.createLevelUpNotification(user._id, user.userLevel);
       } catch (error) {
         console.error("[DEBUG] Failed to create level up notification:", error);
       }
-
       await upgradeUserLevel(user, user.level);
       await user.save();
     }
