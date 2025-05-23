@@ -360,7 +360,7 @@ class NotificationService {
       const result = await this.createNotification(userId, {
         title,
         message,
-        type: "achievement",
+        type: "system",
         link: "/profile",
       });
 
