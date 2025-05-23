@@ -153,6 +153,29 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Thay đổi mật khẩu
+const changePassword = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { oldPassword, newPassword } = req.body;
+    const result = await authService.changePassword(
+      userId,
+      oldPassword,
+      newPassword
+    );
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 export default {
   register,
   login,
@@ -160,4 +183,5 @@ export default {
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
+  changePassword,
 };
