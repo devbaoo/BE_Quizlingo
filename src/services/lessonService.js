@@ -525,9 +525,10 @@ const getLessons = async (userId, queryParams) => {
 
     // Lấy tất cả bài học
     const allLessons = await Lesson.find(query)
-      .populate("questions topic level skill")
-      .select("title type topic level skill maxScore timeLimit createdAt")
+      .populate("questions topic level skills")  // ✅ Sửa lại ở đây
+      .select("title topic level skills maxScore timeLimit createdAt")
       .sort(sortOptions);
+
 
     // Lấy các bài học user đã hoàn thành
     let completedLessonIds = [];
