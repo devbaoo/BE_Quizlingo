@@ -10,6 +10,7 @@ import topicController from "../controllers/topicController.js";
 import levelController from "../controllers/levelController.js";
 import skillController from "../controllers/skillController.js";
 import notificationController from "../controllers/notificationController.js";
+import automatedNotificationController from "../controllers/automatedNotificationController.js";
 import packageController from "../controllers/packageController.js";
 import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
@@ -227,6 +228,26 @@ const initWebRoutes = (app) => {
     "/admin/notifications/all",
     protect,
     notificationController.createNotificationForAllUsers
+  );
+
+  // Automated notification routes (Admin only)
+  router.get(
+    "/admin/automated-notifications/stats",
+    protect,
+    authorize("admin"),
+    automatedNotificationController.getInactiveUsersStats
+  );
+  router.post(
+    "/admin/automated-notifications/run-check",
+    protect,
+    authorize("admin"),
+    automatedNotificationController.runManualCheck
+  );
+  router.get(
+    "/admin/automated-notifications/scheduler-info",
+    protect,
+    authorize("admin"),
+    automatedNotificationController.getSchedulerInfo
   );
 
   // Package routes (public)

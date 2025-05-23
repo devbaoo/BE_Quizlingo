@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import connectDB from "./config/conectDB.js";
 import viewEngine from "./config/viewEngine.js";
 import initWebRoutes from "./route/web.js";
+import Scheduler from "./config/scheduler.js";
 
 dotenv.config();
 
@@ -24,7 +25,11 @@ initWebRoutes(app);
 
 connectDB();
 
+// Khởi động scheduler cho automated notifications
+Scheduler.start();
+
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`🚀 Backend Nodejs is running on port: ${port}`);
+  console.log(`📅 Automated notification scheduler is active`);
 });

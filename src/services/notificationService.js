@@ -152,28 +152,86 @@ class NotificationService {
         to: email,
         subject: subject,
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">${subject}</h2>
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px;">
-              ${content}
-            </div>
-            <p style="color: #666; font-size: 12px; margin-top: 20px;">
-              Đây là email tự động từ Quizlingo. Vui lòng không trả lời email này.
-            </p>
-          </div>
+          <!DOCTYPE html>
+          <html lang="vi">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${subject}</title>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            </style>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 0;">
+              <tr>
+                <td align="center">
+                  <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); overflow: hidden; margin: 0 auto;">
+                    
+                    <!-- Header với gradient -->
+                    <tr>
+                      <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                        <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; padding: 15px; margin-bottom: 20px;">
+                        </div>
+                        <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                          Quizlingo
+                        </h1>
+                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
+                          Học tiếng Anh thông minh mỗi ngày
+                        </p>
+                      </td>
+                    </tr>
+                    
+                    <!-- Content chính -->
+                    <tr>
+                      <td style="padding: 40px 30px;">
+                        <h2 style="color: #1e293b; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">
+                          ${subject}
+                        </h2>
+                        
+                        <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea;">
+                          <div style="color:rgb(0, 0, 0); font-size: 16px; line-height: 1.8;">
+                            ${content}
+                          </div>
+                        </div>
+                        
+                        <!-- Call to Action Button -->
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="https://quizlingo.netlify.app/learn" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                            🚀 Bắt đầu học ngay
+                          </a>
+                        </div>                       
+                      </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                      <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                        <p style="color:rgb(0, 0, 0); font-size: 14px; margin: 10px 0;">
+                          <strong>Quizlingo Team</strong><br>
+                          Cùng bạn chinh phục tiếng Anh mỗi ngày! 🌟
+                        </p>
+                        
+                        <!-- Social media icons placeholder -->
+                        <div style="margin-top: 20px;">
+                          <span style="display: inline-block; margin: 0 5px; font-size: 20px;">📘</span>
+                          <span style="display: inline-block; margin: 0 5px; font-size: 20px;">📷</span>
+                          <span style="display: inline-block; margin: 0 5px; font-size: 20px;">🐦</span>
+                          <span style="display: inline-block; margin: 0 5px; font-size: 20px;">📺</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>
         `,
       };
 
-      console.log("[DEBUG] Mail options prepared:", {
-        from: mailOptions.from,
-        to: mailOptions.to,
-        subject: mailOptions.subject,
-      });
-
       const info = await transporter.sendMail(mailOptions);
-      console.log("[DEBUG] Email sent successfully:", info.messageId);
     } catch (error) {
-      console.error("[DEBUG] Error sending email notification:", error);
       throw error;
     }
   }
@@ -335,49 +393,225 @@ class NotificationService {
   // Tạo thông báo khi user level up
   static async createLevelUpNotification(userId, newUserLevel) {
     try {
-      console.log("[DEBUG] Creating level up notification:", {
-        userId,
-        newUserLevel,
-      });
-
-      // Kiểm tra user và notification settings
-      const user = await User.findById(userId).select("notificationSettings");
-      console.log("[DEBUG] User notification settings:", {
-        userId,
-        settings: user?.notificationSettings,
-      });
-
       const title = "🎉 Chúc mừng Level Up!";
       const message = `Bạn đã đạt đến cấp độ ${newUserLevel}! Tiếp tục phấn đấu để đạt được những cấp độ cao hơn nhé!`;
-
-      console.log("[DEBUG] Attempting to create notification with:", {
-        userId,
-        title,
-        message,
-        type: "achievement",
-      });
 
       const result = await this.createNotification(userId, {
         title,
         message,
-        type: "system",
+        type: "level_up",
         link: "/profile",
-      });
-
-      console.log("[DEBUG] Level up notification created:", {
-        notificationId: result._id,
-        userId,
-        type: result.type,
       });
 
       return result;
     } catch (error) {
-      console.error("[DEBUG] Error in createLevelUpNotification:", {
-        error: error.message,
-        stack: error.stack,
-        userId,
-        newUserLevel,
+      throw error;
+    }
+  }
+
+  // Gửi email thông báo cho inactive users với template đặc biệt
+  static async sendInactiveReminderEmail(
+    email,
+    subject,
+    content,
+    userName = "bạn",
+    daysInactive = 1
+  ) {
+    try {
+      console.log("[DEBUG] Sending inactive reminder email to:", email);
+
+      // Chọn emoji và màu sắc dựa trên số ngày inactive
+      let headerEmoji = "📚";
+      let gradientColors = "#667eea 0%, #764ba2 100%";
+      let motivationText = "Hãy quay lại học tiếp nhé!";
+
+      if (daysInactive <= 1) {
+        headerEmoji = "📚";
+        gradientColors = "#10b981 0%, #059669 100%";
+        motivationText = "Streak của bạn đang chờ đấy!";
+      } else if (daysInactive <= 3) {
+        headerEmoji = "⏰";
+        gradientColors = "#f59e0b 0%, #d97706 100%";
+        motivationText = "Đừng để kỹ năng bị lãng quên!";
+      } else if (daysInactive <= 7) {
+        headerEmoji = "🎯";
+        gradientColors = "#ef4444 0%, #dc2626 100%";
+        motivationText = "Chúng mình nhớ bạn lắm!";
+      } else {
+        headerEmoji = "🌟";
+        gradientColors = "#8b5cf6 0%, #7c3aed 100%";
+        motivationText = "Chào mừng bạn quay lại!";
+      }
+
+      const mailOptions = {
+        from: process.env.NOTIFICATION_SMTP_FROM,
+        to: email,
+        subject: subject,
+        html: `
+          <!DOCTYPE html>
+          <html lang="vi">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${subject}</title>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            </style>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 0;">
+              <tr>
+                <td align="center">
+                  <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); overflow: hidden; margin: 0 auto;">
+                    
+                    <!-- Header với gradient động -->
+                    <tr>
+                      <td style="background: linear-gradient(135deg, ${gradientColors}); padding: 40px 30px; text-align: center;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">
+                          ${headerEmoji}
+                        </div>
+                        <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                          Quizlingo
+                        </h1>
+                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
+                          ${motivationText}
+                        </p>
+                      </td>
+                    </tr>
+                    
+                    <!-- Content chính -->
+                    <tr>
+                      <td style="padding: 40px 30px;">
+                        <h2 style="color: #1e293b; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">
+                          Chào ${userName}! 👋
+                        </h2>
+                        
+                        <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea;">
+                          <div style="color: #475569; font-size: 16px; line-height: 1.8;">
+                            ${content}
+                          </div>
+                        </div>
+                        
+                        <!-- Streak info -->
+                        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center;">
+                          <div style="font-size: 18px; font-weight: 600; color: #92400e; margin-bottom: 10px;">
+                            🔥 Bạn đã nghỉ ${daysInactive} ngày
+                          </div>
+                          <div style="font-size: 14px; color: #a16207;">
+                            Hãy quay lại để duy trì streak học tập của mình!
+                          </div>
+                        </div>
+                        
+                        <!-- Call to Action Button -->
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="https://quizlingo.netlify.app/learn" style="display: inline-block; background: linear-gradient(135deg, ${gradientColors}); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                            🚀 Bắt đầu học ngay
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                      <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                        <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
+                          <strong>💫 Quizlingo Team</strong><br>
+                          Cùng bạn chinh phục tiếng Anh mỗi ngày!
+                        </p>
+
+                        
+                        <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
+                          Đây là email nhắc nhở học tập từ Quizlingo.<br>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>
+        `,
+      };
+
+      console.log("[DEBUG] Inactive reminder email prepared for:", email);
+      const info = await transporter.sendMail(mailOptions);
+      console.log(
+        "[DEBUG] Inactive reminder email sent successfully:",
+        info.messageId
+      );
+    } catch (error) {
+      console.error("[DEBUG] Error sending inactive reminder email:", error);
+      throw error;
+    }
+  }
+
+  // Tạo thông báo đặc biệt cho inactive reminders với email template nâng cao
+  static async createInactiveReminderNotification(
+    userId,
+    { title, message, type = "reminder", link = null },
+    daysInactive = 1
+  ) {
+    try {
+      // Kiểm tra user tồn tại
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error("Không tìm thấy người dùng");
+      }
+
+      // Kiểm tra cài đặt thông báo của user
+      const notificationSettings = user.notificationSettings || {
+        emailNotifications: true,
+        pushNotifications: true,
+      };
+
+      // Nếu push notifications bị tắt, chỉ gửi email nếu được bật
+      if (!notificationSettings.pushNotifications) {
+        if (notificationSettings.emailNotifications) {
+          await this.sendInactiveReminderEmail(
+            user.email,
+            title,
+            message,
+            user.firstName,
+            daysInactive
+          );
+        }
+        return null; // Không tạo thông báo trong database
+      }
+
+      // Nếu push notifications được bật, tạo thông báo bình thường
+      console.log("[DEBUG] Creating inactive reminder push notification");
+      const notification = await Notification.create({
+        user: userId,
+        title,
+        message,
+        type,
+        link,
       });
+
+      // Thêm notification vào user
+      await User.findByIdAndUpdate(userId, {
+        $push: { notifications: notification._id },
+      });
+
+      // Gửi email với template đặc biệt nếu user bật thông báo email
+      if (notificationSettings.emailNotifications) {
+        console.log("[DEBUG] Sending enhanced inactive reminder email");
+        await this.sendInactiveReminderEmail(
+          user.email,
+          title,
+          message,
+          user.firstName,
+          daysInactive
+        );
+      }
+
+      return notification;
+    } catch (error) {
+      console.error(
+        "[DEBUG] Error in createInactiveReminderNotification:",
+        error
+      );
       throw error;
     }
   }
