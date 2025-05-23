@@ -195,9 +195,10 @@ const createPackagePurchase = async (userId, packageId, paymentMethod) => {
         transactionId: userPackage.transactionId,
         amount: userPackage.amount,
         paymentMethod,
-        paymentUrl: paymentResult.paymentUrl,
+        paymentUrl: paymentResult.checkoutUrl,
         qrCode: paymentResult.qrCode,
-        orderCode: orderCode, // Trả về orderCode số
+        orderCode: orderCode,
+        checkoutUrl: paymentResult.checkoutUrl,
       },
     };
   } catch (error) {
