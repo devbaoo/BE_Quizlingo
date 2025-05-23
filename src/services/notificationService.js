@@ -20,9 +20,11 @@ class NotificationService {
     { title, message, type = "system", link = null }
   ) {
     try {
+      console.log("[DEBUG] Creating notification for user:", userId);
       // Kiểm tra user tồn tại
       const user = await User.findById(userId);
       if (!user) {
+        console.log("[DEBUG] User not found:", userId);
         throw new Error("Không tìm thấy người dùng");
       }
 
@@ -31,16 +33,22 @@ class NotificationService {
         emailNotifications: true,
         pushNotifications: true,
       };
+      console.log("[DEBUG] User notification settings:", notificationSettings);
 
       // Nếu push notifications bị tắt, chỉ gửi email nếu được bật
       if (!notificationSettings.pushNotifications) {
+        console.log(
+          "[DEBUG] Push notifications disabled, checking email settings"
+        );
         if (notificationSettings.emailNotifications) {
+          console.log("[DEBUG] Sending email notification");
           await this.sendEmailNotification(user.email, title, message);
         }
         return null; // Không tạo thông báo trong database
       }
 
       // Nếu push notifications được bật, tạo thông báo bình thường
+      console.log("[DEBUG] Creating push notification");
       const notification = await Notification.create({
         user: userId,
         title,
@@ -56,12 +64,13 @@ class NotificationService {
 
       // Gửi email nếu user bật thông báo email
       if (notificationSettings.emailNotifications) {
+        console.log("[DEBUG] Sending email notification");
         await this.sendEmailNotification(user.email, title, message);
       }
 
       return notification;
     } catch (error) {
-      console.error("Error creating notification:", error);
+      console.error("[DEBUG] Error in createNotification:", error);
       throw error;
     }
   }
@@ -144,6 +153,7 @@ class NotificationService {
   // Gửi email thông báo
   static async sendEmailNotification(email, subject, content) {
     try {
+      console.log("[DEBUG] Attempting to send email to:", email);
       const mailOptions = {
         from: process.env.NOTIFICATION_SMTP_FROM,
         to: email,
@@ -161,9 +171,16 @@ class NotificationService {
         `,
       };
 
-      await transporter.sendMail(mailOptions);
+      console.log("[DEBUG] Mail options prepared:", {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+      });
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log("[DEBUG] Email sent successfully:", info.messageId);
     } catch (error) {
-      console.error("Error sending email notification:", error);
+      console.error("[DEBUG] Error sending email notification:", error);
       throw error;
     }
   }
@@ -325,17 +342,32 @@ class NotificationService {
   // Tạo thông báo khi user level up
   static async createLevelUpNotification(userId, newUserLevel) {
     try {
+      console.log(
+        "[DEBUG] Starting level up notification for user:",
+        userId,
+        "level:",
+        newUserLevel
+      );
       const title = "🎉 Chúc mừng Level Up!";
       const message = `Bạn đã đạt đến cấp độ ${newUserLevel}! Tiếp tục phấn đấu để đạt được những cấp độ cao hơn nhé!`;
 
-      return await this.createNotification(userId, {
+      const user = await User.findById(userId);
+      console.log(
+        "[DEBUG] User notification settings:",
+        user?.notificationSettings
+      );
+
+      const result = await this.createNotification(userId, {
         title,
         message,
         type: "achievement",
         link: "/profile",
       });
+
+      console.log("[DEBUG] Level up notification result:", result);
+      return result;
     } catch (error) {
-      console.error("Error creating level up notification:", error);
+      console.error("[DEBUG] Error in createLevelUpNotification:", error);
       throw error;
     }
   }
