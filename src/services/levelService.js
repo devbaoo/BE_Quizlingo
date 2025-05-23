@@ -72,12 +72,35 @@ const createLevel = async (levelData) => {
 
 const updateLevel = async (id, levelData) => {
   try {
-    const { name, maxScore, timeLimit, description, isActive } = levelData;
+    const {
+      name,
+      maxScore,
+      timeLimit,
+      minUserLevel,
+      minLessonPassed,
+      minScoreRequired,
+      order,
+      isActive,
+    } = levelData;
+
     const level = await Level.findByIdAndUpdate(
       id,
-      { name, maxScore, timeLimit, description, isActive },
-      { new: true, runValidators: true }
+      {
+        name,
+        maxScore,
+        timeLimit,
+        minUserLevel,
+        minLessonPassed,
+        minScoreRequired,
+        order,
+        isActive,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
     );
+
     if (!level) {
       return {
         success: false,
