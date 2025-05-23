@@ -745,7 +745,7 @@ const completeLesson = async (
               ...result,
               answer,
               score: typeof evalRes.score === "number" ? evalRes.score : 0,
-              isCorrect: typeof evalRes.isCorrect === "boolean" ? evalRes.isCorrect : false,
+              isCorrect: typeof evalRes.score === "number" ? evalRes.score >= 50 : false,
               feedback: evalRes.feedback || "Lỗi chấm điểm",
             };
           } else if (skillName === "listening") {
@@ -781,7 +781,7 @@ const completeLesson = async (
                   score: evalRes.score,
                   feedback: evalRes.feedback,
                   transcription: evalRes.transcription,
-                  isCorrect: evalRes.score >= 70,
+                  isCorrect: evalRes.score >= 50,
                   answer: evalRes.transcription || "[UNANSWERED]",
                 }
                 : {
@@ -799,7 +799,7 @@ const completeLesson = async (
                   score: evalRes.score,
                   feedback: evalRes.feedback,
                   transcription: evalRes.transcription,
-                  isCorrect: evalRes.score >= 70,
+                  isCorrect: evalRes.score >= 50,
                   answer: evalRes.transcription || "[UNANSWERED]",
                 }
                 : {
