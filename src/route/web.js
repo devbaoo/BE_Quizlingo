@@ -211,6 +211,11 @@ const initWebRoutes = (app) => {
     protect,
     notificationController.updateSettings
   );
+  router.get(
+    "/notifications/settings",
+    protect,
+    notificationController.getNotificationsSetting
+  );
 
   // Admin notification routes
   router.post(
