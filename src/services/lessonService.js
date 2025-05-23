@@ -768,6 +768,16 @@ const completeLesson = async (
           break;
         }
 
+        case "multiple_choice": {
+          questionResults[i] = {
+            ...result,
+            answer,
+            isCorrect: answer === question.correctAnswer,
+            score: answer === question.correctAnswer ? question.score : 0,
+          };
+          break;
+        }
+
         case "audio_input": {
           if (result.audioAnswer) {
             const audioBuffer = Buffer.from(result.audioAnswer, "base64");
