@@ -29,19 +29,88 @@ const verificationEmailTemplate = (name, verificationLink) => {
   return {
     subject: "Xác thực tài khoản QuizLingo của bạn",
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2 style="color: #4a6ee0;">QuizLingo - Xác thực tài khoản</h2>
-        <p>Xin chào <strong>${name}</strong>,</p>
-        <p>Cảm ơn bạn đã đăng ký tài khoản trên QuizLingo. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào liên kết bên dưới:</p>
-        <div style="margin: 30px 0;">
-          <a href="${verificationLink}" style="background-color: #4a6ee0; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Xác thực tài khoản</a>
-        </div>
-        <p>Hoặc bạn có thể sao chép liên kết này vào trình duyệt của bạn:</p>
-        <p style="word-break: break-all; color: #666;">${verificationLink}</p>
-        <p>Liên kết này sẽ hết hạn sau 24 giờ.</p>
-        <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
-        <p>Trân trọng,<br>Đội ngũ QuizLingo</p>
-      </div>
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Xác thực tài khoản QuizLingo</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        </style>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); overflow: hidden; margin: 0 auto;">
+                
+                <!-- Header với gradient -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                    <div style="font-size: 60px; margin-bottom: 20px;">
+                      ✉️
+                    </div>
+                    <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                      Quizlingo
+                    </h1>
+                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
+                      Xác thực tài khoản của bạn
+                    </p>
+                  </td>
+                </tr>
+                
+                <!-- Content chính -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #1e293b; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">
+                      Chào ${name}! 👋
+                    </h2>
+                    
+                    <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea;">
+                      <div style="color: #475569; font-size: 16px; line-height: 1.8;">
+                        Cảm ơn bạn đã đăng ký tài khoản trên QuizLingo. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
+                      </div>
+                    </div>
+                    
+                    <!-- Verification info -->
+                    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center;">
+                      <div style="font-size: 18px; font-weight: 600; color: #92400e; margin-bottom: 10px;">
+                        ⚡️ Liên kết sẽ hết hạn sau 24 giờ
+                      </div>
+                      <div style="font-size: 14px; color: #a16207;">
+                        Hãy xác thực ngay để bắt đầu hành trình học tập của bạn!
+                      </div>
+                    </div>
+                    
+                    <!-- Call to Action Button -->
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="${verificationLink}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                        ✨ Xác thực tài khoản
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
+                      <strong>💫 Quizlingo Team</strong><br>
+                      Cùng bạn chinh phục tiếng Anh mỗi ngày!
+                    </p>
+                    
+                    <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
+                      Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.<br>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `,
   };
 };
@@ -51,19 +120,89 @@ const resetPasswordEmailTemplate = (name, resetLink) => {
   return {
     subject: "Đặt lại mật khẩu QuizLingo của bạn",
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2 style="color: #4a6ee0;">QuizLingo - Đặt lại mật khẩu</h2>
-        <p>Xin chào <strong>${name}</strong>,</p>
-        <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản QuizLingo của bạn. Vui lòng nhấp vào liên kết bên dưới để đặt lại mật khẩu:</p>
-        <div style="margin: 30px 0;">
-          <a href="${resetLink}" style="background-color: #4a6ee0; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Đặt lại mật khẩu</a>
-        </div>
-        <p>Hoặc bạn có thể sao chép liên kết này vào trình duyệt của bạn:</p>
-        <p style="word-break: break-all; color: #666;">${resetLink}</p>
-        <p>Liên kết này sẽ hết hạn sau 1 giờ.</p>
-        <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này. Mật khẩu của bạn sẽ không bị thay đổi.</p>
-        <p>Trân trọng,<br>Đội ngũ QuizLingo</p>
-      </div>
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Đặt lại mật khẩu QuizLingo</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        </style>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); overflow: hidden; margin: 0 auto;">
+                
+                <!-- Header với gradient -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
+                    <div style="font-size: 60px; margin-bottom: 20px;">
+                      🔐
+                    </div>
+                    <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                      Quizlingo
+                    </h1>
+                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
+                      Đặt lại mật khẩu của bạn
+                    </p>
+                  </td>
+                </tr>
+                
+                <!-- Content chính -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #1e293b; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">
+                      Chào ${name}! 👋
+                    </h2>
+                    
+                    <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #10b981;">
+                      <div style="color: #475569; font-size: 16px; line-height: 1.8;">
+                        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản QuizLingo của bạn. Vui lòng nhấp vào nút bên dưới để tiến hành đặt lại mật khẩu.
+                      </div>
+                    </div>
+                    
+                    <!-- Reset warning -->
+                    <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center;">
+                      <div style="font-size: 18px; font-weight: 600; color: #991b1b; margin-bottom: 10px;">
+                        ⚠️ Liên kết sẽ hết hạn sau 1 giờ
+                      </div>
+                      <div style="font-size: 14px; color: #b91c1c;">
+                        Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này
+                      </div>
+                    </div>
+                    
+                    <!-- Call to Action Button -->
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: all 0.3s ease;">
+                        🔄 Đặt lại mật khẩu
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
+                      <strong>💫 Quizlingo Team</strong><br>
+                      Cùng bạn chinh phục tiếng Anh mỗi ngày!
+                    </p>
+                    
+                    <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
+                      Đây là email đặt lại mật khẩu từ Quizlingo.<br>
+                      Mật khẩu của bạn sẽ không thay đổi cho đến khi bạn truy cập liên kết trên.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `,
   };
 };
