@@ -1,3 +1,5 @@
+// lesson.js
+
 import mongoose from 'mongoose';
 
 const lessonSchema = new mongoose.Schema({
@@ -6,17 +8,6 @@ const lessonSchema = new mongoose.Schema({
     required: [true, 'Tiêu đề bài học là bắt buộc'],
     trim: true,
     maxlength: [100, 'Tiêu đề không được vượt quá 100 ký tự']
-  },
-  type: {
-    type: String,
-    required: [true, 'Loại bài học là bắt buộc'],
-    trim: true,
-    validate: {
-      validator: function (value) {
-        return ['multiple_choice', 'text_input', 'audio_input'].includes(value);
-      },
-      message: 'Loại bài học phải là multiple_choice, text_input hoặc audio_input'
-    }
   },
   topic: {
     type: mongoose.Schema.Types.ObjectId,
@@ -28,11 +19,13 @@ const lessonSchema = new mongoose.Schema({
     ref: 'Level',
     required: [true, 'Trình độ bài học là bắt buộc']
   },
-  skill: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Skill',
-    required: [true, 'Kỹ năng bài học là bắt buộc']
-  },
+  skills: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Skill',
+      required: true
+    }
+  ],
   maxScore: {
     type: Number,
     required: true
@@ -60,18 +53,6 @@ const lessonSchema = new mongoose.Schema({
 
 lessonSchema.pre('validate', async function (next) {
   try {
-    const skill = await mongoose.model('Skill').findById(this.skill);
-    if (!skill || !skill.isActive) {
-      return next(new Error('Kỹ năng không hợp lệ hoặc không hoạt động'));
-    }
-
-    // ✅ Kiểm tra xem skill có hỗ trợ loại bài học này không
-    if (!skill.supportedTypes.includes(this.type)) {
-      return next(
-        new Error(`Kỹ năng ${skill.name} không hỗ trợ loại bài học ${this.type}`)
-      );
-    }
-
     const topic = await mongoose.model('Topic').findById(this.topic);
     if (!topic || !topic.isActive) {
       return next(new Error('Chủ đề không hợp lệ hoặc không hoạt động'));
@@ -80,6 +61,19 @@ lessonSchema.pre('validate', async function (next) {
     const level = await mongoose.model('Level').findById(this.level);
     if (!level || !level.isActive) {
       return next(new Error('Cấp độ không hợp lệ hoặc không hoạt động'));
+    }
+
+    if (!Array.isArray(this.skills) || this.skills.length === 0) {
+      return next(new Error('Phải có ít nhất một kỹ năng cho bài học'));
+    }
+
+    const skills = await mongoose.model('Skill').find({
+      _id: { $in: this.skills },
+      isActive: true
+    });
+
+    if (skills.length !== this.skills.length) {
+      return next(new Error('Một hoặc nhiều kỹ năng không hợp lệ hoặc không hoạt động'));
     }
 
     this.maxScore = level.maxScore;
@@ -91,7 +85,7 @@ lessonSchema.pre('validate', async function (next) {
   }
 });
 
-lessonSchema.index({ type: 1, topic: 1, level: 1, skill: 1 });
+lessonSchema.index({ topic: 1, level: 1 });
 
 const Lesson = mongoose.model('Lesson', lessonSchema);
 export default Lesson;
