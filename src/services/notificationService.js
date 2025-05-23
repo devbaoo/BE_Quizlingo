@@ -20,11 +20,9 @@ class NotificationService {
     { title, message, type = "system", link = null }
   ) {
     try {
-      console.log("[DEBUG] Creating notification for user:", userId);
       // Kiểm tra user tồn tại
       const user = await User.findById(userId);
       if (!user) {
-        console.log("[DEBUG] User not found:", userId);
         throw new Error("Không tìm thấy người dùng");
       }
 
@@ -33,15 +31,10 @@ class NotificationService {
         emailNotifications: true,
         pushNotifications: true,
       };
-      console.log("[DEBUG] User notification settings:", notificationSettings);
 
       // Nếu push notifications bị tắt, chỉ gửi email nếu được bật
       if (!notificationSettings.pushNotifications) {
-        console.log(
-          "[DEBUG] Push notifications disabled, checking email settings"
-        );
         if (notificationSettings.emailNotifications) {
-          console.log("[DEBUG] Sending email notification");
           await this.sendEmailNotification(user.email, title, message);
         }
         return null; // Không tạo thông báo trong database
@@ -342,20 +335,27 @@ class NotificationService {
   // Tạo thông báo khi user level up
   static async createLevelUpNotification(userId, newUserLevel) {
     try {
-      console.log(
-        "[DEBUG] Starting level up notification for user:",
+      console.log("[DEBUG] Creating level up notification:", {
         userId,
-        "level:",
-        newUserLevel
-      );
+        newUserLevel,
+      });
+
+      // Kiểm tra user và notification settings
+      const user = await User.findById(userId).select("notificationSettings");
+      console.log("[DEBUG] User notification settings:", {
+        userId,
+        settings: user?.notificationSettings,
+      });
+
       const title = "🎉 Chúc mừng Level Up!";
       const message = `Bạn đã đạt đến cấp độ ${newUserLevel}! Tiếp tục phấn đấu để đạt được những cấp độ cao hơn nhé!`;
 
-      const user = await User.findById(userId);
-      console.log(
-        "[DEBUG] User notification settings:",
-        user?.notificationSettings
-      );
+      console.log("[DEBUG] Attempting to create notification with:", {
+        userId,
+        title,
+        message,
+        type: "achievement",
+      });
 
       const result = await this.createNotification(userId, {
         title,
@@ -364,10 +364,20 @@ class NotificationService {
         link: "/profile",
       });
 
-      console.log("[DEBUG] Level up notification result:", result);
+      console.log("[DEBUG] Level up notification created:", {
+        notificationId: result._id,
+        userId,
+        type: result.type,
+      });
+
       return result;
     } catch (error) {
-      console.error("[DEBUG] Error in createLevelUpNotification:", error);
+      console.error("[DEBUG] Error in createLevelUpNotification:", {
+        error: error.message,
+        stack: error.stack,
+        userId,
+        newUserLevel,
+      });
       throw error;
     }
   }
