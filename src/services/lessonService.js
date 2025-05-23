@@ -620,30 +620,12 @@ const getRequiredXpForLevel = (level) => {
 };
 
 const upgradeUserLevel = async (user, currentLevelId) => {
-  console.log("[DEBUG] Starting upgradeUserLevel check:", {
-    userId: user._id,
-    currentUserLevel: user.userLevel,
-    currentLevelId: currentLevelId,
-  });
-
   const allLevels = await Level.find().sort({ order: 1 });
   const currentIndex = allLevels.findIndex(
     (l) => l._id.toString() === currentLevelId.toString()
   );
 
-  console.log("[DEBUG] Level check:", {
-    currentIndex,
-    totalLevels: allLevels.length,
-    currentLevel: allLevels[currentIndex]?.name,
-    nextLevel: allLevels[currentIndex + 1]?.name,
-  });
-
-  if (currentIndex === -1 || currentIndex >= allLevels.length - 1) {
-    console.log("[DEBUG] Cannot upgrade level:", {
-      reason: currentIndex === -1 ? "Level not found" : "Already at max level",
-    });
-    return;
-  }
+  if (currentIndex === -1 || currentIndex >= allLevels.length - 1) return;
 
   const nextLevel = allLevels[currentIndex + 1];
 
@@ -655,50 +637,9 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   const enoughXp = user.userLevel >= nextLevel.minUserLevel;
   const enoughLessons = passedLessons >= nextLevel.minLessonPassed;
 
-  console.log("[DEBUG] Upgrade conditions:", {
-    enoughXp,
-    enoughLessons,
-    currentUserLevel: user.userLevel,
-    requiredUserLevel: nextLevel.minUserLevel,
-    passedLessons,
-    requiredLessons: nextLevel.minLessonPassed,
-  });
-
   if (enoughXp && enoughLessons) {
-    const oldLevel = user.userLevel;
-    user.userLevel += 1;
-    await user.save();
-
-    console.log("[DEBUG] User level upgraded:", {
-      userId: user._id,
-      oldLevel,
-      newLevel: user.userLevel,
-    });
-
-    try {
-      console.log("[DEBUG] Attempting to create level up notification");
-      const notification = await NotificationService.createLevelUpNotification(
-        user._id,
-        user.userLevel
-      );
-      console.log(
-        "[DEBUG] Level up notification created successfully:",
-        notification
-      );
-    } catch (error) {
-      console.error("[DEBUG] Error sending level up notification:", {
-        error: error.message,
-        stack: error.stack,
-        userId: user._id,
-        newLevel: user.userLevel,
-      });
-    }
-  } else {
-    console.log("[DEBUG] Level up conditions not met:", {
-      userId: user._id,
-      enoughXp,
-      enoughLessons,
-    });
+    user.level = nextLevel._id;
+    console.log(`User ${user._id} upgraded to ${nextLevel.name}`);
   }
 };
 
@@ -905,10 +846,20 @@ const completeLesson = async (
       user.userLevel += 1;
       user.xp = 0;
       user.lives = Math.min(user.lives + 1, 5);
-    }
 
-    await upgradeUserLevel(user, user.level);
-    await user.save();
+      // Create level up notification
+      try {
+        await NotificationService.createLevelUpNotification(
+          user._id,
+          user.userLevel
+        );
+      } catch (error) {
+        console.error("[DEBUG] Failed to create level up notification:", error);
+      }
+
+      await upgradeUserLevel(user, user.level);
+      await user.save();
+    }
 
     return {
       success: true,
