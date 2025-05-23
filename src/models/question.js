@@ -11,6 +11,16 @@ const questionSchema = new mongoose.Schema({
         required: [true, 'Nội dung câu hỏi là bắt buộc'],
         trim: true
     },
+    type: {
+        type: String,
+        enum: ['multiple_choice', 'text_input', 'audio_input'],
+        required: true
+    },
+    skill: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Skill',
+        required: true
+    },
     options: [{
         type: String,
         trim: true
