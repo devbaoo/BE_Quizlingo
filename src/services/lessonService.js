@@ -760,11 +760,28 @@ const completeLesson = async (
 
       switch (question.type) {
         case "text_input":
-          if (["listening", "writing"].includes(question.skill?.name?.toLowerCase())) {
+          const skillName = question.skill?.name?.toLowerCase();
+
+          if (skillName === "writing") {
+            const evalRes = await groqService.evaluateWritingTextInput(
+              question.content,
+              answer
+            );
+
+            questionResults[i] = {
+              ...result,
+              answer,
+              score: evalRes.score,
+              isCorrect: evalRes.isCorrect,
+              feedback: evalRes.feedback,
+            };
+
+          } else if (skillName === "listening") {
             const evalRes = await groqService.evaluateListeningTextInput(
               question.correctAnswer,
               answer
             );
+
             questionResults[i] = {
               ...result,
               answer,
@@ -773,6 +790,7 @@ const completeLesson = async (
               feedback: evalRes.feedback,
             };
           } else {
+            // fallback cho các skill khác
             questionResults[i] = {
               ...result,
               answer,
@@ -781,40 +799,54 @@ const completeLesson = async (
             };
           }
           break;
-
         case "audio_input":
           if (result.audioAnswer) {
-            const evalRes = await groqService.evaluatePronunciation(
-              question.correctAnswer,
-              Buffer.from(result.audioAnswer, "base64")
-            );
-            questionResults[i] = evalRes.success
-              ? {
-                ...result,
-                score: evalRes.score,
-                feedback: evalRes.feedback,
-                transcription: evalRes.transcription,
-                isCorrect: evalRes.score >= 70,
-                answer: evalRes.transcription || "[UNANSWERED]",
-              }
-              : {
-                ...result,
-                score: 0,
-                feedback: evalRes.message,
-                isCorrect: false,
-                answer: "[ERROR]",
-              };
-          }
-          break;
+            const audioBuffer = Buffer.from(result.audioAnswer, "base64");
 
-        case "multiple_choice":
-        default:
-          questionResults[i] = {
-            ...result,
-            answer,
-            isCorrect: answer === question.correctAnswer,
-            score: answer === question.correctAnswer ? question.score : 0,
-          };
+            if (question.skill?.name?.toLowerCase() === "speaking") {
+              const evalRes = await groqService.evaluatePronunciationFromAudio(audioBuffer, question.correctAnswer);
+
+              questionResults[i] = evalRes.success
+                ? {
+                  ...result,
+                  score: evalRes.score,
+                  feedback: evalRes.feedback,
+                  transcription: evalRes.transcription,
+                  isCorrect: evalRes.score >= 70,
+                  answer: evalRes.transcription || "[UNANSWERED]",
+                }
+                : {
+                  ...result,
+                  score: 0,
+                  feedback: evalRes.message,
+                  isCorrect: false,
+                  answer: "[ERROR]",
+                };
+            } else {
+              // Default fallback: dùng evaluatePronunciation cũ
+              const evalRes = await groqService.evaluatePronunciation(
+                question.correctAnswer,
+                audioBuffer
+              );
+
+              questionResults[i] = evalRes.success
+                ? {
+                  ...result,
+                  score: evalRes.score,
+                  feedback: evalRes.feedback,
+                  transcription: evalRes.transcription,
+                  isCorrect: evalRes.score >= 70,
+                  answer: evalRes.transcription || "[UNANSWERED]",
+                }
+                : {
+                  ...result,
+                  score: 0,
+                  feedback: evalRes.message,
+                  isCorrect: false,
+                  answer: "[ERROR]",
+                };
+            }
+          }
           break;
       }
     }

@@ -301,10 +301,203 @@ const evaluateListeningTextInput = async (correctText, userInput) => {
   }
 };
 
+// Transcribe from Cloudinary audio URL
+const transcribeFromAudioUrl = async (audioUrl) => {
+  try {
+    const res = await fetch(ASSEMBLYAI_TRANSCRIPT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: ASSEMBLYAI_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ audio_url: audioUrl }),
+    });
+
+    const data = await res.json();
+    const transcriptId = data.id;
+
+    let transcription;
+    let attempts = 0;
+    const maxAttempts = 45;
+
+    while (attempts < maxAttempts) {
+      const statusRes = await fetch(`${ASSEMBLYAI_TRANSCRIPT_URL}/${transcriptId}`, {
+        headers: { Authorization: ASSEMBLYAI_API_KEY },
+      });
+      const statusData = await statusRes.json();
+
+      if (statusData.status === "completed") {
+        transcription = statusData.text;
+        break;
+      } else if (statusData.status === "failed") {
+        throw new Error(statusData.error || "Unknown error");
+      }
+
+      await new Promise((res) => setTimeout(res, 2000));
+      attempts++;
+    }
+
+    return {
+      success: true,
+      transcription,
+      metadata: {
+        transcriptId,
+        audioUrl,
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: `Lỗi transcription: ${err.message}`,
+    };
+  }
+};
+
+// Transcribe từ buffer (upload + transcribe)
+const transcribeAudioBuffer = async (buffer) => {
+  const uploadResult = await cloudinaryService.uploadAudioBuffer(buffer);
+  if (!uploadResult.success) return uploadResult;
+
+  return await transcribeFromAudioUrl(uploadResult.audioUrl);
+};
+
+// Evaluate pronunciation từ buffer
+const evaluatePronunciationFromAudio = async (buffer, referenceText) => {
+  try {
+    const transcriptionRes = await transcribeAudioBuffer(buffer);
+    if (!transcriptionRes.success) return transcriptionRes;
+
+    const { transcription, metadata } = transcriptionRes;
+
+    const evalRes = await evaluatePronunciationWithText(referenceText, transcription);
+    if (!evalRes.success) return evalRes;
+
+    return {
+      success: true,
+      score: evalRes.score,
+      feedback: evalRes.feedback,
+      transcription,
+      audioUrl: metadata.audioUrl,
+      transcriptId: metadata.transcriptId,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: `Lỗi đánh giá phát âm: ${err.message}`,
+    };
+  }
+};
+
+const evaluatePronunciationWithText = async (questionContent, userTranscript) => {
+  const response = await fetch(GROQ_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama3-8b-8192",
+      messages: [
+        {
+          role: "system",
+          content: "You are an English speaking coach. Evaluate the learner's response to an open-ended speaking prompt.",
+        },
+        {
+          role: "user",
+          content: `
+Prompt: "${questionContent}"
+Student's spoken response (transcribed): "${userTranscript}"
+
+Evaluate:
+1. Relevance to the prompt (0-100)
+2. Pronunciation clarity (0-100)
+3. Grammar (0-100)
+4. Vocabulary richness (0-100)
+
+Return an overall score (0-100), and provide feedback on what was good and what can be improved.
+          `.trim(),
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+
+  const scoreMatch = content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
+  const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
+
+  return {
+    success: true,
+    score,
+    feedback: content,
+  };
+};
+
+const evaluateWritingTextInput = async (questionPrompt, userInput) => {
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          {
+            role: "system",
+            content: "You are an English writing teacher. Evaluate student writing for correctness and relevance.",
+          },
+          {
+            role: "user",
+            content: `
+Prompt: "${questionPrompt}"
+Student's writing: "${userInput}"
+
+Please rate the response on:
+- Relevance to the prompt (0-100)
+- Grammar & structure (0-100)
+- Vocabulary (0-100)
+
+Return an overall score out of 100, a short summary, and constructive feedback.
+            `.trim(),
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+
+    const scoreMatch = content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
+
+    return {
+      success: true,
+      score,
+      feedback: content,
+      isCorrect: score >= 70,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      score: 0,
+      isCorrect: false,
+      feedback: error.message,
+    };
+  }
+};
+
+
 export default {
   textToSpeech,
   speechToText,
   evaluatePronunciation,
   textToSpeechAndUpload,
   evaluateListeningTextInput,
+  transcribeFromAudioUrl,
+  transcribeAudioBuffer,
+  evaluatePronunciationFromAudio,
+  evaluateWritingTextInput
 };
