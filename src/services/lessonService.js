@@ -600,9 +600,7 @@ const getLessons = async (userId, queryParams) => {
 // Lấy chi tiết bài học
 const getLessonById = async (lessonId) => {
   try {
-    const lesson = await Lesson.findById(lessonId).populate(
-      "questions topic level skill"
-    );
+    const lesson = await Lesson.findById(lessonId).populate("questions topic level skills");
 
     if (!lesson) {
       return {
