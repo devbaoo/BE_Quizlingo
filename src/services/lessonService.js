@@ -606,21 +606,19 @@ const getLessonById = async (lessonId) => {
   }
 };
 
-// Calculate XP required for the next level
 const getRequiredXpForLevel = (level) => {
-  return Math.floor(200 * Math.pow(1.5, level - 1));
+  // Giảm tốc độ tăng XP yêu cầu để user dễ lên cấp hơn
+  return Math.floor(100 * Math.pow(1.3, level - 1));
 };
 
 const upgradeUserLevel = async (user, currentLevelId) => {
   const allLevels = await Level.find().sort({ order: 1 });
   const currentIndex = allLevels.findIndex(l => l._id.toString() === currentLevelId.toString());
 
-  // Nếu user đang ở level cuối cùng, hoặc không tồn tại trong danh sách -> return
   if (currentIndex === -1 || currentIndex >= allLevels.length - 1) return;
 
   const nextLevel = allLevels[currentIndex + 1];
 
-  // Đếm số bài học đạt yêu cầu
   const passedLessons = await Progress.countDocuments({
     userId: user._id,
     score: { $gte: nextLevel.minScoreRequired || 70 }
@@ -629,12 +627,12 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   const enoughXp = user.userLevel >= nextLevel.minUserLevel;
   const enoughLessons = passedLessons >= nextLevel.minLessonPassed;
 
-  // Chỉ nâng cấp nếu user đang ở cấp thấp hơn
   if (enoughXp && enoughLessons) {
     user.level = nextLevel._id;
     console.log(`User ${user._id} upgraded to ${nextLevel.name}`);
   }
 };
+
 
 // Hoàn thành bài học
 const completeLesson = async (userId, lessonId, score, questionResults, isRetried = false) => {
