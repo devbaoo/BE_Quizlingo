@@ -646,14 +646,17 @@ const upgradeUserLevel = async (user, currentLevelId) => {
     score: { $gte: nextLevel.minScoreRequired || 70 },
   });
 
-  const enoughXp = user.userLevel >= nextLevel.minUserLevel;
-  const enoughLessons = passedLessons >= nextLevel.minLessonPassed;
+  const meetsUserLevel = user.userLevel >= nextLevel.minUserLevel;
+  const meetsLessonPassed = passedLessons >= nextLevel.minLessonPassed;
 
-  if (enoughXp && enoughLessons) {
+  console.log(`[Upgrade Check] userLevel=${user.userLevel}, required=${nextLevel.minUserLevel}, passed=${passedLessons}, requiredLessons=${nextLevel.minLessonPassed}`);
+
+  if (meetsUserLevel && meetsLessonPassed) {
     user.level = nextLevel._id;
-    console.log(`User ${user._id} upgraded to ${nextLevel.name}`);
+    console.log(`✅ User ${user._id} upgraded English level to: ${nextLevel.name}`);
   }
 };
+
 
 const completeLesson = async (
   userId,
@@ -872,14 +875,18 @@ const completeLesson = async (
       user.userLevel += 1;
       user.xp = 0;
       user.lives = Math.min(user.lives + 1, 5);
+
       try {
         await NotificationService.createLevelUpNotification(user._id, user.userLevel);
       } catch (error) {
         console.error("[DEBUG] Failed to create level up notification:", error);
       }
-      await upgradeUserLevel(user, user.level);
-      await user.save();
     }
+
+    // Dù userLevel có tăng hay không, vẫn check nâng level tiếng Anh
+    await upgradeUserLevel(user, user.level);
+    await user.save();
+
 
     return {
       success: true,
