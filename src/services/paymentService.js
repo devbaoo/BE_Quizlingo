@@ -107,9 +107,10 @@ const createPaymentUrl = async (paymentData) => {
     if (response.data.code === "00") {
       return {
         success: true,
-        paymentUrl: response.data.data.paymentUrl,
+        paymentUrl: response.data.data.checkoutUrl,
         qrCode: response.data.data.qrCode,
         orderCode: response.data.data.orderCode,
+        checkoutUrl: response.data.data.checkoutUrl,
       };
     }
 
