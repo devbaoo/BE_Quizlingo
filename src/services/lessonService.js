@@ -435,20 +435,17 @@ const updateLesson = async (lessonId, lessonData) => {
   }
 };
 
-// Lấy danh sách bài học
 const getLessons = async (userId, queryParams) => {
   try {
-    const { topic, level, skill, preferredSkills } = queryParams;
+    const { level, skill, preferredSkills, page = 1, limit = 3 } = queryParams;
 
     let query = {};
-    let topicDoc, levelDoc, skillDoc;
+    let levelDoc, skillDoc;
     let user = null;
 
-    // Nếu có user thì tìm user
     if (userId) {
       user = await User.findById(userId);
       if (!user) {
-        console.error(`User not found: ${userId}`);
         return {
           success: false,
           statusCode: 404,
@@ -457,22 +454,6 @@ const getLessons = async (userId, queryParams) => {
       }
     }
 
-    // Ưu tiên topic từ query, nếu không có thì dùng preferredTopics
-    if (topic) {
-      topicDoc = await Topic.findById(topic);
-      if (!topicDoc || !topicDoc.isActive) {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Chủ đề không hợp lệ hoặc không hoạt động",
-        };
-      }
-      query.topic = topic;
-    } else if (user && user.preferredTopics?.length > 0) {
-      query.topic = { $in: user.preferredTopics };
-    }
-
-    // Kiểm tra level
     if (level) {
       levelDoc = await Level.findById(level);
       if (!levelDoc || !levelDoc.isActive) {
@@ -491,18 +472,8 @@ const getLessons = async (userId, queryParams) => {
           message: "Cấp độ không khớp với người dùng",
         };
       }
-
-      // Nếu là beginner, bắt buộc học từ vựng trước
-      if (user?.level && levelDoc.name === "beginner" && query.topic) {
-        const completedVocab = user.completedBasicVocab.map((id) => id.toString());
-        if (!completedVocab.includes(query.topic.toString())) {
-          const vocabSkill = await Skill.findOne({ name: "vocabulary" });
-          query.skill = vocabSkill?._id;
-        }
-      }
     }
 
-    // Kiểm tra skill
     if (skill) {
       skillDoc = await Skill.findById(skill);
       if (!skillDoc || !skillDoc.isActive) {
@@ -515,7 +486,6 @@ const getLessons = async (userId, queryParams) => {
       query.skill = skill;
     }
 
-    // Xử lý preferredSkills (chỉ để sắp xếp)
     let sortOptions = {};
     if (preferredSkills) {
       const skillsArray = preferredSkills.split(",").map((s) => s.trim());
@@ -528,20 +498,67 @@ const getLessons = async (userId, queryParams) => {
             message: "Không có kỹ năng hợp lệ trong preferredSkills",
           };
         }
-        sortOptions = { skill: -1 }; // hoặc tuỳ vào UX bạn muốn
+        sortOptions = { skill: -1 };
       }
     }
 
-    const lessons = await Lesson.find(query)
+    // Lấy tất cả bài học
+    const allLessons = await Lesson.find(query)
       .populate("questions topic level skill")
       .select("title type topic level skill maxScore timeLimit createdAt")
       .sort(sortOptions);
+
+    // Lấy các bài học user đã hoàn thành
+    let completedLessonIds = [];
+    if (userId) {
+      completedLessonIds = await Progress.distinct("lessonId", {
+        userId,
+        status: "COMPLETE",
+      });
+    }
+
+    // Gắn trạng thái cho từng bài học
+    const lessonsWithStatus = allLessons.map((lesson) => {
+      const isCompleted = completedLessonIds.some(
+        (id) => id.toString() === lesson._id.toString()
+      );
+      return {
+        ...lesson.toObject(),
+        status: isCompleted ? "COMPLETE" : "LOCKED",
+      };
+    });
+
+    // Nhóm bài học theo topic
+    const topicMap = new Map();
+    for (const lesson of lessonsWithStatus) {
+      const topicId = lesson.topic._id.toString();
+      if (!topicMap.has(topicId)) {
+        topicMap.set(topicId, {
+          topic: lesson.topic,
+          lessons: []
+        });
+      }
+      topicMap.get(topicId).lessons.push(lesson);
+    }
+
+    // Chuyển sang mảng và phân trang theo topic
+    const groupedByTopic = Array.from(topicMap.values());
+    const pageNum = parseInt(page, 10) || 1;
+    const pageSize = parseInt(limit, 10) || 3;
+    const skip = (pageNum - 1) * pageSize;
+    const paginated = groupedByTopic.slice(skip, skip + pageSize);
 
     return {
       success: true,
       statusCode: 200,
       message: "Lấy danh sách bài học thành công",
-      lessons,
+      topics: paginated,
+      pagination: {
+        currentPage: pageNum,
+        pageSize,
+        totalTopics: groupedByTopic.length,
+        totalPages: Math.ceil(groupedByTopic.length / pageSize),
+      },
     };
   } catch (error) {
     console.error("Get lessons error:", {
@@ -557,7 +574,6 @@ const getLessons = async (userId, queryParams) => {
     };
   }
 };
-
 
 // Lấy chi tiết bài học
 const getLessonById = async (lessonId) => {
