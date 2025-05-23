@@ -638,7 +638,8 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   const enoughLessons = passedLessons >= nextLevel.minLessonPassed;
 
   if (enoughXp && enoughLessons) {
-    user.level = nextLevel._id;
+    user.userLevel += 1;
+    await user.save();
     console.log(`User ${user._id} upgraded to level ${user.userLevel}`);
 
     // Gửi thông báo khi user lên level
