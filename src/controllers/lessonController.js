@@ -24,7 +24,8 @@ const getLessons = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      lessons: result.lessons,
+      topics: result.topics,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("Get lessons error:", error);
