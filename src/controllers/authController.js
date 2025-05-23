@@ -153,10 +153,9 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Thay đổi mật khẩu
 const changePassword = async (req, res) => {
   try {
-    const { userId } = req.user;
+    const userId = req.user.id;
     const { oldPassword, newPassword } = req.body;
     const result = await authService.changePassword(
       userId,
