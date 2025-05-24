@@ -171,12 +171,10 @@ class NotificationService {
                     <!-- Header với gradient -->
                     <tr>
                       <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
-                        <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; padding: 15px; margin-bottom: 20px;">
-                        </div>
                         <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                          Quizlingo
+                          🐧 Quizlingo
                         </h1>
-                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
+                        <p style="color:rgb(10, 10, 10); font-size: 16px; margin: 0; font-weight: 600;">
                           Học tiếng Anh thông minh mỗi ngày
                         </p>
                       </td>
@@ -189,8 +187,8 @@ class NotificationService {
                           ${subject}
                         </h2>
                         
-                        <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea;">
-                          <div style="color:rgb(0, 0, 0); font-size: 16px; line-height: 1.8;">
+                        <div style="background: #ffffff; padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                          <div style="color: #000000; font-size: 16px; line-height: 1.8; font-weight: 500;">
                             ${content}
                           </div>
                         </div>
@@ -486,18 +484,18 @@ class NotificationService {
                           Chào ${userName}! 👋
                         </h2>
                         
-                        <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea;">
-                          <div style="color: #475569; font-size: 16px; line-height: 1.8;">
+                        <div style="background: #ffffff; padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                          <div style="color: #000000; font-size: 16px; line-height: 1.8; font-weight: 500;">
                             ${content}
                           </div>
                         </div>
                         
                         <!-- Streak info -->
                         <div style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center;">
-                          <div style="font-size: 18px; font-weight: 600; color: #92400e; margin-bottom: 10px;">
+                          <div style="font-size: 18px; font-weight: 600; color:rgb(92, 24, 1); margin-bottom: 10px;">
                             🔥 Bạn đã nghỉ ${daysInactive} ngày
                           </div>
-                          <div style="font-size: 14px; color: #a16207;">
+                          <div style="font-size: 14px; color:rgb(113, 34, 7);">
                             Hãy quay lại để duy trì streak học tập của mình!
                           </div>
                         </div>
@@ -514,13 +512,13 @@ class NotificationService {
                     <!-- Footer -->
                     <tr>
                       <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-                        <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
+                        <p style="color: #1e293b; font-size: 14px; margin: 10px 0;">
                           <strong>💫 Quizlingo Team</strong><br>
                           Cùng bạn chinh phục tiếng Anh mỗi ngày!
                         </p>
 
                         
-                        <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
+                        <p style="color: #334155; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
                           Đây là email nhắc nhở học tập từ Quizlingo.<br>
                         </p>
                       </td>
