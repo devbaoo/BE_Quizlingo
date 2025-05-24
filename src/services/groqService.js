@@ -3,7 +3,6 @@ import { fileTypeFromBuffer } from "file-type";
 import { Groq } from "groq-sdk";
 import cloudinaryService from "./cloudinaryService.js";
 
-
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = process.env.GROQ_API_URL;
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
@@ -11,7 +10,6 @@ const ASSEMBLYAI_UPLOAD_URL = process.env.ASSEMBLYAI_UPLOAD_URL;
 const ASSEMBLYAI_TRANSCRIPT_URL = process.env.ASSEMBLYAI_TRANSCRIPT_URL;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
 
 // Step 1: Upload audio to AssemblyAI
 const uploadAudio = async (audioBuffer) => {
@@ -93,7 +91,10 @@ const textToSpeechAndUpload = async (text, voice = "Fritz-PlayAI") => {
 
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    const uploadResult = await cloudinaryService.uploadAudioBuffer(buffer, "tts.wav");
+    const uploadResult = await cloudinaryService.uploadAudioBuffer(
+      buffer,
+      "tts.wav"
+    );
 
     if (!uploadResult.success) {
       return { success: false, message: uploadResult.message };
@@ -164,7 +165,6 @@ const speechToText = async (audioBuffer) => {
       attempts++;
     }
 
-
     if (typeof transcription !== "string" || transcription.trim() === "") {
       throw new Error("Transcription failed or returned empty result");
     }
@@ -205,11 +205,11 @@ const evaluatePronunciation = async (referenceText, audioBuffer) => {
           {
             role: "system",
             content:
-              "You are a language pronunciation coach. Compare the reference text with the transcribed speech and provide a score from 0-100 and feedback.",
+              "Bạn là một giáo viên đánh giá phát âm tiếng Anh. Hãy so sánh văn bản gốc với bản ghi âm và đưa ra điểm số từ 0-100 cùng với nhận xét bằng tiếng Việt.",
           },
           {
             role: "user",
-            content: `Reference text: "${referenceText}"\nTranscribed speech: "${transcriptionResult.transcription}"\nPlease evaluate the pronunciation accuracy, provide a score from 0-100, and give feedback.`,
+            content: `Văn bản gốc: "${referenceText}"\nBản ghi âm: "${transcriptionResult.transcription}"\nHãy đánh giá độ chính xác của phát âm, đưa ra điểm số từ 0-100, và đưa ra nhận xét.`,
           },
         ],
         max_tokens: 1024,
@@ -263,25 +263,29 @@ const evaluateListeningTextInput = async (correctText, userInput) => {
         messages: [
           {
             role: "system",
-            content: `You are a listening comprehension evaluator. Compare the student's response with the original transcript and return a score from 0 to 100, with feedback. Minor typos and grammatical differences should be tolerated.`
+            content:
+              "Bạn là một giáo viên đánh giá kỹ năng nghe tiếng Anh. So sánh câu trả lời của học viên với bản ghi âm gốc và đưa ra điểm số từ 0 đến 100, kèm theo nhận xét bằng tiếng Việt. Chấp nhận các lỗi đánh máy nhỏ và khác biệt ngữ pháp không đáng kể.",
           },
           {
             role: "user",
-            content: `Correct transcript: \"${correctText}\"\nStudent response: \"${userInput}\"\nPlease rate the accuracy, give a score out of 100, and explain the differences.`
-          }
+            content: `Bản ghi âm gốc: \"${correctText}\"\nCâu trả lời của học viên: \"${userInput}\"\nHãy đánh giá độ chính xác, cho điểm trên thang điểm 100, và giải thích các điểm khác biệt.`,
+          },
         ],
-        max_tokens: 512
-      })
+        max_tokens: 512,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Groq API error: ${response.status} ${response.statusText}`
+      );
     }
 
     const data = await response.json();
     const content = data.choices[0].message.content;
 
-    const scoreMatch = content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
+    const scoreMatch =
+      content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
     const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
 
     return {
@@ -321,9 +325,12 @@ const transcribeFromAudioUrl = async (audioUrl) => {
     const maxAttempts = 45;
 
     while (attempts < maxAttempts) {
-      const statusRes = await fetch(`${ASSEMBLYAI_TRANSCRIPT_URL}/${transcriptId}`, {
-        headers: { Authorization: ASSEMBLYAI_API_KEY },
-      });
+      const statusRes = await fetch(
+        `${ASSEMBLYAI_TRANSCRIPT_URL}/${transcriptId}`,
+        {
+          headers: { Authorization: ASSEMBLYAI_API_KEY },
+        }
+      );
       const statusData = await statusRes.json();
 
       if (statusData.status === "completed") {
@@ -369,7 +376,10 @@ const evaluatePronunciationFromAudio = async (buffer, referenceText) => {
 
     const { transcription, metadata } = transcriptionRes;
 
-    const evalRes = await evaluatePronunciationWithText(referenceText, transcription);
+    const evalRes = await evaluatePronunciationWithText(
+      referenceText,
+      transcription
+    );
     if (!evalRes.success) return evalRes;
 
     return {
@@ -388,7 +398,10 @@ const evaluatePronunciationFromAudio = async (buffer, referenceText) => {
   }
 };
 
-const evaluatePronunciationWithText = async (questionContent, userTranscript) => {
+const evaluatePronunciationWithText = async (
+  questionContent,
+  userTranscript
+) => {
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
     headers: {
@@ -400,21 +413,22 @@ const evaluatePronunciationWithText = async (questionContent, userTranscript) =>
       messages: [
         {
           role: "system",
-          content: "You are an English speaking coach. Evaluate the learner's response to an open-ended speaking prompt.",
+          content:
+            "Bạn là một giáo viên tiếng Anh chuyên đánh giá kỹ năng nói. Hãy đánh giá câu trả lời của học viên cho câu hỏi nói và đưa ra nhận xét bằng tiếng Việt.",
         },
         {
           role: "user",
           content: `
-Prompt: "${questionContent}"
-Student's spoken response (transcribed): "${userTranscript}"
+Câu hỏi: "${questionContent}"
+Câu trả lời của học viên (bản ghi âm): "${userTranscript}"
 
-Evaluate:
-1. Relevance to the prompt (0-100)
-2. Pronunciation clarity (0-100)
-3. Grammar (0-100)
-4. Vocabulary richness (0-100)
+Hãy đánh giá:
+1. Độ phù hợp với câu hỏi (0-100)
+2. Độ rõ ràng của phát âm (0-100)
+3. Ngữ pháp (0-100)
+4. Độ phong phú của từ vựng (0-100)
 
-Return an overall score (0-100), and provide feedback on what was good and what can be improved.
+Đưa ra điểm tổng (0-100), và nhận xét về những điểm tốt và những điểm cần cải thiện.
           `.trim(),
         },
       ],
@@ -424,7 +438,8 @@ Return an overall score (0-100), and provide feedback on what was good and what 
   const data = await response.json();
   const content = data.choices[0].message.content;
 
-  const scoreMatch = content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
+  const scoreMatch =
+    content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
   const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
 
   return {
@@ -447,20 +462,21 @@ const evaluateWritingTextInput = async (questionPrompt, userInput) => {
         messages: [
           {
             role: "system",
-            content: "You are an English writing teacher. Evaluate student writing for correctness and relevance.",
+            content:
+              "Bạn là một giáo viên tiếng Anh chuyên đánh giá kỹ năng viết. Hãy đánh giá bài viết của học viên về tính chính xác và sự phù hợp, đưa ra nhận xét bằng tiếng Việt.",
           },
           {
             role: "user",
             content: `
-Prompt: "${questionPrompt}"
-Student's writing: "${userInput}"
+Đề bài: "${questionPrompt}"
+Bài viết của học viên: "${userInput}"
 
-Please rate the response on:
-- Relevance to the prompt (0-100)
-- Grammar & structure (0-100)
-- Vocabulary (0-100)
+Hãy đánh giá các tiêu chí sau:
+- Độ phù hợp với đề bài (0-100)
+- Ngữ pháp & cấu trúc (0-100)
+- Từ vựng (0-100)
 
-Return an overall score out of 100, a short summary, and constructive feedback.
+Đưa ra điểm tổng trên thang điểm 100, tóm tắt ngắn gọn, và nhận xét mang tính xây dựng.
             `.trim(),
           },
         ],
@@ -470,7 +486,8 @@ Return an overall score out of 100, a short summary, and constructive feedback.
     const data = await response.json();
     const content = data.choices[0].message.content;
 
-    const scoreMatch = content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
+    const scoreMatch =
+      content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
     const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
 
     return {
@@ -489,7 +506,6 @@ Return an overall score out of 100, a short summary, and constructive feedback.
   }
 };
 
-
 export default {
   textToSpeech,
   speechToText,
@@ -499,5 +515,5 @@ export default {
   transcribeFromAudioUrl,
   transcribeAudioBuffer,
   evaluatePronunciationFromAudio,
-  evaluateWritingTextInput
+  evaluateWritingTextInput,
 };
