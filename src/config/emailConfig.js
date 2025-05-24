@@ -67,18 +67,18 @@ const verificationEmailTemplate = (name, verificationLink) => {
                       Chào ${name}! 👋
                     </h2>
                     
-                    <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea;">
-                      <div style="color: #475569; font-size: 16px; line-height: 1.8;">
+                    <div style="background: #1e293b; padding: 30px; border-radius: 12px; margin: 20px 0; border: 1px solid #475569;">
+                      <div style="color: #ffffff; font-size: 16px; line-height: 1.8; font-weight: 500;">
                         Cảm ơn bạn đã đăng ký tài khoản trên QuizLingo. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
                       </div>
                     </div>
                     
                     <!-- Verification info -->
-                    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center;">
-                      <div style="font-size: 18px; font-weight: 600; color: #92400e; margin-bottom: 10px;">
+                    <div style="background: #7f1d1d; padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center; border: 1px solid #991b1b;">
+                      <div style="font-size: 18px; font-weight: 600; color: #ffffff; margin-bottom: 10px;">
                         ⚡️ Liên kết sẽ hết hạn sau 24 giờ
                       </div>
-                      <div style="font-size: 14px; color: #a16207;">
+                      <div style="font-size: 14px; color: #fecaca; font-weight: 500;">
                         Hãy xác thực ngay để bắt đầu hành trình học tập của bạn!
                       </div>
                     </div>
@@ -158,18 +158,18 @@ const resetPasswordEmailTemplate = (name, resetLink) => {
                       Chào ${name}! 👋
                     </h2>
                     
-                    <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 30px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #10b981;">
-                      <div style="color: #475569; font-size: 16px; line-height: 1.8;">
-                        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản QuizLingo của bạn. Vui lòng nhấp vào nút bên dưới để tiến hành đặt lại mật khẩu.
+                    <div style="background: #1e293b; padding: 30px; border-radius: 12px; margin: 20px 0; border: 1px solid #475569;">
+                      <div style="color: #ffffff; font-size: 16px; line-height: 1.8; font-weight: 500;">
+                        Cảm ơn bạn đã đăng ký tài khoản trên QuizLingo. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
                       </div>
                     </div>
                     
                     <!-- Reset warning -->
-                    <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center;">
-                      <div style="font-size: 18px; font-weight: 600; color: #991b1b; margin-bottom: 10px;">
+                    <div style="background: #fef2f2; padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center; border: 1px solid #fee2e2;">
+                      <div style="font-size: 18px; font-weight: 600; color: #dc2626; margin-bottom: 10px;">
                         ⚠️ Liên kết sẽ hết hạn sau 1 giờ
                       </div>
-                      <div style="font-size: 14px; color: #b91c1c;">
+                      <div style="font-size: 14px; color: #dc2626;">
                         Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này
                       </div>
                     </div>
