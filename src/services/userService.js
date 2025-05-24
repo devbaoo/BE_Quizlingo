@@ -378,6 +378,52 @@ const getUserLivesStatus = async (userId) => {
   }
 };
 
+const updateUserRole = async (userId, newRole) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy người dùng",
+      };
+    }
+
+    // Validate role
+    const validRoles = ["admin", "staff", "user"];
+    if (!validRoles.includes(newRole)) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Role không hợp lệ",
+      };
+    }
+
+    user.role = newRole;
+    await user.save();
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Cập nhật role thành công",
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    };
+  } catch (error) {
+    console.error("Update user role error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi khi cập nhật role",
+    };
+  }
+};
+
 export default {
   getUserProfile,
   updateUserProfile,
@@ -388,4 +434,5 @@ export default {
   chooseTopic,
   getUserLivesStatus,
   checkAndRegenerateLives,
+  updateUserRole,
 };

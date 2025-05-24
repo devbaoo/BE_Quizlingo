@@ -67,17 +67,37 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     userController.deleteUser
   );
-  router.get(
-    "/admin/lessons",
+  router.patch(
+    "/users/:userId/role",
     protect,
     authorize("admin"),
+    userController.updateUserRole
+  );
+
+  // Staff lesson management routes
+  router.get(
+    "/staff/lessons",
+    protect,
+    authorize("staff"),
     lessonController.getAllLessons
   );
-  router.put(
-    "/admin/lessons/:id",
+  router.post(
+    "/lessons",
     protect,
-    authorize("admin"),
+    authorize("staff"),
+    lessonController.createLesson
+  );
+  router.put(
+    "/lessons/:id",
+    protect,
+    authorize("staff"),
     lessonController.updateLesson
+  );
+  router.delete(
+    "/lessons/:id",
+    protect,
+    authorize("staff"),
+    lessonController.deleteLesson
   );
 
   // Topic routes
@@ -85,19 +105,19 @@ const initWebRoutes = (app) => {
   router.post(
     "/topics",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     topicController.createTopic
   );
   router.put(
     "/topics/:id",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     topicController.updateTopic
   );
   router.delete(
     "/topics/:id",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     topicController.deleteTopic
   );
 
@@ -106,19 +126,19 @@ const initWebRoutes = (app) => {
   router.post(
     "/levels",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     levelController.createLevel
   );
   router.put(
     "/levels/:id",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     levelController.updateLevel
   );
   router.delete(
     "/levels/:id",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     levelController.deleteLevel
   );
 
@@ -127,41 +147,29 @@ const initWebRoutes = (app) => {
   router.post(
     "/skills",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     skillController.createSkill
   );
   router.put(
     "/skills/:id",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     skillController.updateSkill
   );
   router.delete(
     "/skills/:id",
     protect,
-    authorize("admin"),
+    authorize("staff"),
     skillController.deleteSkill
   );
 
-  // Lesson routes
-  router.post(
-    "/lessons",
-    protect,
-    authorize("admin"),
-    lessonController.createLesson
-  );
+  // Lesson routes for users
   router.get("/lessons", protect, lessonController.getLessons);
   router.get("/lessons/:id", protect, lessonController.getLessonById);
   router.post("/progress", protect, lessonController.completeLesson);
   router.post("/lessons/retry", protect, lessonController.retryLesson);
   router.get("/topics", lessonController.getTopics);
   router.get("/skills", lessonController.getSkills);
-  router.delete(
-    "/lessons/:id",
-    protect,
-    authorize("admin"),
-    lessonController.deleteLesson
-  );
 
   // Progress routes
   router.get(
