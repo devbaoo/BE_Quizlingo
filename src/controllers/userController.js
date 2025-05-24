@@ -223,13 +223,36 @@ const getUserLivesStatus = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      data: result.data || null
+      data: result.data || null,
     });
   } catch (error) {
-    console.error('GetUserLivesStatus controller error:', error);
+    console.error("GetUserLivesStatus controller error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
+    });
+  }
+};
+
+const updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!userId || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "UserId và role là bắt buộc",
+      });
+    }
+
+    const result = await userService.updateUserRole(userId, role);
+    return res.status(result.statusCode).json(result);
+  } catch (error) {
+    console.error("Update user role error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
     });
   }
 };
@@ -245,4 +268,5 @@ export default {
   chooseTopic,
   handleAvatarUpload,
   getUserLivesStatus,
+  updateUserRole,
 };
