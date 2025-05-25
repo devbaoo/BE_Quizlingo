@@ -17,7 +17,7 @@ const protect = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized, no token provided",
+        message: "Không có token xác thực, vui lòng đăng nhập",
       });
     }
 
@@ -38,7 +38,7 @@ const protect = async (req, res, next) => {
     console.error("Auth middleware error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Lỗi máy chủ",
     });
   }
 };

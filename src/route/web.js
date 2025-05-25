@@ -34,6 +34,7 @@ const initWebRoutes = (app) => {
   // Authentication routes
   router.post("/auth/register", authController.register);
   router.post("/auth/login", authController.login);
+  router.post("/auth/refresh-token", authController.refreshToken);
   router.get("/auth/verify-email/:token", authController.verifyEmail);
   router.post(
     "/auth/resend-verification",
