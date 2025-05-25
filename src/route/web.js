@@ -14,6 +14,7 @@ import automatedNotificationController from "../controllers/automatedNotificatio
 import packageController from "../controllers/packageController.js";
 import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
+import leaderboardController from "../controllers/leaderboardController.js";
 
 const router = express.Router();
 
@@ -324,6 +325,7 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     adminPackageController.getPackageStats
   );
+  router.get("/leaderboard", protect, leaderboardController.getLeaderboard);
 
   app.use("/api", router);
 };
