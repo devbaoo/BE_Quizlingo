@@ -39,14 +39,15 @@ let register = async (userData, baseUrl) => {
     }
   }
 
-  let token = generateToken(user);
+  let { accessToken, refreshToken } = generateToken(user);
 
   return {
     success: true,
     statusCode: 201,
     message:
       "Đăng ký thành công. Vui lòng xác thực tài khoản của bạn khi thuận tiện.",
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user._id,
       firstName: user.firstName,
@@ -107,13 +108,14 @@ let login = async (email, password) => {
   user.lastLoginDate = now.toDate();
   await user.save();
 
-  let token = generateToken(user);
+  let { accessToken, refreshToken } = generateToken(user);
 
   return {
     success: true,
     statusCode: 200,
     message: "Đăng nhập thành công",
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user._id,
       firstName: user.firstName,
@@ -133,9 +135,19 @@ let login = async (email, password) => {
 };
 
 let generateToken = (user) => {
-  return jwt.sign({ id: user._id, role: user.role }, jwtConfig.secret, {
-    expiresIn: jwtConfig.expiresIn,
+  const accessToken = jwt.sign(
+    { id: user._id, role: user.role },
+    jwtConfig.secret,
+    {
+      expiresIn: jwtConfig.expiresIn,
+    }
+  );
+
+  const refreshToken = jwt.sign({ id: user._id }, jwtConfig.refreshSecret, {
+    expiresIn: jwtConfig.refreshExpiresIn,
   });
+
+  return { accessToken, refreshToken };
 };
 
 const verifyToken = async (token) => {
@@ -372,6 +384,41 @@ const changePassword = async (userId, oldPassword, newPassword) => {
   }
 };
 
+const refreshToken = async (refreshToken) => {
+  try {
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, jwtConfig.refreshSecret);
+
+    // Find user
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy người dùng",
+      };
+    }
+
+    // Generate new tokens
+    const tokens = generateToken(user);
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Làm mới token thành công",
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return {
+      success: false,
+      statusCode: 401,
+      message: "Refresh token không hợp lệ hoặc đã hết hạn",
+    };
+  }
+};
+
 export default {
   register,
   login,
@@ -382,4 +429,5 @@ export default {
   forgotPassword,
   resetPasswordWithToken,
   changePassword,
+  refreshToken,
 };

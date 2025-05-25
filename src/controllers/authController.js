@@ -11,7 +11,8 @@ const register = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      token: result.token,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       user: result.user,
     });
   } catch (error) {
@@ -32,7 +33,8 @@ const login = async (req, res) => {
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
-      token: result.token,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       user: result.user,
       needVerification: result.needVerification || false,
     });
@@ -175,6 +177,34 @@ const changePassword = async (req, res) => {
   }
 };
 
+// Refresh token
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token không được cung cấp",
+      });
+    }
+
+    const result = await authService.refreshToken(refreshToken);
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi máy chủ",
+    });
+  }
+};
+
 export default {
   register,
   login,
@@ -183,4 +213,5 @@ export default {
   forgotPassword,
   resetPassword,
   changePassword,
+  refreshToken,
 };
