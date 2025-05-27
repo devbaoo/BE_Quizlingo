@@ -171,13 +171,22 @@ const createLesson = async (lessonData, token) => {
 
     // Kiểm tra từng câu hỏi có hợp lệ không
     for (const q of questions) {
-      if (!q.skill || !q.type || !q.content || !q.correctAnswer) {
+      if (!q.skill || !q.type || !q.content) {
         return {
           success: false,
           statusCode: 400,
-          message: "Thiếu dữ liệu trong câu hỏi (type, content, correctAnswer, skill)"
+          message: "Thiếu dữ liệu trong câu hỏi (type, content, skill)"
         };
       }
+
+      if (q.type === "multiple_choice" && !q.correctAnswer) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Thiếu correctAnswer cho câu hỏi multiple_choice"
+        };
+      }
+
 
       const skillDoc = skillDocs.find((s) => s._id.toString() === q.skill);
       if (!skillDoc || !skillDoc.supportedTypes.includes(q.type)) {

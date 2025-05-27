@@ -27,7 +27,9 @@ const questionSchema = new mongoose.Schema({
     }],
     correctAnswer: {
         type: String,
-        required: [true, 'Đáp án đúng là bắt buộc'],
+        required: function () {
+            return this.type === "multiple_choice";
+        },
         trim: true
     },
     score: {
