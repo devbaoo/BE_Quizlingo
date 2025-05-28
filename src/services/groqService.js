@@ -185,6 +185,12 @@ const speechToText = async (audioBuffer) => {
   }
 };
 
+const isInputValid = (input) => {
+  // Kiểm tra nếu input quá ngắn, vô nghĩa, hoặc chứa toàn ký tự đặc biệt
+  const cleanedInput = input.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+  return cleanedInput.length >= 5; // Tối thiểu 5 ký tự có nghĩa
+};
+
 // Evaluate Pronunciation
 const evaluatePronunciation = async (referenceText, audioBuffer) => {
   try {
@@ -251,11 +257,20 @@ const evaluatePronunciation = async (referenceText, audioBuffer) => {
 };
 
 const evaluateListeningTextInput = async (correctText, userInput) => {
+  if (!isInputValid(userInput)) {
+    return {
+      success: true,
+      score: 0,
+      isCorrect: false,
+      feedback: "Câu trả lời không hợp lệ hoặc không liên quan.",
+    };
+  }
+
   try {
-    const response = await fetch(process.env.GROQ_API_URL, {
+    const response = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -263,30 +278,34 @@ const evaluateListeningTextInput = async (correctText, userInput) => {
         messages: [
           {
             role: "system",
-            content:
-              "Bạn là một giáo viên đánh giá kỹ năng nghe tiếng Anh. So sánh câu trả lời của học viên với bản ghi âm gốc và đưa ra điểm số từ 0 đến 100, kèm theo nhận xét bằng tiếng Việt. Chấp nhận các lỗi đánh máy nhỏ và khác biệt ngữ pháp không đáng kể.",
+            content: `
+Bạn là giáo viên tiếng Anh nghiêm khắc. Hãy so sánh câu trả lời của học viên với bản ghi âm gốc:
+- Nếu câu trả lời không liên quan hoặc vô nghĩa, hãy cho điểm thấp (dưới 30) và giải thích rõ.
+- Đánh giá độ chính xác, bỏ qua lỗi chính tả nhỏ hoặc khác biệt ngữ pháp không đáng kể.
+- Đưa ra điểm tổng (0-100) và nhận xét rõ ràng bằng tiếng Việt.
+          `,
           },
           {
             role: "user",
-            content: `Bản ghi âm gốc: \"${correctText}\"\nCâu trả lời của học viên: \"${userInput}\"\nHãy đánh giá độ chính xác, cho điểm trên thang điểm 100, và giải thích các điểm khác biệt.`,
+            content: `
+Bản ghi âm gốc: "${correctText}"
+Câu trả lời của học viên: "${userInput}"
+
+Hãy đánh giá:
+- Độ chính xác (0-100)
+- Điểm tổng (0-100)
+- Nhận xét: (ngắn gọn, rõ ràng)
+          `.trim(),
           },
         ],
         max_tokens: 512,
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(
-        `Groq API error: ${response.status} ${response.statusText}`
-      );
-    }
-
     const data = await response.json();
     const content = data.choices[0].message.content;
-
-    const scoreMatch =
-      content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
+    const scoreMatch = content.match(/tổng.*?(\d{1,3})/i) || content.match(/(\d{1,3})\/100/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
 
     return {
       success: true,
@@ -295,7 +314,6 @@ const evaluateListeningTextInput = async (correctText, userInput) => {
       feedback: content,
     };
   } catch (error) {
-    console.error("evaluateListeningTextInput error:", error);
     return {
       success: false,
       score: 0,
@@ -398,58 +416,15 @@ const evaluatePronunciationFromAudio = async (buffer, referenceText) => {
   }
 };
 
-const evaluatePronunciationWithText = async (
-  questionContent,
-  userTranscript
-) => {
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama3-8b-8192",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Bạn là một giáo viên tiếng Anh chuyên đánh giá kỹ năng nói. Hãy đánh giá câu trả lời của học viên cho câu hỏi nói và đưa ra nhận xét bằng tiếng Việt.",
-        },
-        {
-          role: "user",
-          content: `
-Câu hỏi: "${questionContent}"
-Câu trả lời của học viên (bản ghi âm): "${userTranscript}"
+const evaluatePronunciationWithText = async (questionContent, userTranscript) => {
+  if (!isInputValid(userTranscript)) {
+    return {
+      success: true,
+      score: 0,
+      feedback: "Nội dung câu trả lời không hợp lệ hoặc không liên quan.",
+    };
+  }
 
-Hãy đánh giá:
-1. Độ phù hợp với câu hỏi (0-100)
-2. Độ rõ ràng của phát âm (0-100)
-3. Ngữ pháp (0-100)
-4. Độ phong phú của từ vựng (0-100)
-
-Đưa ra điểm tổng (0-100), và nhận xét về những điểm tốt và những điểm cần cải thiện.
-          `.trim(),
-        },
-      ],
-    }),
-  });
-
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-
-  const scoreMatch =
-    content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
-  const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
-
-  return {
-    success: true,
-    score,
-    feedback: content,
-  };
-};
-
-const evaluateWritingTextInput = async (questionPrompt, userInput) => {
   try {
     const response = await fetch(GROQ_API_URL, {
       method: "POST",
@@ -462,8 +437,81 @@ const evaluateWritingTextInput = async (questionPrompt, userInput) => {
         messages: [
           {
             role: "system",
-            content:
-              "Bạn là một giáo viên tiếng Anh chuyên đánh giá kỹ năng viết. Hãy đánh giá bài viết của học viên về tính chính xác và sự phù hợp, đưa ra nhận xét bằng tiếng Việt.",
+            content: `
+Bạn là giáo viên tiếng Anh nghiêm khắc. Hãy kiểm tra câu trả lời của học viên so với câu hỏi. 
+- Nếu câu trả lời không liên quan hoặc vô nghĩa, hãy cho điểm thấp (dưới 30) và giải thích rõ.
+- Đánh giá độ rõ ràng của phát âm, ngữ pháp, từ vựng.
+- Đưa ra điểm tổng (0-100) và nhận xét rõ ràng bằng tiếng Việt.
+          `,
+          },
+          {
+            role: "user",
+            content: `
+Câu hỏi: "${questionContent}"
+Câu trả lời của học viên (bản ghi âm): "${userTranscript}"
+
+Hãy đánh giá:
+- Độ phù hợp với câu hỏi (0-100)
+- Phát âm rõ ràng (0-100)
+- Ngữ pháp (0-100)
+- Từ vựng (0-100)
+- Điểm tổng (0-100)
+- Nhận xét: (ngắn gọn, rõ ràng)
+          `.trim(),
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    const scoreMatch = content.match(/tổng.*?(\d{1,3})/i) || content.match(/(\d{1,3})\/100/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+
+    return {
+      success: true,
+      score,
+      feedback: content,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      score: 0,
+      feedback: error.message,
+    };
+  }
+};
+
+const evaluateWritingTextInput = async (questionPrompt, userInput) => {
+  if (!isInputValid(userInput)) {
+    return {
+      success: true,
+      score: 0,
+      isCorrect: false,
+      feedback: "Nội dung bài viết không hợp lệ hoặc không liên quan.",
+    };
+  }
+
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          {
+            role: "system",
+            content: `
+Bạn là một giáo viên tiếng Anh nghiêm khắc. Hãy đánh giá bài viết của học viên dựa trên:
+- Tính liên quan đến đề bài (rất quan trọng). Nếu bài viết không đúng đề bài hoặc vô nghĩa, cho điểm thấp (dưới 30) và giải thích rõ.
+- Ngữ pháp & cấu trúc.
+- Từ vựng.
+Đưa ra điểm tổng trên thang điểm 100. Không dễ dãi. Chỉ cho điểm cao nếu học viên thực sự làm tốt.
+Nhận xét bằng tiếng Việt.
+          `,
           },
           {
             role: "user",
@@ -471,12 +519,12 @@ const evaluateWritingTextInput = async (questionPrompt, userInput) => {
 Đề bài: "${questionPrompt}"
 Bài viết của học viên: "${userInput}"
 
-Hãy đánh giá các tiêu chí sau:
+Hãy đánh giá:
 - Độ phù hợp với đề bài (0-100)
 - Ngữ pháp & cấu trúc (0-100)
 - Từ vựng (0-100)
-
-Đưa ra điểm tổng trên thang điểm 100, tóm tắt ngắn gọn, và nhận xét mang tính xây dựng.
+- Điểm tổng (0-100)
+- Nhận xét: (ngắn gọn, rõ ràng)
             `.trim(),
           },
         ],
@@ -485,16 +533,14 @@ Hãy đánh giá các tiêu chí sau:
 
     const data = await response.json();
     const content = data.choices[0].message.content;
-
-    const scoreMatch =
-      content.match(/score\s*[:\-]?\s*(\d+)/i) || content.match(/(\d+)\/100/);
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
+    const scoreMatch = content.match(/tổng.*?(\d{1,3})/i) || content.match(/(\d{1,3})\/100/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
 
     return {
       success: true,
       score,
-      feedback: content,
       isCorrect: score >= 70,
+      feedback: content,
     };
   } catch (error) {
     return {
