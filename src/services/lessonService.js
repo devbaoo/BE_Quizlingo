@@ -791,8 +791,8 @@ const completeLesson = async (
         }
 
         case "audio_input": {
-          if (result.audioAnswer) {
-            const audioBuffer = Buffer.from(result.audioAnswer, "base64");
+          if (question.type === "audio_input" && result.answer) {
+            const audioBuffer = Buffer.from(result.answer, "base64");
             const skillName = question.skill?.name?.toLowerCase();
 
             if (skillName === "speaking") {
