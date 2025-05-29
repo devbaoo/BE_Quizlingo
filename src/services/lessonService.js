@@ -128,12 +128,18 @@ const getSkills = async (userId, topic, level) => {
   }
 };
 
-
 const createLesson = async (lessonData, token) => {
   try {
     const { title, topic, level, questions } = lessonData;
 
-    if (!title || !topic || !level || !questions || !Array.isArray(questions) || questions.length === 0) {
+    if (
+      !title ||
+      !topic ||
+      !level ||
+      !questions ||
+      !Array.isArray(questions) ||
+      questions.length === 0
+    ) {
       return {
         success: false,
         statusCode: 400,
@@ -160,12 +166,16 @@ const createLesson = async (lessonData, token) => {
     }
 
     const allSkillIds = [...new Set(questions.map((q) => q.skill))];
-    const skillDocs = await Skill.find({ _id: { $in: allSkillIds }, isActive: true });
+    const skillDocs = await Skill.find({
+      _id: { $in: allSkillIds },
+      isActive: true,
+    });
     if (skillDocs.length !== allSkillIds.length) {
       return {
         success: false,
         statusCode: 400,
-        message: "Một hoặc nhiều kỹ năng trong câu hỏi không hợp lệ hoặc không hoạt động",
+        message:
+          "Một hoặc nhiều kỹ năng trong câu hỏi không hợp lệ hoặc không hoạt động",
       };
     }
 
@@ -175,7 +185,7 @@ const createLesson = async (lessonData, token) => {
         return {
           success: false,
           statusCode: 400,
-          message: "Thiếu dữ liệu trong câu hỏi (type, content, skill)"
+          message: "Thiếu dữ liệu trong câu hỏi (type, content, skill)",
         };
       }
 
@@ -183,17 +193,18 @@ const createLesson = async (lessonData, token) => {
         return {
           success: false,
           statusCode: 400,
-          message: "Thiếu correctAnswer cho câu hỏi multiple_choice"
+          message: "Thiếu correctAnswer cho câu hỏi multiple_choice",
         };
       }
-
 
       const skillDoc = skillDocs.find((s) => s._id.toString() === q.skill);
       if (!skillDoc || !skillDoc.supportedTypes.includes(q.type)) {
         return {
           success: false,
           statusCode: 400,
-          message: `Kỹ năng ${skillDoc?.name || 'n/a'} không hỗ trợ loại câu hỏi ${q.type}`,
+          message: `Kỹ năng ${
+            skillDoc?.name || "n/a"
+          } không hỗ trợ loại câu hỏi ${q.type}`,
         };
       }
     }
@@ -267,6 +278,8 @@ const createLesson = async (lessonData, token) => {
 // Cập nhật bài học (admin)
 const updateLesson = async (lessonId, lessonData) => {
   try {
+    const { title, topic, level, questions } = lessonData;
+
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) {
       return {
@@ -276,9 +289,16 @@ const updateLesson = async (lessonId, lessonData) => {
       };
     }
 
-    const { title, type, topic, level, skill, questions } = lessonData;
+    // Validate required fields if provided
+    if (questions && (!Array.isArray(questions) || questions.length === 0)) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Danh sách câu hỏi không hợp lệ",
+      };
+    }
 
-    // Kiểm tra topic nếu được cung cấp
+    // Validate topic if provided
     let topicDoc = lesson.topic;
     if (topic) {
       topicDoc = await Topic.findById(topic);
@@ -291,7 +311,7 @@ const updateLesson = async (lessonId, lessonData) => {
       }
     }
 
-    // Kiểm tra level nếu được cung cấp
+    // Validate level if provided
     let levelDoc = lesson.level;
     if (level) {
       levelDoc = await Level.findById(level);
@@ -304,152 +324,114 @@ const updateLesson = async (lessonId, lessonData) => {
       }
     }
 
-    // Kiểm tra skill và type
-    let skillDoc = lesson.skill;
-    if (skill) {
-      skillDoc = await Skill.findById(skill);
-      if (!skillDoc || !skillDoc.isActive) {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Kỹ năng không hợp lệ hoặc không hoạt động",
-        };
-      }
-    }
+    // Validate skills and questions if provided
+    if (questions) {
+      const allSkillIds = [...new Set(questions.map((q) => q.skill))];
+      const skillDocs = await Skill.find({
+        _id: { $in: allSkillIds },
+        isActive: true,
+      });
 
-    if (type && skill) {
-      if (
-        type === "multiple_choice" &&
-        !skillDoc.supportedTypes.includes("multiple_choice")
-      ) {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Loại multiple_choice không được hỗ trợ bởi kỹ năng này",
-        };
-      }
-      if (type === "text_input" && skillDoc.name !== "writing") {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Loại text_input chỉ áp dụng cho kỹ năng writing",
-        };
-      }
-      if (type === "audio_input" && skillDoc.name !== "speaking") {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Loại audio_input chỉ áp dụng cho kỹ năng speaking",
-        };
-      }
-    } else if (type) {
-      const currentSkill = await Skill.findById(lesson.skill);
-      if (
-        type === "multiple_choice" &&
-        !currentSkill.supportedTypes.includes("multiple_choice")
-      ) {
+      if (skillDocs.length !== allSkillIds.length) {
         return {
           success: false,
           statusCode: 400,
           message:
-            "Loại multiple_choice không được hỗ trợ bởi kỹ năng hiện tại",
+            "Một hoặc nhiều kỹ năng trong câu hỏi không hợp lệ hoặc không hoạt động",
         };
       }
-      if (type === "text_input" && currentSkill.name !== "writing") {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Loại text_input chỉ áp dụng cho kỹ năng writing",
-        };
-      }
-      if (type === "audio_input" && currentSkill.name !== "speaking") {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Loại audio_input chỉ áp dụng cho kỹ năng speaking",
-        };
-      }
-    } else if (skill) {
-      if (
-        lesson.type === "multiple_choice" &&
-        !skillDoc.supportedTypes.includes("multiple_choice")
-      ) {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Kỹ năng không tương thích với loại multiple_choice",
-        };
-      }
-      if (lesson.type === "text_input" && skillDoc.name !== "writing") {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Kỹ năng không tương thích với loại text_input",
-        };
-      }
-      if (lesson.type === "audio_input" && skillDoc.name !== "speaking") {
-        return {
-          success: false,
-          statusCode: 400,
-          message: "Kỹ năng không tương thích với loại audio_input",
-        };
-      }
-    }
 
-    // Cập nhật thông tin bài học
-    if (title !== undefined) lesson.title = title;
-    if (type !== undefined) lesson.type = type;
-    if (topic !== undefined) lesson.topic = topic;
-    if (level !== undefined) lesson.level = level;
-    if (skill !== undefined) lesson.skill = skill;
+      // Validate each question
+      for (const q of questions) {
+        if (!q.skill || !q.type || !q.content) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: "Thiếu dữ liệu trong câu hỏi (type, content, skill)",
+          };
+        }
 
-    // Cập nhật maxScore và timeLimit nếu level thay đổi
-    if (level) {
-      lesson.maxScore = levelDoc.maxScore;
-      lesson.timeLimit = levelDoc.timeLimit;
-    }
+        if (q.type === "multiple_choice" && !q.correctAnswer) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: "Thiếu correctAnswer cho câu hỏi multiple_choice",
+          };
+        }
 
-    // Xử lý cập nhật câu hỏi
-    if (questions && questions.length > 0) {
+        const skillDoc = skillDocs.find((s) => s._id.toString() === q.skill);
+        if (!skillDoc || !skillDoc.supportedTypes.includes(q.type)) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: `Kỹ năng ${
+              skillDoc?.name || "n/a"
+            } không hỗ trợ loại câu hỏi ${q.type}`,
+          };
+        }
+      }
+
+      // Delete existing questions
       await Question.deleteMany({ lessonId: lesson._id });
+
+      // Create new questions
       const questionIds = [];
       for (const q of questions) {
-        if (skillDoc.name === "listening" && q.content) {
-          const audioResult = await groqService.textToSpeech(q.content);
-          if (audioResult.success) {
-            q.audioContent = audioResult.audioContent;
+        const skillDoc = skillDocs.find((s) => s._id.toString() === q.skill);
+
+        if (skillDoc.name.toLowerCase() === "listening" && q.content) {
+          const ttsResult = await groqService.textToSpeechAndUpload(q.content);
+          if (ttsResult.success) {
+            q.audioContent = ttsResult.audioUrl;
+          } else {
+            console.warn("TTS failed:", ttsResult.message);
           }
         }
 
         const question = await Question.create({
           lessonId: lesson._id,
+          skill: q.skill,
+          type: q.type,
           content: q.content,
           options: q.options || [],
           correctAnswer: q.correctAnswer,
           score: q.score || 100,
           audioContent: q.audioContent,
         });
+
         questionIds.push(question._id);
       }
+
       lesson.questions = questionIds;
     }
 
-    const updatedLesson = await lesson.save();
+    // Update lesson fields
+    if (title) lesson.title = title;
+    if (topic) lesson.topic = topic;
+    if (level) {
+      lesson.level = level;
+      lesson.maxScore = levelDoc.maxScore;
+      lesson.timeLimit = levelDoc.timeLimit;
+    }
+    if (questions) {
+      lesson.skills = [...new Set(questions.map((q) => q.skill))];
+    }
+
+    await lesson.save();
 
     return {
       success: true,
       statusCode: 200,
       message: "Cập nhật bài học thành công",
       lesson: {
-        lessonId: updatedLesson._id,
-        title: updatedLesson.title,
-        type: updatedLesson.type,
-        topic: updatedLesson.topic,
-        level: updatedLesson.level,
-        skill: updatedLesson.skill,
-        maxScore: updatedLesson.maxScore,
-        timeLimit: updatedLesson.timeLimit,
-        updatedAt: new Date(),
+        lessonId: lesson._id,
+        title: lesson.title,
+        topic: lesson.topic,
+        level: lesson.level,
+        skills: lesson.skills,
+        maxScore: lesson.maxScore,
+        timeLimit: lesson.timeLimit,
+        updatedAt: lesson.updatedAt,
       },
     };
   } catch (error) {
@@ -534,10 +516,9 @@ const getLessons = async (userId, queryParams) => {
 
     // Lấy tất cả bài học
     const allLessons = await Lesson.find(query)
-      .populate("questions topic level skills")  // ✅ Sửa lại ở đây
+      .populate("questions topic level skills") // ✅ Sửa lại ở đây
       .select("title topic level skills maxScore timeLimit createdAt")
       .sort(sortOptions);
-
 
     // Lấy các bài học user đã hoàn thành
     let completedLessonIds = [];
@@ -609,7 +590,9 @@ const getLessons = async (userId, queryParams) => {
 // Lấy chi tiết bài học
 const getLessonById = async (lessonId) => {
   try {
-    const lesson = await Lesson.findById(lessonId).populate("questions topic level skills");
+    const lesson = await Lesson.findById(lessonId).populate(
+      "questions topic level skills"
+    );
 
     if (!lesson) {
       return {
@@ -658,14 +641,17 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   const meetsUserLevel = user.userLevel >= nextLevel.minUserLevel;
   const meetsLessonPassed = passedLessons >= nextLevel.minLessonPassed;
 
-  console.log(`[Upgrade Check] userLevel=${user.userLevel}, required=${nextLevel.minUserLevel}, passed=${passedLessons}, requiredLessons=${nextLevel.minLessonPassed}`);
+  console.log(
+    `[Upgrade Check] userLevel=${user.userLevel}, required=${nextLevel.minUserLevel}, passed=${passedLessons}, requiredLessons=${nextLevel.minLessonPassed}`
+  );
 
   if (meetsUserLevel && meetsLessonPassed) {
     user.level = nextLevel._id;
-    console.log(`✅ User ${user._id} upgraded English level to: ${nextLevel.name}`);
+    console.log(
+      `✅ User ${user._id} upgraded English level to: ${nextLevel.name}`
+    );
   }
 };
-
 
 const completeLesson = async (
   userId,
@@ -697,11 +683,23 @@ const completeLesson = async (
       };
     }
 
-    const lesson = await Lesson.findById(lessonId).populate("topic").populate("level");
-    if (!lesson) return { success: false, statusCode: 404, message: "Không tìm thấy bài học" };
+    const lesson = await Lesson.findById(lessonId)
+      .populate("topic")
+      .populate("level");
+    if (!lesson)
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy bài học",
+      };
 
     const user = await User.findById(userId);
-    if (!user) return { success: false, statusCode: 404, message: "Không tìm thấy người dùng" };
+    if (!user)
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy người dùng",
+      };
 
     await checkAndRegenerateLives(user);
 
@@ -725,7 +723,9 @@ const completeLesson = async (
     const userLevel = await Level.findById(user.level);
 
     if (userLevel.name === "beginner") {
-      const completedVocab = user.completedBasicVocab.map((id) => id.toString());
+      const completedVocab = user.completedBasicVocab.map((id) =>
+        id.toString()
+      );
       if (!completedVocab.includes(lessonTopic)) {
         return {
           success: false,
@@ -736,32 +736,50 @@ const completeLesson = async (
     }
 
     const questionIds = questionResults.map((r) => r.questionId);
-    const questions = await Question.find({ _id: { $in: questionIds }, lessonId }).populate("skill");
+    const questions = await Question.find({
+      _id: { $in: questionIds },
+      lessonId,
+    }).populate("skill");
 
     if (questions.length !== questionIds.length) {
-      return { success: false, statusCode: 400, message: "Một hoặc nhiều questionId không hợp lệ hoặc không thuộc lesson" };
+      return {
+        success: false,
+        statusCode: 400,
+        message:
+          "Một hoặc nhiều questionId không hợp lệ hoặc không thuộc lesson",
+      };
     }
 
     for (let i = 0; i < questionResults.length; i++) {
       const result = questionResults[i];
-      const question = questions.find((q) => q._id.toString() === result.questionId.toString());
-      const answer = result.answer || (result.isTimeout ? "[TIMEOUT]" : "[UNANSWERED]");
+      const question = questions.find(
+        (q) => q._id.toString() === result.questionId.toString()
+      );
+      const answer =
+        result.answer || (result.isTimeout ? "[TIMEOUT]" : "[UNANSWERED]");
 
       switch (question.type) {
         case "text_input": {
           const skillName = question.skill?.name?.toLowerCase();
 
           if (skillName === "writing") {
-            const evalRes = await groqService.evaluateWritingTextInput(question.content, answer);
+            const evalRes = await groqService.evaluateWritingTextInput(
+              question.content,
+              answer
+            );
             questionResults[i] = {
               ...result,
               answer,
               score: typeof evalRes.score === "number" ? evalRes.score : 0,
-              isCorrect: typeof evalRes.score === "number" ? evalRes.score >= 50 : false,
+              isCorrect:
+                typeof evalRes.score === "number" ? evalRes.score >= 50 : false,
               feedback: evalRes.feedback || "Lỗi chấm điểm",
             };
           } else if (skillName === "listening") {
-            const evalRes = await groqService.evaluateListeningTextInput(question.correctAnswer, answer);
+            const evalRes = await groqService.evaluateListeningTextInput(
+              question.correctAnswer,
+              answer
+            );
             questionResults[i] = {
               ...result,
               answer,
@@ -796,41 +814,47 @@ const completeLesson = async (
             const skillName = question.skill?.name?.toLowerCase();
 
             if (skillName === "speaking") {
-              const evalRes = await groqService.evaluatePronunciationFromAudio(audioBuffer, question.content);
+              const evalRes = await groqService.evaluatePronunciationFromAudio(
+                audioBuffer,
+                question.content
+              );
               questionResults[i] = evalRes.success
                 ? {
-                  ...result,
-                  score: evalRes.score,
-                  feedback: evalRes.feedback,
-                  transcription: evalRes.transcription,
-                  isCorrect: evalRes.score >= 50,
-                  answer: evalRes.transcription || "[UNANSWERED]",
-                }
+                    ...result,
+                    score: evalRes.score,
+                    feedback: evalRes.feedback,
+                    transcription: evalRes.transcription,
+                    isCorrect: evalRes.score >= 50,
+                    answer: evalRes.transcription || "[UNANSWERED]",
+                  }
                 : {
-                  ...result,
-                  score: 0,
-                  feedback: evalRes.message,
-                  isCorrect: false,
-                  answer: "[ERROR]",
-                };
+                    ...result,
+                    score: 0,
+                    feedback: evalRes.message,
+                    isCorrect: false,
+                    answer: "[ERROR]",
+                  };
             } else {
-              const evalRes = await groqService.evaluatePronunciation(question.correctAnswer, audioBuffer);
+              const evalRes = await groqService.evaluatePronunciation(
+                question.correctAnswer,
+                audioBuffer
+              );
               questionResults[i] = evalRes.success
                 ? {
-                  ...result,
-                  score: evalRes.score,
-                  feedback: evalRes.feedback,
-                  transcription: evalRes.transcription,
-                  isCorrect: evalRes.score >= 50,
-                  answer: evalRes.transcription || "[UNANSWERED]",
-                }
+                    ...result,
+                    score: evalRes.score,
+                    feedback: evalRes.feedback,
+                    transcription: evalRes.transcription,
+                    isCorrect: evalRes.score >= 50,
+                    answer: evalRes.transcription || "[UNANSWERED]",
+                  }
                 : {
-                  ...result,
-                  score: 0,
-                  feedback: evalRes.message,
-                  isCorrect: false,
-                  answer: "[ERROR]",
-                };
+                    ...result,
+                    score: 0,
+                    feedback: evalRes.message,
+                    isCorrect: false,
+                    answer: "[ERROR]",
+                  };
             }
           }
           break;
@@ -840,8 +864,10 @@ const completeLesson = async (
 
     // Fallback để đảm bảo score luôn có
     for (let i = 0; i < questionResults.length; i++) {
-      if (typeof questionResults[i].score !== "number") questionResults[i].score = 0;
-      if (typeof questionResults[i].isCorrect !== "boolean") questionResults[i].isCorrect = false;
+      if (typeof questionResults[i].score !== "number")
+        questionResults[i].score = 0;
+      if (typeof questionResults[i].isCorrect !== "boolean")
+        questionResults[i].isCorrect = false;
     }
 
     score = questionResults.reduce((total, r) => total + (r.score || 0), 0);
@@ -869,7 +895,9 @@ const completeLesson = async (
       lessonStatus === "COMPLETE" &&
       lesson.skills?.some((s) => s.name === "vocabulary")
     ) {
-      const completedVocab = user.completedBasicVocab.map((id) => id.toString());
+      const completedVocab = user.completedBasicVocab.map((id) =>
+        id.toString()
+      );
       if (!completedVocab.includes(lessonTopic)) {
         user.completedBasicVocab.push(lessonTopic);
       }
@@ -886,7 +914,10 @@ const completeLesson = async (
       user.lives = Math.min(user.lives + 1, 5);
 
       try {
-        await NotificationService.createLevelUpNotification(user._id, user.userLevel);
+        await NotificationService.createLevelUpNotification(
+          user._id,
+          user.userLevel
+        );
       } catch (error) {
         console.error("[DEBUG] Failed to create level up notification:", error);
       }
@@ -896,11 +927,13 @@ const completeLesson = async (
     await upgradeUserLevel(user, user.level);
     await user.save();
 
-
     return {
       success: true,
       statusCode: 201,
-      message: lessonStatus === "COMPLETE" ? "Hoàn thành bài học thành công" : "Bài học chưa được hoàn thành",
+      message:
+        lessonStatus === "COMPLETE"
+          ? "Hoàn thành bài học thành công"
+          : "Bài học chưa được hoàn thành",
       status: lessonStatus,
       progress,
       user: {
