@@ -297,7 +297,6 @@ const updateLesson = async (lessonId, lessonData) => {
       };
     }
 
-    // Validate required fields if provided
     if (questions && (!Array.isArray(questions) || questions.length === 0)) {
       return {
         success: false,
@@ -306,7 +305,6 @@ const updateLesson = async (lessonId, lessonData) => {
       };
     }
 
-    // Validate topic if provided
     let topicDoc = lesson.topic;
     if (topic) {
       topicDoc = await Topic.findById(topic);
@@ -319,7 +317,6 @@ const updateLesson = async (lessonId, lessonData) => {
       }
     }
 
-    // Validate level if provided
     let levelDoc = lesson.level;
     if (level) {
       levelDoc = await Level.findById(level);
@@ -332,7 +329,6 @@ const updateLesson = async (lessonId, lessonData) => {
       }
     }
 
-    // Validate skills and questions if provided
     if (questions) {
       const allSkillIds = [...new Set(questions.map((q) => q.skill))];
       const skillDocs = await Skill.find({
@@ -344,12 +340,10 @@ const updateLesson = async (lessonId, lessonData) => {
         return {
           success: false,
           statusCode: 400,
-          message:
-            "Một hoặc nhiều kỹ năng trong câu hỏi không hợp lệ hoặc không hoạt động",
+          message: "Một hoặc nhiều kỹ năng trong câu hỏi không hợp lệ hoặc không hoạt động",
         };
       }
 
-      // Validate each question
       for (const q of questions) {
         if (!q.skill || !q.type || !q.content) {
           return {
@@ -372,16 +366,21 @@ const updateLesson = async (lessonId, lessonData) => {
           return {
             success: false,
             statusCode: 400,
-            message: `Kỹ năng ${skillDoc?.name || "n/a"
-              } không hỗ trợ loại câu hỏi ${q.type}`,
+            message: `Kỹ năng ${skillDoc?.name || "n/a"} không hỗ trợ loại câu hỏi ${q.type}`,
+          };
+        }
+
+        if (!q.timeLimit || q.timeLimit <= 0) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: "Câu hỏi thiếu timeLimit hợp lệ (lớn hơn 0)",
           };
         }
       }
 
-      // Delete existing questions
       await Question.deleteMany({ lessonId: lesson._id });
 
-      // Create new questions
       const questionIds = [];
       for (const q of questions) {
         const skillDoc = skillDocs.find((s) => s._id.toString() === q.skill);
@@ -399,6 +398,7 @@ const updateLesson = async (lessonId, lessonData) => {
           lessonId: lesson._id,
           skill: q.skill,
           type: q.type,
+          timeLimit: q.timeLimit, // ✅ Đã thêm
           content: q.content,
           options: q.options || [],
           correctAnswer: q.correctAnswer,
@@ -410,18 +410,15 @@ const updateLesson = async (lessonId, lessonData) => {
       }
 
       lesson.questions = questionIds;
+      lesson.skills = allSkillIds;
     }
 
-    // Update lesson fields
     if (title) lesson.title = title;
     if (topic) lesson.topic = topic;
     if (level) {
       lesson.level = level;
       lesson.maxScore = levelDoc.maxScore;
-      lesson.timeLimit = levelDoc.timeLimit;
-    }
-    if (questions) {
-      lesson.skills = [...new Set(questions.map((q) => q.skill))];
+      // lesson.timeLimit = levelDoc.timeLimit; ❌ Bỏ dòng này
     }
 
     await lesson.save();
@@ -437,7 +434,6 @@ const updateLesson = async (lessonId, lessonData) => {
         level: lesson.level,
         skills: lesson.skills,
         maxScore: lesson.maxScore,
-        timeLimit: lesson.timeLimit,
         updatedAt: lesson.updatedAt,
       },
     };
@@ -450,6 +446,7 @@ const updateLesson = async (lessonId, lessonData) => {
     };
   }
 };
+
 
 const getLessons = async (userId, queryParams) => {
   try {
