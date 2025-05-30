@@ -25,6 +25,12 @@ const questionSchema = new mongoose.Schema({
         type: String,
         trim: true
     }],
+    timeLimit: {
+        type: Number,
+        required: [true, 'Thời gian giới hạn là bắt buộc'],
+        default: 0,
+        min: [0, 'Thời gian giới hạn không được nhỏ hơn 0']
+    },
     correctAnswer: {
         type: String,
         required: function () {

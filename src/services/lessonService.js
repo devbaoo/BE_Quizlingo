@@ -179,7 +179,7 @@ const createLesson = async (lessonData, token) => {
       };
     }
 
-    // Kiểm tra từng câu hỏi có hợp lệ không
+    // Kiểm tra từng câu hỏi
     for (const q of questions) {
       if (!q.skill || !q.type || !q.content) {
         return {
@@ -202,21 +202,28 @@ const createLesson = async (lessonData, token) => {
         return {
           success: false,
           statusCode: 400,
-          message: `Kỹ năng ${
-            skillDoc?.name || "n/a"
-          } không hỗ trợ loại câu hỏi ${q.type}`,
+          message: `Kỹ năng ${skillDoc?.name || "n/a"} không hỗ trợ loại câu hỏi ${q.type}`,
+        };
+      }
+
+      // Validate timeLimit cho từng câu hỏi
+      if (!q.timeLimit || q.timeLimit <= 0) {
+        return {
+          success: false,
+          statusCode: 400,
+          message: "Mỗi câu hỏi phải có timeLimit hợp lệ (lớn hơn 0)",
         };
       }
     }
 
+    // Tạo lesson (bỏ timeLimit tổng)
     const lesson = await Lesson.create({
       title,
       topic,
       level,
       skills: allSkillIds,
       maxScore: levelDoc.maxScore,
-      timeLimit: levelDoc.timeLimit,
-      questions: [],
+      questions: [], // Sẽ thêm sau
     });
 
     const questionIds = [];
@@ -237,6 +244,7 @@ const createLesson = async (lessonData, token) => {
         lessonId: lesson._id,
         skill: q.skill,
         type: q.type,
+        timeLimit: q.timeLimit, // Lấy timeLimit của từng câu hỏi
         content: q.content,
         options: q.options || [],
         correctAnswer: q.correctAnswer,
@@ -261,7 +269,7 @@ const createLesson = async (lessonData, token) => {
         level: lesson.level,
         skills: lesson.skills,
         maxScore: lesson.maxScore,
-        timeLimit: lesson.timeLimit,
+        questions: questionIds,
         createdAt: lesson.createdAt,
       },
     };
@@ -364,9 +372,8 @@ const updateLesson = async (lessonId, lessonData) => {
           return {
             success: false,
             statusCode: 400,
-            message: `Kỹ năng ${
-              skillDoc?.name || "n/a"
-            } không hỗ trợ loại câu hỏi ${q.type}`,
+            message: `Kỹ năng ${skillDoc?.name || "n/a"
+              } không hỗ trợ loại câu hỏi ${q.type}`,
           };
         }
       }
@@ -820,20 +827,20 @@ const completeLesson = async (
               );
               questionResults[i] = evalRes.success
                 ? {
-                    ...result,
-                    score: evalRes.score,
-                    feedback: evalRes.feedback,
-                    transcription: evalRes.transcription,
-                    isCorrect: evalRes.score >= 50,
-                    answer: evalRes.transcription || "[UNANSWERED]",
-                  }
+                  ...result,
+                  score: evalRes.score,
+                  feedback: evalRes.feedback,
+                  transcription: evalRes.transcription,
+                  isCorrect: evalRes.score >= 50,
+                  answer: evalRes.transcription || "[UNANSWERED]",
+                }
                 : {
-                    ...result,
-                    score: 0,
-                    feedback: evalRes.message,
-                    isCorrect: false,
-                    answer: "[ERROR]",
-                  };
+                  ...result,
+                  score: 0,
+                  feedback: evalRes.message,
+                  isCorrect: false,
+                  answer: "[ERROR]",
+                };
             } else {
               const evalRes = await groqService.evaluatePronunciation(
                 question.correctAnswer,
@@ -841,20 +848,20 @@ const completeLesson = async (
               );
               questionResults[i] = evalRes.success
                 ? {
-                    ...result,
-                    score: evalRes.score,
-                    feedback: evalRes.feedback,
-                    transcription: evalRes.transcription,
-                    isCorrect: evalRes.score >= 50,
-                    answer: evalRes.transcription || "[UNANSWERED]",
-                  }
+                  ...result,
+                  score: evalRes.score,
+                  feedback: evalRes.feedback,
+                  transcription: evalRes.transcription,
+                  isCorrect: evalRes.score >= 50,
+                  answer: evalRes.transcription || "[UNANSWERED]",
+                }
                 : {
-                    ...result,
-                    score: 0,
-                    feedback: evalRes.message,
-                    isCorrect: false,
-                    answer: "[ERROR]",
-                  };
+                  ...result,
+                  score: 0,
+                  feedback: evalRes.message,
+                  isCorrect: false,
+                  answer: "[ERROR]",
+                };
             }
           }
           break;
