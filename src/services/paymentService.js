@@ -3,26 +3,18 @@ import crypto from "crypto";
 import payosConfig from "../config/payosConfig.js";
 import moment from "moment-timezone";
 
-// Tạo chữ ký cho request chỉ với 5 trường bắt buộc
+// Tạo chữ ký theo format của PayOS
 const createSignature = (data) => {
-  const fields = [
-    "amount",
-    "cancelUrl",
-    "description",
-    "orderCode",
-    "returnUrl",
-  ];
-  const query = fields
-    .sort()
-    .map((key) => `${key}=${String(data[key] ?? "").trim()}`)
-    .join("&");
+  // Format chuỗi theo đúng thứ tự yêu cầu của PayOS
+  const query = `amount=${data.amount}&cancelUrl=${data.cancelUrl}&description=${data.description}&orderCode=${data.orderCode}&returnUrl=${data.returnUrl}`;
 
-  console.log("Data for signature:", query);
-  return crypto
+  const signature = crypto
     .createHmac("sha256", payosConfig.checksumKey)
     .update(query)
     .digest("hex")
     .toLowerCase();
+
+  return signature;
 };
 
 // Tạo payment URL từ PayOS
