@@ -265,7 +265,7 @@ const paymentHistory = async (req, res) => {
   } catch {
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Server error ",
     });
   }
 };
