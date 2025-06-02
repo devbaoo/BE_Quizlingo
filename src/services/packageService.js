@@ -154,7 +154,10 @@ const createPackagePurchase = async (userId, packageId, paymentMethod) => {
 
     // Tính giá sau khi áp dụng giảm giá
     let finalPrice = packageData.price;
-    if (packageData.discount > 0 && packageData.discountEndDate > new Date()) {
+    if (
+      packageData.discount > 0 &&
+      new Date(packageData.discountEndDate) > new Date()
+    ) {
       finalPrice = packageData.price * (1 - packageData.discount / 100);
     }
 
