@@ -424,32 +424,6 @@ const updateUserRole = async (userId, newRole) => {
   }
 };
 
-const paymentHistory = async (userId) => {
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      return {
-        success: false,
-        statusCode: 404,
-        message: "Không tìm thấy người dùng",
-      };
-    }
-    const paymentHistory = await UserPackage.find({ user: userId });
-    return {
-      success: true,
-      statusCode: 200,
-      message: "Lấy lịch sử thanh toán thành công",
-      paymentHistory,
-    };
-  } catch {
-    return {
-      success: false,
-      statusCode: 500,
-      message: "Lỗi khi lấy lịch sử thanh toán",
-    };
-  }
-};
-
 export default {
   getUserProfile,
   updateUserProfile,
@@ -461,5 +435,4 @@ export default {
   getUserLivesStatus,
   checkAndRegenerateLives,
   updateUserRole,
-  paymentHistory,
 };

@@ -257,18 +257,6 @@ const updateUserRole = async (req, res) => {
   }
 };
 
-const paymentHistory = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const result = await userService.paymentHistory(userId);
-    return res.status(result.statusCode).json(result);
-  } catch {
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-};
 export default {
   getUserProfile,
   updateUserProfile,
@@ -281,5 +269,4 @@ export default {
   handleAvatarUpload,
   getUserLivesStatus,
   updateUserRole,
-  paymentHistory,
 };
