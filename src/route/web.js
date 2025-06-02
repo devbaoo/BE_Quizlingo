@@ -52,6 +52,7 @@ const initWebRoutes = (app) => {
   router.post("/user/skill", protect, userController.chooseSkill);
   router.post("/user/topic", protect, userController.chooseTopic);
   router.get("/user/lives-status", protect, userController.getUserLivesStatus);
+  router.get("/user/payment-history", protect, userController.paymentHistory);
 
   // Route avatar sử dụng middleware từ controller
   router.post(
