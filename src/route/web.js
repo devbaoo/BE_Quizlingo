@@ -44,6 +44,7 @@ const initWebRoutes = (app) => {
   router.post("/auth/forgot-password", authController.forgotPassword);
   router.post("/auth/reset-password/:token", authController.resetPassword);
   router.post("/auth/change-password", protect, authController.changePassword);
+  router.post("/auth/google-login", authController.googleLogin);
 
   // User routes (protected)
   router.get("/users/profile", protect, userController.getUserProfile);

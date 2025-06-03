@@ -419,6 +419,103 @@ const refreshToken = async (refreshToken) => {
   }
 };
 
+// Đăng nhập Google với dữ liệu user từ frontend
+const googleLogin = async (userData) => {
+  try {
+    const { email, name, picture } = userData;
+
+    if (!email) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Không lấy được email từ Google",
+      };
+    }
+
+    // Tìm user theo email
+    let user = await User.findOne({ email }).populate("level", "name");
+    if (!user) {
+      // Nếu chưa có user, tạo mới
+      const [firstName, ...lastNameArr] = name ? name.split(" ") : ["", ""];
+      const lastName = lastNameArr.join(" ");
+
+      // Tạo một password hash ngẫu nhiên cho Google user
+      const salt = await bcrypt.genSalt(10);
+      const randomPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = new User({
+        firstName: firstName || "Google",
+        lastName: lastName || "User",
+        email,
+        password: hashedPassword,
+        isVerify: true,
+        avatar: picture || "",
+      });
+      await user.save();
+
+      // Populate level after saving
+      user = await User.findById(user._id).populate("level", "name");
+    }
+
+    // Cập nhật streak logic tương tự như login thường
+    const now = moment().tz("Asia/Ho_Chi_Minh");
+    const today = now.clone().startOf("day");
+
+    if (user.lastLoginDate) {
+      const lastLogin = moment(user.lastLoginDate)
+        .tz("Asia/Ho_Chi_Minh")
+        .startOf("day");
+
+      const dayDiff = today.diff(lastLogin, "days");
+
+      if (dayDiff === 1) {
+        user.streak += 1;
+      } else if (dayDiff > 1) {
+        user.streak = 1;
+      }
+    } else {
+      user.streak = 1;
+    }
+
+    user.lastLoginDate = now.toDate();
+    await user.save();
+
+    // Đăng nhập thành công, tạo token
+    let { accessToken, refreshToken } = generateToken(user);
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Đăng nhập Google thành công",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        isVerify: user.isVerify,
+        avatar: user.avatar,
+        streak: user.streak,
+        lives: user.lives,
+        xp: user.xp,
+        userLevel: user.userLevel,
+        level: user.level ? user.level.name : null,
+      },
+      needVerification: false,
+    };
+  } catch (error) {
+    console.error("Google login error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi server khi đăng nhập Google",
+      error: error.message,
+    };
+  }
+};
+
 export default {
   register,
   login,
@@ -430,4 +527,5 @@ export default {
   resetPasswordWithToken,
   changePassword,
   refreshToken,
+  googleLogin,
 };
