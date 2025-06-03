@@ -465,11 +465,37 @@ const cancelPayment = async (transactionId) => {
 
     // Hủy thanh toán trên PayOS
     const cancelResult = await paymentService.cancelPayment(orderCode);
-    if (!cancelResult.success) {
-      return cancelResult;
+
+    // Nếu PayOS báo mã thanh toán không tồn tại, vẫn cập nhật trạng thái local
+    if (
+      !cancelResult.success &&
+      cancelResult.error === "Mã thanh toán không tồn tại"
+    ) {
+      // Cập nhật trạng thái local
+      userPackage.paymentStatus = "failed";
+      userPackage.isActive = false;
+      await userPackage.save();
+
+      return {
+        success: true,
+        statusCode: 200,
+        message:
+          "Hủy thanh toán thành công (giao dịch không tồn tại trên PayOS)",
+        userPackage,
+      };
     }
 
-    // Cập nhật trạng thái
+    // Nếu có lỗi khác từ PayOS
+    if (!cancelResult.success) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: cancelResult.error || "Lỗi khi hủy thanh toán",
+        error: cancelResult.error,
+      };
+    }
+
+    // Cập nhật trạng thái nếu hủy thành công
     userPackage.paymentStatus = "failed";
     userPackage.isActive = false;
     await userPackage.save();
