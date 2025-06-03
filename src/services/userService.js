@@ -433,14 +433,28 @@ const paymentHistory = async (userId) => {
         message: "Không tìm thấy người dùng",
       };
     }
-    const paymentHistory = await UserPackage.find({ user: userId });
+    const paymentHistory = await UserPackage.find({ user: userId })
+      .populate("package", "name price duration description")
+      .sort({ createdAt: -1 }); // Sort by newest first
+
     return {
       success: true,
       statusCode: 200,
       message: "Lấy lịch sử thanh toán thành công",
-      paymentHistory,
+      paymentHistory: paymentHistory.map((history) => ({
+        ...history.toObject(),
+        package: history.package
+          ? {
+              name: history.package.name,
+              price: history.package.price,
+              duration: history.package.duration,
+              description: history.package.description,
+            }
+          : null,
+      })),
     };
-  } catch {
+  } catch (error) {
+    console.error("Payment history error:", error);
     return {
       success: false,
       statusCode: 500,
