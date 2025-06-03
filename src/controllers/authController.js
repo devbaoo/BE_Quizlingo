@@ -47,6 +47,38 @@ const login = async (req, res) => {
   }
 };
 
+// Đăng nhập Google
+const googleLogin = async (req, res) => {
+  try {
+    const { email, name, picture } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin email từ Google",
+      });
+    }
+
+    const userData = { email, name, picture };
+    const result = await authService.googleLogin(userData);
+
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: result.user,
+      needVerification: result.needVerification || false,
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 // Xác thực email
 const verifyEmail = async (req, res) => {
   try {
@@ -208,6 +240,7 @@ const refreshToken = async (req, res) => {
 export default {
   register,
   login,
+  googleLogin,
   verifyEmail,
   resendVerificationEmail,
   forgotPassword,
