@@ -80,7 +80,7 @@ class AutomatedNotificationService {
                 title,
                 message,
                 type: "reminder",
-                link: "/lessons",
+                link: "/learn",
               },
               daysInactive
             );
