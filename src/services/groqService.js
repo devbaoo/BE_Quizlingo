@@ -552,6 +552,61 @@ Hãy đánh giá:
   }
 };
 
+const generateJsonFromPrompt = async (prompt) => {
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          {
+            role: "system",
+            content: `Bạn là một hệ thống tạo bài học tiếng Anh. Trả về JSON hợp lệ không chứa văn bản mô tả ngoài lề.`,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API thất bại: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content || "";
+
+    // Tìm và parse JSON trong phần content
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}");
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error("Không tìm thấy JSON hợp lệ trong phản hồi AI");
+    }
+
+    const jsonString = raw.slice(jsonStart, jsonEnd + 1);
+    const parsed = JSON.parse(jsonString);
+
+    return {
+      success: true,
+      data: parsed,
+    };
+  } catch (err) {
+    console.error("generateJsonFromPrompt error:", err);
+    return {
+      success: false,
+      message: err.message,
+    };
+  }
+};
+
 export default {
   textToSpeech,
   speechToText,
@@ -562,4 +617,5 @@ export default {
   transcribeAudioBuffer,
   evaluatePronunciationFromAudio,
   evaluateWritingTextInput,
+  generateJsonFromPrompt
 };
