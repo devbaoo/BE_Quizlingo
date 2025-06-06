@@ -940,6 +940,18 @@ const completeLesson = async (
                 typeof evalRes.score === "number" ? evalRes.score >= 50 : false,
               feedback: evalRes.feedback || "Lỗi chấm điểm",
             };
+          } else if (skillName === "reading") {
+            const evalRes = await groqService.evaluateWritingTextInput(
+              question.content,
+              answer
+            );
+            questionResults[i] = {
+              ...result,
+              answer,
+              score: typeof evalRes.score === "number" ? evalRes.score : 0,
+              isCorrect: typeof evalRes.score === "number" ? evalRes.score >= 50 : false,
+              feedback: evalRes.feedback || "Lỗi chấm điểm",
+            };
           } else if (skillName === "listening") {
             const evalRes = await groqService.evaluateListeningTextInput(
               question.correctAnswer,
