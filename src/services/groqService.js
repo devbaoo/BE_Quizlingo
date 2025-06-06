@@ -537,18 +537,19 @@ Hãy đánh giá:
     // Dò tìm điểm tổng với nhiều định dạng khác nhau
     let score = 0;
     const matchers = [
-      /\*\*Điểm tổng.*?\*\*:\s*(\d{1,3})/,        // **Điểm tổng (0-100)**: 60
-      /Score:\s*(\d{1,3})/,                       // Score: 60
-      /(\d{1,3})\/100/,                           // 60/100
-      /tổng(?: điểm)?[^0-9]{0,10}(\d{1,3})/i,     // tổng điểm là 60, tổng: 60
-      /(\d{1,3})\s*điểm/,                         // 60 điểm
-      /được\s*(\d{1,3})\s*điểm/,                  // bạn được 60 điểm
+      /\*\*Điểm tổng.*?\*\*:\s*(\d{1,3}(?:\.\d+)?)/,   // **Điểm tổng (0-100)**: 85.5
+      /Score:\s*(\d{1,3}(?:\.\d+)?)/,                 // Score: 85.5
+      /(\d{1,3}(?:\.\d+)?)\/100/,                     // 85.5/100
+      /tổng(?: điểm)?[^0-9]{0,10}(\d{1,3}(?:\.\d+)?)/i,
+      /(\d{1,3}(?:\.\d+)?)\s*điểm/,                   // 85.5 điểm
+      /được\s*(\d{1,3}(?:\.\d+)?)\s*điểm/,            // được 85.5 điểm
     ];
+
 
     for (const regex of matchers) {
       const match = content.match(regex);
       if (match) {
-        const parsed = parseInt(match[1]);
+        const parsed = parseFloat(match[1]);
         if (!isNaN(parsed)) {
           score = parsed;
           break;
