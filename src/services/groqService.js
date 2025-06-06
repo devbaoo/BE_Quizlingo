@@ -545,7 +545,6 @@ Hãy đánh giá:
       /được\s*(\d{1,3}(?:\.\d+)?)\s*điểm/,            // được 85.5 điểm
     ];
 
-
     for (const regex of matchers) {
       const match = content.match(regex);
       if (match) {
