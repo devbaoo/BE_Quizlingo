@@ -30,9 +30,6 @@ const checkAndRegenerateLives = async (user) => {
       user.lives = Math.min(user.lives + livesToRegenerate, 5);
       user.lastLivesRegenerationTime = now;
       await user.save();
-      console.log(
-        `Regenerated ${livesToRegenerate} lives for user ${user._id}`
-      );
     }
   }
 
@@ -52,7 +49,6 @@ const getTopics = async () => {
       topics,
     };
   } catch (error) {
-    console.error("Get topics error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -71,7 +67,6 @@ const getSkills = async (userId, topic, level) => {
     if (userId && topic && level) {
       const user = await User.findById(userId);
       if (!user) {
-        console.error(`User not found: ${userId}`);
         return {
           success: false,
           statusCode: 404,
@@ -81,7 +76,6 @@ const getSkills = async (userId, topic, level) => {
 
       const topicDoc = await Topic.findById(topic);
       if (!topicDoc || !topicDoc.isActive) {
-        console.error(`Invalid topic: ${topic}`);
         return {
           success: false,
           statusCode: 400,
@@ -91,7 +85,6 @@ const getSkills = async (userId, topic, level) => {
 
       const levelDoc = await Level.findById(level);
       if (!levelDoc || !levelDoc.isActive) {
-        console.error(`Invalid level: ${level}`);
         return {
           success: false,
           statusCode: 400,
@@ -120,7 +113,6 @@ const getSkills = async (userId, topic, level) => {
       skills,
     };
   } catch (error) {
-    console.error("Get skills error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -133,7 +125,6 @@ const createLesson = async (lessonData, token) => {
   try {
     const { title, topic, level, questions } = lessonData;
 
-    console.log("➡️ Bắt đầu tạo lesson với", title, questions?.length, "câu hỏi");
 
     if (!title || !topic || !level || !questions || !Array.isArray(questions) || questions.length === 0) {
       return {
@@ -261,8 +252,6 @@ const createLesson = async (lessonData, token) => {
     lesson.questions = questionIds;
     await lesson.save();
 
-    console.log("📝 Đã tạo lesson:", lesson._id);
-
     return {
       success: true,
       statusCode: 201,
@@ -279,7 +268,6 @@ const createLesson = async (lessonData, token) => {
       },
     };
   } catch (error) {
-    console.error("Create lesson error:", error);
     return {
       success: false,
       statusCode: 400,
@@ -444,7 +432,6 @@ const updateLesson = async (lessonId, lessonData) => {
       },
     };
   } catch (error) {
-    console.error("Update lesson error:", error);
     return {
       success: false,
       statusCode: 400,
@@ -619,7 +606,6 @@ const getLessonById = async (lessonId) => {
       lesson,
     };
   } catch (error) {
-    console.error("Get lesson by ID error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -651,15 +637,8 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   const meetsUserLevel = user.userLevel >= nextLevel.minUserLevel;
   const meetsLessonPassed = passedLessons >= nextLevel.minLessonPassed;
 
-  console.log(
-    `[Upgrade Check] userLevel=${user.userLevel}, required=${nextLevel.minUserLevel}, passed=${passedLessons}, requiredLessons=${nextLevel.minLessonPassed}`
-  );
-
   if (meetsUserLevel && meetsLessonPassed) {
     user.level = nextLevel._id;
-    console.log(
-      `✅ User ${user._id} upgraded English level to: ${nextLevel.name}`
-    );
   }
 };
 
@@ -674,7 +653,6 @@ const generateLessonForUser = async (userId) => {
     const preferredTopics = user.preferredTopics || [];
     const preferredSkills = user.preferredSkills || [];
 
-    console.log("[AI] Generating lesson for:", userId, "Level:", levelName);
 
     const progresses = await Progress.find({ userId }).populate("lessonId");
     const skillStats = {};
@@ -769,7 +747,6 @@ ${promptParts.join("\n")}`;
     if (!groqRes.success) return groqRes;
 
     const lessonData = groqRes.data;
-    console.log("[AI] lessonData từ Groq:", JSON.stringify(lessonData, null, 2));
 
     const [levelDoc, topicDoc, allSkills] = await Promise.all([
       Level.findOne({ name: lessonData.level }),
@@ -813,12 +790,10 @@ ${promptParts.join("\n")}`;
       finalQuestions.push({ ...q, skill: skillMap[name] });
     }
 
-    console.log("[⚠️] Không có câu hỏi hợp lệ, lesson sẽ không được tạo:", lessonData.questions);
 
     if (!finalQuestions.length) {
       return { success: false, message: "Không có câu hỏi hợp lệ" };
     }
-    console.log("[DEBUG] finalQuestions:", finalQuestions);
 
     const createRes = await createLesson({
       title: lessonData.title,
@@ -836,11 +811,9 @@ ${promptParts.join("\n")}`;
         link: "/learn",
       });
     }
-    console.log("[✅] Kết quả tạo lesson:", createRes);
 
     return createRes;
   } catch (error) {
-    console.error("generateLessonForUser error:", error);
     return { success: false, message: "Lỗi khi tạo bài học: " + error.message };
   }
 };
@@ -1122,7 +1095,6 @@ const completeLesson = async (
     if (lessonStatus === "COMPLETE") {
       Promise.resolve().then(async () => {
         try {
-          console.log("[AI] START generateLessonForUser:", user._id);
           await generateLessonForUser(user._id);
         } catch (err) {
           console.warn("Tạo bài học tự động thất bại:", err.message);
@@ -1230,7 +1202,6 @@ const retryLesson = async (userId, lessonId) => {
       },
     };
   } catch (error) {
-    console.error("Retry lesson error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -1316,7 +1287,6 @@ const getAllLessonsForAdmin = async (queryParams = {}) => {
       },
     };
   } catch (error) {
-    console.error("Get all lessons for admin error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -1346,7 +1316,6 @@ const deleteLesson = async (lessonId) => {
       message: "Xóa bài học thành công",
     };
   } catch (error) {
-    console.error("Delete lesson error:", error);
     return {
       success: false,
       statusCode: 500,

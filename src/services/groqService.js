@@ -511,7 +511,7 @@ Bạn là một giáo viên tiếng Anh nghiêm khắc. Hãy đánh giá bài vi
 - Từ vựng.
 Đưa ra điểm tổng trên thang điểm 100. Không dễ dãi. Chỉ cho điểm cao nếu học viên thực sự làm tốt.
 Nhận xét bằng tiếng Việt.
-          `,
+            `.trim(),
           },
           {
             role: "user",
@@ -532,9 +532,29 @@ Hãy đánh giá:
     });
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
-    const scoreMatch = content.match(/tổng.*?(\d{1,3})/i) || content.match(/(\d{1,3})\/100/);
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+    const content = data.choices?.[0]?.message?.content || "";
+
+    // Dò tìm điểm tổng với nhiều định dạng khác nhau
+    let score = 0;
+    const matchers = [
+      /\*\*Điểm tổng.*?\*\*:\s*(\d{1,3})/,        // **Điểm tổng (0-100)**: 60
+      /Score:\s*(\d{1,3})/,                       // Score: 60
+      /(\d{1,3})\/100/,                           // 60/100
+      /tổng(?: điểm)?[^0-9]{0,10}(\d{1,3})/i,     // tổng điểm là 60, tổng: 60
+      /(\d{1,3})\s*điểm/,                         // 60 điểm
+      /được\s*(\d{1,3})\s*điểm/,                  // bạn được 60 điểm
+    ];
+
+    for (const regex of matchers) {
+      const match = content.match(regex);
+      if (match) {
+        const parsed = parseInt(match[1]);
+        if (!isNaN(parsed)) {
+          score = parsed;
+          break;
+        }
+      }
+    }
 
     return {
       success: true,
