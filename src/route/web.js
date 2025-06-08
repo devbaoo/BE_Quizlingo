@@ -15,6 +15,7 @@ import packageController from "../controllers/packageController.js";
 import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
 import leaderboardController from "../controllers/leaderboardController.js";
+import { registerLimiter } from "../middleware/registerLimiter.js";
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ const initWebRoutes = (app) => {
   });
 
   // Authentication routes
-  router.post("/auth/register", authController.register);
+  router.post("/auth/register", registerLimiter, authController.register);
   router.post("/auth/login", authController.login);
   router.post("/auth/refresh-token", authController.refreshToken);
   router.get("/auth/verify-email/:token", authController.verifyEmail);
