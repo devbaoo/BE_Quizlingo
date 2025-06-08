@@ -5,10 +5,32 @@ import jwtConfig from "../config/jwtConfig.js";
 import emailService from "./emailService.js";
 import moment from "moment-timezone";
 
-let register = async (userData, baseUrl) => {
-  let { firstName, lastName, email, password } = userData;
+const verifyRecaptcha = async (token) => {
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
+  const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `secret=${secret}&response=${token}`,
+  });
+  const data = await response.json();
+  return data.success && (data.score ?? 1) >= 0.5;
+};
 
-  let existingUser = await User.findOne({ email });
+const register = async (userData, baseUrl) => {
+  const { firstName, lastName, email, password, recaptchaToken } = userData;
+
+  // Check reCAPTCHA
+  const recaptchaPassed = await verifyRecaptcha(recaptchaToken);
+  if (!recaptchaPassed) {
+    return {
+      success: false,
+      statusCode: 403,
+      message: "Xác minh reCAPTCHA thất bại. Vui lòng thử lại.",
+    };
+  }
+
+  // Check existing email
+  const existingUser = await User.findOne({ email });
   if (existingUser) {
     return {
       success: false,
@@ -17,11 +39,23 @@ let register = async (userData, baseUrl) => {
     };
   }
 
-  let salt = await bcrypt.genSalt(10);
-  let hashedPassword = await bcrypt.hash(password, salt);
+  // Check email domain
+  const allowedDomains = ["gmail.com", "yahoo.com", "outlook.com", "fpt.edu.vn"];
+  const domain = email.split("@")[1];
+  if (!allowedDomains.includes(domain)) {
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Email không hợp lệ hoặc không được hỗ trợ",
+    };
+  }
 
-  // Create new user
-  let user = new User({
+  // Hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  // Create new user (chưa lưu)
+  const user = new User({
     firstName,
     lastName,
     email,
@@ -29,23 +63,30 @@ let register = async (userData, baseUrl) => {
     isVerify: false,
   });
 
-  await user.save();
+  // Validate trước khi gửi email
+  await user.validate();
 
   // Gửi email xác thực
   if (baseUrl) {
     const emailResult = await emailService.sendVerificationEmail(user, baseUrl);
     if (!emailResult.success) {
-      console.error("Failed to send verification email:", emailResult.error);
+      return {
+        success: false,
+        statusCode: 500,
+        message: "Không thể gửi email xác thực",
+      };
     }
   }
 
-  let { accessToken, refreshToken } = generateToken(user);
+  // Lưu vào DB sau khi email gửi thành công
+  await user.save();
+
+  const { accessToken, refreshToken } = generateToken(user);
 
   return {
     success: true,
     statusCode: 201,
-    message:
-      "Đăng ký thành công. Vui lòng xác thực tài khoản của bạn khi thuận tiện.",
+    message: "Đăng ký thành công. Vui lòng xác thực tài khoản qua email.",
     accessToken,
     refreshToken,
     user: {
