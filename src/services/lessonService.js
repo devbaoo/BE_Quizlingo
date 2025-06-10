@@ -1377,6 +1377,57 @@ const deleteLesson = async (lessonId) => {
   }
 };
 
+const getUserLearningPath = async (userId) => {
+  try {
+    const pathDocs = await UserLearningPath.find({ userId })
+      .populate({
+        path: "lessonId",
+        populate: ["level", "topic"], // lấy luôn tên level và topic
+      })
+      .sort({ order: 1, generatedAt: 1 });
+
+    if (!pathDocs || pathDocs.length === 0) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Không tìm thấy lộ trình học tập",
+      };
+    }
+
+    const learningPath = pathDocs.map((doc) => {
+      const lesson = doc.lessonId;
+
+      return {
+        pathId: doc._id,
+        lessonId: lesson?._id,
+        title: lesson?.title || "Không có tiêu đề",
+        topic: lesson?.topic?.name || "Không xác định",
+        level: lesson?.level?.name || "Không xác định",
+        focusSkills: doc.focusSkills || [],
+        recommendedReason: doc.recommendedReason || "",
+        accuracyBefore: doc.accuracyBefore || 0,
+        order: doc.order,
+        completed: doc.completed,
+        createdAt: doc.generatedAt,
+      };
+    });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Lấy lộ trình học tập thành công",
+      learningPath,
+    };
+  } catch (error) {
+    console.error("❌ getUserLearningPath error:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: error.message || "Lỗi khi lấy lộ trình học tập",
+    };
+  }
+};
+
 export default {
   createLesson,
   getLessons,
@@ -1390,4 +1441,5 @@ export default {
   updateLesson,
   checkAndRegenerateLives,
   generateLessonForUser,
+  getUserLearningPath,
 };

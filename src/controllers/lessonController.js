@@ -178,6 +178,27 @@ const updateLesson = async (req, res) => {
   }
 };
 
+const getUserLearningPath = async (req, res) => {
+  try {
+    const userId = req.user ? req.user.id : null;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+    const result = await lessonService.getUserLearningPath(userId);
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      learningPath: result.learningPath,
+    });
+  } catch (error) {
+    console.error("Get user learning path error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
 export default {
   createLesson,
   getLessons,
@@ -189,4 +210,5 @@ export default {
   getAllLessons,
   deleteLesson,
   updateLesson,
+  getUserLearningPath
 };
