@@ -1400,8 +1400,15 @@ const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
       };
     }
 
+    // ✅ Lấy danh sách bài học đã hoàn thành
+    const completedLessonIds = await Progress.distinct("lessonId", {
+      userId,
+      status: "COMPLETE",
+    });
+
     const learningPath = pathDocs.map((doc) => {
       const lesson = doc.lessonId;
+      const isCompleted = completedLessonIds.includes(lesson?._id?.toString());
 
       return {
         pathId: doc._id,
@@ -1415,6 +1422,7 @@ const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
         order: doc.order,
         completed: doc.completed,
         createdAt: doc.generatedAt,
+        status: isCompleted ? "COMPLETE" : "LOCKED", // ✅ Thêm trạng thái
       };
     });
 
