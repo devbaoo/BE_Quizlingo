@@ -185,7 +185,7 @@ const initWebRoutes = (app) => {
   router.post("/lessons/retry", protect, lessonController.retryLesson);
   router.get("/topics", lessonController.getTopics);
   router.get("/skills", lessonController.getSkills);
-
+  router.get("/user-lessons-learning-path", protect, lessonController.getUserLearningPath);
 
   // Progress routes
   router.get(
