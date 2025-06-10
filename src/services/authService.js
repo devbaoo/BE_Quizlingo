@@ -100,8 +100,8 @@ const register = async (userData, baseUrl) => {
   };
 };
 
-let login = async (email, password) => {
-  let user = await User.findOne({ email }).populate("level", "name");
+const login = async (email, password, recaptchaToken) => {
+  const user = await User.findOne({ email }).populate("level", "name");
 
   if (!user) {
     return {
@@ -111,8 +111,35 @@ let login = async (email, password) => {
     };
   }
 
-  let isMatch = await bcrypt.compare(password, user.password);
+  const now = new Date();
+
+  // 🔁 Tự động reset loginAttempts sau 15 phút
+  if (user.loginAttempts >= 1 && user.lastLoginAttempt) {
+    const minutesSinceLast = (now - user.lastLoginAttempt) / (1000 * 60);
+    if (minutesSinceLast >= 15) {
+      user.loginAttempts = 0;
+      await user.save();
+    }
+  }
+
+  // Nếu user đã sai nhiều → yêu cầu reCAPTCHA
+  if (user.loginAttempts >= 3) {
+    const isHuman = await verifyRecaptcha(recaptchaToken);
+    if (!isHuman) {
+      return {
+        success: false,
+        statusCode: 403,
+        message: "Xác minh reCAPTCHA thất bại. Vui lòng thử lại sau.",
+      };
+    }
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
+    user.loginAttempts += 1;
+    user.lastLoginAttempt = now;
+    await user.save();
+
     return {
       success: false,
       statusCode: 400,
@@ -120,36 +147,25 @@ let login = async (email, password) => {
     };
   }
 
-  // Streak logic implementation with Vietnam timezone
-  const now = moment().tz("Asia/Ho_Chi_Minh");
-  const today = now.clone().startOf("day");
+  // Đăng nhập đúng → reset lại loginAttempts
+  user.loginAttempts = 0;
+  user.lastLoginAttempt = now;
 
+  // Streak logic như cũ
+  const today = moment(now).tz("Asia/Ho_Chi_Minh").startOf("day");
   if (user.lastLoginDate) {
-    const lastLogin = moment(user.lastLoginDate)
-      .tz("Asia/Ho_Chi_Minh")
-      .startOf("day");
-
-    // Calculate the difference in days
+    const lastLogin = moment(user.lastLoginDate).tz("Asia/Ho_Chi_Minh").startOf("day");
     const dayDiff = today.diff(lastLogin, "days");
-
-    if (dayDiff === 1) {
-      // User logged in the next day - increase streak
-      user.streak += 1;
-    } else if (dayDiff > 1) {
-      // User missed login for more than 1 day - reset streak
-      user.streak = 1;
-    }
-    // If dayDiff === 0, user already logged in today, don't change streak
+    if (dayDiff === 1) user.streak += 1;
+    else if (dayDiff > 1) user.streak = 1;
   } else {
-    // First login ever
     user.streak = 1;
   }
 
-  // Update last login date to current Vietnam time
-  user.lastLoginDate = now.toDate();
+  user.lastLoginDate = now;
   await user.save();
 
-  let { accessToken, refreshToken } = generateToken(user);
+  const { accessToken, refreshToken } = generateToken(user);
 
   return {
     success: true,

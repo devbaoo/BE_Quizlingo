@@ -102,6 +102,12 @@ const UserSchema = new mongoose.Schema({
   lastResetEmailSentAt: {
     type: Date
   },
+  loginAttempts: {
+    type: Number, default: 0
+  },
+  lastLoginAttempt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now,
