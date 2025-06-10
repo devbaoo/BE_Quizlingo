@@ -181,17 +181,19 @@ const updateLesson = async (req, res) => {
 const getUserLearningPath = async (req, res) => {
   try {
     const userId = req.user ? req.user.id : null;
+    const { page = 1, limit = 5 } = req.query;
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: "Unauthorized",
       });
     }
-    const result = await lessonService.getUserLearningPath(userId);
+    const result = await lessonService.getUserLearningPath(userId, { page: Number(page), limit: Number(limit) });
     return res.status(result.statusCode).json({
       success: result.success,
       message: result.message,
       learningPath: result.learningPath,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("Get user learning path error:", error);
