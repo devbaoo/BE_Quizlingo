@@ -11,6 +11,7 @@ import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 import NotificationService from "./notificationService.js";
 import userService from "./userService.js";
+import UserLearningPath from "../models/userLearningPath.js";
 
 const checkAndRegenerateLives = async (user) => {
   if (!user || user.lives >= 5) return;
@@ -642,9 +643,19 @@ const upgradeUserLevel = async (user, currentLevelId) => {
   }
 };
 
+const getNextLearningOrder = async (userId) => {
+  const lastPath = await UserLearningPath
+    .findOne({ userId })
+    .sort({ order: -1 });
+
+  return lastPath ? lastPath.order + 1 : 1;
+};
+
 const generateLessonForUser = async (userId) => {
+  console.log("🟡 Generating lesson for userId:", userId);
   try {
     const profileRes = await userService.getUserProfile(userId);
+    console.log("✅ Profile result:", profileRes);
     if (!profileRes.success) return profileRes;
 
     const user = profileRes.user;
@@ -718,6 +729,7 @@ Lỗi thường gặp: ${commonMistakes}.
     }
 
     const prompt = `Bạn là giáo viên tiếng Anh.
+    ⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau. KHÔNG giải thích.
 Tạo một bài học với trình độ "${levelName}" và chủ đề "${selectedTopic}".
 Mỗi kỹ năng chỉ được dùng đúng loại câu hỏi được hỗ trợ như sau:
 - Listening: chỉ dùng multiple_choice hoặc text_input, không dùng audio_input.
@@ -745,6 +757,8 @@ ${promptParts.join("\n")}`;
 
     const groqRes = await groqService.generateJsonFromPrompt(prompt);
     if (!groqRes.success) return groqRes;
+    console.log("[DEBUG] Raw Groq response:\n", groqRes.data);
+
 
     const lessonData = groqRes.data;
 
@@ -811,7 +825,34 @@ ${promptParts.join("\n")}`;
         link: "/learn",
       });
     }
+    const last3Progresses = await Progress.find({ userId }).sort({ createdAt: -1 }).limit(3);
+    let accuracy = 0;
 
+    if (last3Progresses.length) {
+      let totalQuestions = 0, correctAnswers = 0;
+      for (const prog of last3Progresses) {
+        for (const r of prog.questionResults) {
+          totalQuestions += 1;
+          if (r.isCorrect) correctAnswers += 1;
+        }
+      }
+      accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    }
+
+    try {
+      const path = await UserLearningPath.create({
+        userId: user._id,
+        lessonId: createRes.lesson.lessonId,
+        source: 'ai_generated',
+        focusSkills: selectedSkills,
+        accuracyBefore: Math.round(accuracy),
+        recommendedReason: 'Based on performance from last 3 lessons',
+        order: await getNextLearningOrder(user._id),
+      });
+      console.log("✅ UserLearningPath created:", path);
+    } catch (err) {
+      console.error("❌ Failed to create UserLearningPath:", err.message);
+    }
     return createRes;
   } catch (error) {
     return { success: false, message: "Lỗi khi tạo bài học: " + error.message };
