@@ -1377,14 +1377,20 @@ const deleteLesson = async (lessonId) => {
   }
 };
 
-const getUserLearningPath = async (userId) => {
+const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
   try {
+    const skip = (page - 1) * limit;
+
+    const total = await UserLearningPath.countDocuments({ userId });
+
     const pathDocs = await UserLearningPath.find({ userId })
       .populate({
         path: "lessonId",
-        populate: ["level", "topic"], // lấy luôn tên level và topic
+        populate: ["level", "topic"], // populate tên level và topic
       })
-      .sort({ order: 1, generatedAt: 1 });
+      .sort({ order: 1, generatedAt: 1 })
+      .skip(skip)
+      .limit(limit);
 
     if (!pathDocs || pathDocs.length === 0) {
       return {
@@ -1417,6 +1423,12 @@ const getUserLearningPath = async (userId) => {
       statusCode: 200,
       message: "Lấy lộ trình học tập thành công",
       learningPath,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        pageSize: limit,
+      },
     };
   } catch (error) {
     console.error("❌ getUserLearningPath error:", error);
