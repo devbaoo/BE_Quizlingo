@@ -309,23 +309,22 @@ const softDeleteUser = async (userId) => {
 const checkAndRegenerateLives = async (user) => {
   if (!user || user.lives >= 5) return;
 
-  const now = Date.now();
-  let last = user.lastLivesRegenerationTime
-    ? new Date(user.lastLivesRegenerationTime).getTime()
-    : now - 11 * 60 * 1000; // Nếu chưa có thì giả định 11 phút trước
+  const now = new Date();
+  const lastRegeneration = user.lastLivesRegenerationTime || now;
+  const timeDiff = Math.floor((now - lastRegeneration) / (1000 * 60)); // Time difference in minutes
 
-  const regenInterval = 10 * 60 * 1000;
-  const livesToAdd = Math.floor((now - last) / regenInterval);
+  if (timeDiff >= 10) {
+    // Calculate how many lives to regenerate (1 per 10 minutes, up to max 5)
+    const livesToRegenerate = Math.min(
+      Math.floor(timeDiff / 10),
+      5 - user.lives
+    );
 
-  if (livesToAdd > 0) {
-    const newLives = Math.min(user.lives + livesToAdd, 5);
-    const livesActuallyAdded = newLives - user.lives;
-    user.lives = newLives;
-    user.lastLivesRegenerationTime = new Date(last + livesActuallyAdded * regenInterval);
-    await user.save();
-    console.log(`✅ Hồi ${livesActuallyAdded} máu cho user ${user._id}`);
-  } else {
-    console.log(`⏳ Chưa đủ thời gian hồi máu cho user ${user._id}`);
+    if (livesToRegenerate > 0) {
+      user.lives = Math.min(user.lives + livesToRegenerate, 5);
+      user.lastLivesRegenerationTime = now;
+      await user.save();
+    }
   }
 
   return user;
