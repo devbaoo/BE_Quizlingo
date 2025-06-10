@@ -25,6 +25,15 @@ const getUserProfile = async (userId) => {
     // ✅ Gọi hồi lives nếu cần
     user = await checkAndRegenerateLives(user); // 👈 bạn cần gọi dòng này
 
+
+    if (!user) {
+      return {
+        success: false,
+        statusCode: 500,
+        message: "Không thể lấy thông tin người dùng sau khi cập nhật lives",
+      };
+    }
+
     // Lấy thông tin package đang active
     const now = moment().tz("Asia/Ho_Chi_Minh");
     const activePackage = await UserPackage.findOne({
@@ -51,6 +60,7 @@ const getUserProfile = async (userId) => {
       statusCode: 200,
       message: "Lấy profile thành công",
       user: {
+        _id: user._id,
         id: user._id,
         email: user.email,
         firstName: user.firstName,
@@ -307,14 +317,13 @@ const softDeleteUser = async (userId) => {
 };
 
 const checkAndRegenerateLives = async (user) => {
-  if (!user || user.lives >= 5) return;
+  if (!user || user.lives >= 5) return user; // ← sửa ở đây
 
   const now = new Date();
   const lastRegeneration = user.lastLivesRegenerationTime || now;
-  const timeDiff = Math.floor((now - lastRegeneration) / (1000 * 60)); // Time difference in minutes
+  const timeDiff = Math.floor((now - lastRegeneration) / (1000 * 60)); // phút
 
   if (timeDiff >= 10) {
-    // Calculate how many lives to regenerate (1 per 10 minutes, up to max 5)
     const livesToRegenerate = Math.min(
       Math.floor(timeDiff / 10),
       5 - user.lives

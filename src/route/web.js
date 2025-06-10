@@ -186,6 +186,7 @@ const initWebRoutes = (app) => {
   router.get("/topics", lessonController.getTopics);
   router.get("/skills", lessonController.getSkills);
 
+
   // Progress routes
   router.get(
     "/check-completion/:lessonId",
