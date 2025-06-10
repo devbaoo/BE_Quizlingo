@@ -15,7 +15,8 @@ import packageController from "../controllers/packageController.js";
 import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
 import leaderboardController from "../controllers/leaderboardController.js";
-import { registerLimiter } from "../middleware/registerLimiter.js";
+import registerLimiter from "../middleware/registerLimiter.js";
+import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
 
 const router = express.Router();
 
@@ -42,7 +43,7 @@ const initWebRoutes = (app) => {
     "/auth/resend-verification",
     authController.resendVerificationEmail
   );
-  router.post("/auth/forgot-password", authController.forgotPassword);
+  router.post("/auth/forgot-password", forgotPasswordLimiter, authController.forgotPassword);
   router.post("/auth/reset-password/:token", authController.resetPassword);
   router.post("/auth/change-password", protect, authController.changePassword);
   router.post("/auth/google-login", authController.googleLogin);
