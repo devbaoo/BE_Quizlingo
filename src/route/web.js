@@ -18,6 +18,7 @@ import leaderboardController from "../controllers/leaderboardController.js";
 import adDashboardController from "../controllers/adDashboardController.js";
 import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
+import loginLimiter from "../middleware/loginLimiter.js";
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ const initWebRoutes = (app) => {
 
   // Authentication routes
   router.post("/auth/register", registerLimiter, authController.register);
-  router.post("/auth/login", authController.login);
+  router.post("/auth/login", loginLimiter, authController.login);
   router.post("/auth/refresh-token", authController.refreshToken);
   router.get("/auth/verify-email/:token", authController.verifyEmail);
   router.post(
