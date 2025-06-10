@@ -8,7 +8,7 @@ import moment from "moment-timezone";
 // Lấy profile người dùng
 const getUserProfile = async (userId) => {
   try {
-    const user = await User.findById(userId)
+    let user = await User.findById(userId)
       .select("-password")
       .populate("level", "name")
       .populate("preferredSkills", "name")
@@ -22,6 +22,9 @@ const getUserProfile = async (userId) => {
       };
     }
 
+    // ✅ Gọi hồi lives nếu cần
+    user = await checkAndRegenerateLives(user); // 👈 bạn cần gọi dòng này
+
     // Lấy thông tin package đang active
     const now = moment().tz("Asia/Ho_Chi_Minh");
     const activePackage = await UserPackage.findOne({
@@ -31,7 +34,6 @@ const getUserProfile = async (userId) => {
       paymentStatus: "completed",
     }).populate("package");
 
-    // Tính số ngày còn lại của package
     let packageInfo = null;
     if (activePackage) {
       const daysRemaining = moment(activePackage.endDate).diff(now, "days");
@@ -59,7 +61,7 @@ const getUserProfile = async (userId) => {
         userLevel: user.userLevel,
         xp: user.xp,
         streak: user.streak,
-        lives: user.lives,
+        lives: user.lives, // 🧠 lúc này đã được update nếu đủ điều kiện
         completedBasicVocab: user.completedBasicVocab,
         preferredSkills: user.preferredSkills?.map((skill) => skill.name) || [],
         preferredTopics: user.preferredTopics?.map((topic) => topic.name) || [],
