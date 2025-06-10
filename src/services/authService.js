@@ -292,36 +292,49 @@ const resendVerificationEmail = async (email, baseUrl) => {
 };
 
 // Khởi tạo quá trình reset password
-const forgotPassword = async (email, baseUrl) => {
+const forgotPassword = async (email, baseUrl, recaptchaToken) => {
   try {
+    // 1. Verify reCAPTCHA
+    const isHuman = await verifyRecaptcha(recaptchaToken);
+    if (!isHuman) {
+      return {
+        success: false,
+        statusCode: 403,
+        message: "Xác minh reCAPTCHA thất bại. Vui lòng thử lại.",
+      };
+    }
+
+    // 2. Tìm user (nếu tồn tại) nhưng KHÔNG phản hồi cho client biết
     const user = await User.findOne({ email });
 
-    if (!user) {
-      return {
-        success: false,
-        statusCode: 404,
-        message: "Không tìm thấy tài khoản với email này",
-      };
+    if (user) {
+      // 3. Kiểm tra cooldown 5 phút giữa các lần gửi
+      const now = new Date();
+      const lastSent = user.lastResetEmailSentAt || new Date(0);
+      const minutesSinceLast = (now - lastSent) / (1000 * 60);
+
+      if (minutesSinceLast < 5) {
+        return {
+          success: true,
+          statusCode: 200,
+          message: "Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.",
+        };
+      }
+
+      // 4. Gửi email reset password
+      const emailResult = await emailService.sendResetPasswordEmail(user, baseUrl);
+      if (emailResult.success) {
+        // Cập nhật thời gian gửi gần nhất
+        user.lastResetEmailSentAt = now;
+        await user.save();
+      }
     }
 
-    const emailResult = await emailService.sendResetPasswordEmail(
-      user,
-      baseUrl
-    );
-
-    if (!emailResult.success) {
-      return {
-        success: false,
-        statusCode: 500,
-        message: "Không thể gửi email đặt lại mật khẩu",
-        error: emailResult.error,
-      };
-    }
-
+    // 5. Phản hồi luôn giống nhau (ngay cả khi user không tồn tại)
     return {
       success: true,
       statusCode: 200,
-      message: "Email đặt lại mật khẩu đã được gửi",
+      message: "Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.",
     };
   } catch (error) {
     console.error("Forgot password error:", error);
