@@ -16,6 +16,7 @@ import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
 import leaderboardController from "../controllers/leaderboardController.js";
 import { registerLimiter } from "../middleware/registerLimiter.js";
+import adDashboardController from "../controllers/adDashboardController.js";
 
 const router = express.Router();
 
@@ -65,7 +66,14 @@ const initWebRoutes = (app) => {
   );
 
   // Admin routes
+
   router.get("/users", protect, authorize("admin"), userController.getAllUsers);
+  router.get("/totalUser", protect, authorize("admin"), adDashboardController.totalUser);
+  router.get("/totalUserByMonth", protect, authorize("admin"), adDashboardController.totalUserByMonth);
+  router.get("/totalUserByYear", protect, authorize("admin"), adDashboardController.totalUserByYear);
+  router.get("/totalLesson", protect, authorize("admin"), adDashboardController.totalLesson);
+  router.get("/totalLevel", protect, authorize("admin"), adDashboardController.totalLevel);
+  router.get("/totalSkill", protect, authorize("admin"), adDashboardController.totalSkill);
   router.delete(
     "/users/:id",
     protect,
