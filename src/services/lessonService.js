@@ -1381,12 +1381,28 @@ const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
   try {
     const skip = (page - 1) * limit;
 
-    const total = await UserLearningPath.countDocuments({ userId });
+    // Đếm số bài học trong lộ trình
+    let total = await UserLearningPath.countDocuments({ userId });
 
+    // Nếu chưa có bài học nào → tạo bài đầu tiên
+    if (total === 0) {
+      const genRes = await generateLessonForUser(userId);
+      if (!genRes.success) {
+        return {
+          success: false,
+          statusCode: 500,
+          message: "Không thể tạo bài học đầu tiên: " + genRes.message,
+        };
+      }
+      // Cập nhật lại total sau khi tạo
+      total = await UserLearningPath.countDocuments({ userId });
+    }
+
+    // Lấy dữ liệu bài học trong lộ trình
     const pathDocs = await UserLearningPath.find({ userId })
       .populate({
         path: "lessonId",
-        populate: ["level", "topic"], // populate tên level và topic
+        populate: ["level", "topic"],
       })
       .sort({ order: 1, generatedAt: 1 })
       .skip(skip)
@@ -1400,12 +1416,13 @@ const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
       };
     }
 
-    // ✅ Lấy danh sách bài học đã hoàn thành
+    // Lấy danh sách bài học đã hoàn thành
     const completedLessonIds = await Progress.distinct("lessonId", {
       userId,
       status: "COMPLETE",
     });
 
+    // Tạo mảng lộ trình đã xử lý
     const learningPath = pathDocs.map((doc) => {
       const lesson = doc.lessonId;
       const isCompleted = completedLessonIds.includes(lesson?._id?.toString());
@@ -1422,7 +1439,7 @@ const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
         order: doc.order,
         completed: doc.completed,
         createdAt: doc.generatedAt,
-        status: isCompleted ? "COMPLETE" : "LOCKED", // ✅ Thêm trạng thái
+        status: isCompleted ? "COMPLETE" : "LOCKED",
       };
     });
 
