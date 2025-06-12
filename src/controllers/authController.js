@@ -148,10 +148,10 @@ const resendVerificationEmail = async (req, res) => {
 // Quên mật khẩu - gửi email reset
 const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, recaptchaToken } = req.body; // ✅ Thêm dòng này
     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-    const result = await authService.forgotPassword(email, baseUrl);
+    const result = await authService.forgotPassword(email, baseUrl, recaptchaToken); // ✅ Truyền đủ
 
     return res.status(result.statusCode).json({
       success: result.success,
