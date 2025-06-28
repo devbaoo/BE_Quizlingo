@@ -19,6 +19,7 @@ import adDashboardController from "../controllers/adDashboardController.js";
 import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
 
+
 const router = express.Router();
 
 const initWebRoutes = (app) => {
@@ -75,6 +76,8 @@ const initWebRoutes = (app) => {
   router.get("/totalLesson", protect, authorize("admin"), adDashboardController.totalLesson);
   router.get("/totalLevel", protect, authorize("admin"), adDashboardController.totalLevel);
   router.get("/totalSkill", protect, authorize("admin"), adDashboardController.totalSkill);
+  router.get("/totalUserByLevel", protect, authorize("admin"), adDashboardController.getTotalUserByLevel);
+  router.get("/totalUserBySkill", protect, authorize("admin"), adDashboardController.getTotalUserBySkill);
   router.delete(
     "/users/:id",
     protect,

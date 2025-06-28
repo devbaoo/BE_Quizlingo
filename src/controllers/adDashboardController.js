@@ -76,8 +76,34 @@ const totalSkill = async (req, res) => {
     });
   }
 };
+const getTotalUserByLevel = async (req, res) => {
+  try {
+    const result = await adminService.getTotalUserByLevel();
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi lấy dữ liệu leaderboard",
+      error: error.message,
+    });
+  }
+};
+const getTotalUserBySkill = async (req, res) => {
+  try {
+    const result = await adminService.getTotalUserBySkill();
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi lấy dữ liệu leaderboard",
+      error: error.message,
+    });
+  }
+};
 
 export default {
+  getTotalUserBySkill,
+  getTotalUserByLevel,
   totalUser,
   totalUserByMonth,
   totalUserByYear,
