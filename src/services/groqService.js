@@ -619,11 +619,10 @@ const generateJsonFromPrompt = async (prompt) => {
       data: parsed,
     };
   } catch (err) {
-    console.error("generateJsonFromPrompt error:", err);
-    return {
-      success: false,
-      message: err.message,
-    };
+    if (i === retryCount) {
+      return { success: false, message: err.message };
+    }
+    await new Promise((res) => setTimeout(res, 1000)); // wait 1s rồi retry
   }
 };
 
