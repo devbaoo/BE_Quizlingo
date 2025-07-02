@@ -6,7 +6,6 @@ import authController from "../controllers/authController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import lessonController from "../controllers/lessonController.js";
 import groqController from "../controllers/groqController.js";
-import topicController from "../controllers/topicController.js";
 import levelController from "../controllers/levelController.js";
 import skillController from "../controllers/skillController.js";
 import notificationController from "../controllers/notificationController.js";
@@ -100,27 +99,6 @@ const initWebRoutes = (app) => {
     protect,
     authorize("staff"),
     lessonController.deleteLesson
-  );
-
-  // Topic routes
-  router.get("/topics", topicController.getTopics);
-  router.post(
-    "/topics",
-    protect,
-    authorize("staff"),
-    topicController.createTopic
-  );
-  router.put(
-    "/topics/:id",
-    protect,
-    authorize("staff"),
-    topicController.updateTopic
-  );
-  router.delete(
-    "/topics/:id",
-    protect,
-    authorize("staff"),
-    topicController.deleteTopic
   );
 
   // Level routes
