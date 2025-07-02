@@ -17,6 +17,7 @@ import leaderboardController from "../controllers/leaderboardController.js";
 import adDashboardController from "../controllers/adDashboardController.js";
 import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
+import topicController from "../controllers/topicController.js";
 
 const router = express.Router();
 
@@ -59,6 +60,7 @@ const initWebRoutes = (app) => {
   router.post("/user/skill", protect, userController.chooseSkill);
   router.get("/user/lives-status", protect, userController.getUserLivesStatus);
   router.get("/user/payment-history", protect, userController.paymentHistory);
+  router.post("/user/topic", protect, userController.chooseTopic);
 
   // Route avatar sử dụng middleware từ controller
   router.post(
@@ -205,7 +207,7 @@ const initWebRoutes = (app) => {
   router.get("/lessons/:id", protect, lessonController.getLessonById);
   router.post("/progress", protect, lessonController.completeLesson);
   router.post("/lessons/retry", protect, lessonController.retryLesson);
-  router.get("/topics", lessonController.getTopics);
+  router.get("/topics", topicController.getTopics);
   router.get("/skills", lessonController.getSkills);
   router.get(
     "/user-lessons-learning-path",
@@ -366,6 +368,26 @@ const initWebRoutes = (app) => {
     adminPackageController.getPackageStats
   );
   router.get("/leaderboard", protect, leaderboardController.getLeaderboard);
+
+  // Topic routes
+  router.post(
+    "/topics",
+    protect,
+    authorize("staff"),
+    topicController.createTopic
+  );
+  router.put(
+    "/topics/:id",
+    protect,
+    authorize("staff"),
+    topicController.updateTopic
+  );
+  router.delete(
+    "/topics/:id",
+    protect,
+    authorize("staff"),
+    topicController.deleteTopic
+  );
 
   app.use("/api", router);
 };
