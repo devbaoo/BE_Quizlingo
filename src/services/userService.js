@@ -1,7 +1,6 @@
 import User from "../models/user.js";
 import Level from "../models/level.js";
 import Skill from "../models/skill.js";
-import Topic from "../models/topic.js";
 import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 
@@ -11,8 +10,7 @@ const getUserProfile = async (userId) => {
     let user = await User.findById(userId)
       .select("-password")
       .populate("level", "name")
-      .populate("preferredSkills", "name")
-      .populate("preferredTopics", "name");
+      .populate("preferredSkills", "name");
 
     if (!user) {
       return {
@@ -24,7 +22,6 @@ const getUserProfile = async (userId) => {
 
     // ✅ Gọi hồi lives nếu cần
     user = await checkAndRegenerateLives(user); // 👈 bạn cần gọi dòng này
-
 
     if (!user) {
       return {
@@ -74,7 +71,6 @@ const getUserProfile = async (userId) => {
         lives: user.lives, // 🧠 lúc này đã được update nếu đủ điều kiện
         completedBasicVocab: user.completedBasicVocab,
         preferredSkills: user.preferredSkills?.map((skill) => skill.name) || [],
-        preferredTopics: user.preferredTopics?.map((topic) => topic.name) || [],
         activePackage: packageInfo,
       },
     };
@@ -213,48 +209,6 @@ const chooseSkill = async (userId, skillNames) => {
     };
   } catch (error) {
     console.error("ChooseSkill error:", error);
-    return {
-      success: false,
-      statusCode: 500,
-      message: "Lỗi hệ thống",
-    };
-  }
-};
-
-const chooseTopic = async (userId, topicNames) => {
-  try {
-    const topics = await Topic.find({ name: { $in: topicNames } });
-
-    if (topics.length !== topicNames.length) {
-      const foundNames = topics.map((s) => s.name);
-      const invalid = topicNames.filter((name) => !foundNames.includes(name));
-      return {
-        success: false,
-        statusCode: 400,
-        message: `Chủ đề không hợp lệ: ${invalid.join(", ")}`,
-      };
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return {
-        success: false,
-        statusCode: 404,
-        message: "Không tìm thấy người dùng",
-      };
-    }
-
-    user.preferredTopics = topics.map((topic) => topic._id);
-    await user.save();
-
-    return {
-      success: true,
-      statusCode: 200,
-      message: "Chọn chủ đề thành công",
-      user: { ...user.toObject(), preferredTopics: topics },
-    };
-  } catch (error) {
-    console.error("ChooseTopic error:", error);
     return {
       success: false,
       statusCode: 500,
@@ -453,11 +407,11 @@ const paymentHistory = async (userId) => {
         ...history.toObject(),
         package: history.package
           ? {
-            name: history.package.name,
-            price: history.package.price,
-            duration: history.package.duration,
-            description: history.package.description,
-          }
+              name: history.package.name,
+              price: history.package.price,
+              duration: history.package.duration,
+              description: history.package.description,
+            }
           : null,
       })),
     };
@@ -478,7 +432,6 @@ export default {
   softDeleteUser,
   chooseLevel,
   chooseSkill,
-  chooseTopic,
   getUserLivesStatus,
   checkAndRegenerateLives,
   updateUserRole,

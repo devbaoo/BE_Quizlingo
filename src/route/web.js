@@ -6,7 +6,6 @@ import authController from "../controllers/authController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import lessonController from "../controllers/lessonController.js";
 import groqController from "../controllers/groqController.js";
-import topicController from "../controllers/topicController.js";
 import levelController from "../controllers/levelController.js";
 import skillController from "../controllers/skillController.js";
 import notificationController from "../controllers/notificationController.js";
@@ -18,7 +17,6 @@ import leaderboardController from "../controllers/leaderboardController.js";
 import adDashboardController from "../controllers/adDashboardController.js";
 import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
-
 
 const router = express.Router();
 
@@ -45,7 +43,11 @@ const initWebRoutes = (app) => {
     "/auth/resend-verification",
     authController.resendVerificationEmail
   );
-  router.post("/auth/forgot-password", forgotPasswordLimiter, authController.forgotPassword);
+  router.post(
+    "/auth/forgot-password",
+    forgotPasswordLimiter,
+    authController.forgotPassword
+  );
   router.post("/auth/reset-password/:token", authController.resetPassword);
   router.post("/auth/change-password", protect, authController.changePassword);
   router.post("/auth/google-login", authController.googleLogin);
@@ -55,7 +57,6 @@ const initWebRoutes = (app) => {
   router.put("/users/profile", protect, userController.updateUserProfile);
   router.post("/user/level", protect, userController.chooseLevel);
   router.post("/user/skill", protect, userController.chooseSkill);
-  router.post("/user/topic", protect, userController.chooseTopic);
   router.get("/user/lives-status", protect, userController.getUserLivesStatus);
   router.get("/user/payment-history", protect, userController.paymentHistory);
 
@@ -70,14 +71,54 @@ const initWebRoutes = (app) => {
   // Admin routes
 
   router.get("/users", protect, authorize("admin"), userController.getAllUsers);
-  router.get("/total-user", protect, authorize("admin"), adDashboardController.totalUser);
-  router.get("/total-user-by-month", protect, authorize("admin"), adDashboardController.totalUserByMonth);
-  router.get("/total-user-by-year", protect, authorize("admin"), adDashboardController.totalUserByYear);
-  router.get("/total-lessons", protect, authorize("admin"), adDashboardController.totalLesson);
-  router.get("/total-levels", protect, authorize("admin"), adDashboardController.totalLevel);
-  router.get("/total-skills", protect, authorize("admin"), adDashboardController.totalSkill);
-  router.get("/total-user-by-level", protect, authorize("admin"), adDashboardController.getTotalUserByLevel);
-  router.get("/total-user-by-skill", protect, authorize("admin"), adDashboardController.getTotalUserBySkill);
+  router.get(
+    "/total-user",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalUser
+  );
+  router.get(
+    "/total-user-by-month",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalUserByMonth
+  );
+  router.get(
+    "/total-user-by-year",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalUserByYear
+  );
+  router.get(
+    "/total-lessons",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalLesson
+  );
+  router.get(
+    "/total-levels",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalLevel
+  );
+  router.get(
+    "/total-skills",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalSkill
+  );
+  router.get(
+    "/total-user-by-level",
+    protect,
+    authorize("admin"),
+    adDashboardController.getTotalUserByLevel
+  );
+  router.get(
+    "/total-user-by-skill",
+    protect,
+    authorize("admin"),
+    adDashboardController.getTotalUserBySkill
+  );
   router.delete(
     "/users/:id",
     protect,
@@ -115,27 +156,6 @@ const initWebRoutes = (app) => {
     protect,
     authorize("staff"),
     lessonController.deleteLesson
-  );
-
-  // Topic routes
-  router.get("/topics", topicController.getTopics);
-  router.post(
-    "/topics",
-    protect,
-    authorize("staff"),
-    topicController.createTopic
-  );
-  router.put(
-    "/topics/:id",
-    protect,
-    authorize("staff"),
-    topicController.updateTopic
-  );
-  router.delete(
-    "/topics/:id",
-    protect,
-    authorize("staff"),
-    topicController.deleteTopic
   );
 
   // Level routes
@@ -187,7 +207,11 @@ const initWebRoutes = (app) => {
   router.post("/lessons/retry", protect, lessonController.retryLesson);
   router.get("/topics", lessonController.getTopics);
   router.get("/skills", lessonController.getSkills);
-  router.get("/user-lessons-learning-path", protect, lessonController.getUserLearningPath);
+  router.get(
+    "/user-lessons-learning-path",
+    protect,
+    lessonController.getUserLearningPath
+  );
 
   // Progress routes
   router.get(
