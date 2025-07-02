@@ -14,6 +14,7 @@ import packageController from "../controllers/packageController.js";
 import adminPackageController from "../controllers/adminPackageController.js";
 import progressController from "../controllers/progressController.js";
 import leaderboardController from "../controllers/leaderboardController.js";
+import topicController from "../controllers/topicController.js";
 
 const router = express.Router();
 
@@ -304,6 +305,27 @@ const initWebRoutes = (app) => {
     adminPackageController.getPackageStats
   );
   router.get("/leaderboard", protect, leaderboardController.getLeaderboard);
+
+  // Topic routes
+  router.get("/topics", topicController.getTopics);
+  router.post(
+    "/topics",
+    protect,
+    authorize("staff"),
+    topicController.createTopic
+  );
+  router.put(
+    "/topics/:id",
+    protect,
+    authorize("staff"),
+    topicController.updateTopic
+  );
+  router.delete(
+    "/topics/:id",
+    protect,
+    authorize("staff"),
+    topicController.deleteTopic
+  );
 
   app.use("/api", router);
 };
