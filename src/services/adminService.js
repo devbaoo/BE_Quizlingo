@@ -19,27 +19,40 @@ const totalUser = async () => {
 
 const totalUserByMonth = async () => {
     try {
-        const currentDate = new Date();
-        const lastMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-        const thisMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        
-        const total = await User.countDocuments({ 
-            createdAt: { 
-                $gte: lastMonth,
-                $lt: thisMonth
-            } 
-        });
-        
-        const monthName = lastMonth.toLocaleString('vi-VN', { month: 'long', year: 'numeric' });
-        
+        const currentYear = new Date().getFullYear();
+        const result = await User.aggregate([
+            {
+                $match: {
+                    createdAt: {
+                        $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+                        $lt: new Date(`${currentYear + 1}-01-01T00:00:00.000Z`)
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: { month: { $month: "$createdAt" } },
+                    value: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { "_id.month": 1 }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    month: {
+                        $concat: ["Tháng ", { $toString: "$_id.month" }]
+                    },
+                    value: 1
+                }
+            }
+        ]);
         return {
             success: true,
             statusCode: 200,
             message: "Lấy số lượng người dùng theo tháng thành công",
-            data: {
-                month: monthName,
-                total: total
-            }
+            data: result
         };
     } catch (error) {
         throw error;
@@ -48,27 +61,29 @@ const totalUserByMonth = async () => {
 
 const totalUserByYear = async () => {
     try {
-        const currentDate = new Date();
-        const lastYear = new Date(currentDate.getFullYear() - 1, 0, 1);
-        const thisYear = new Date(currentDate.getFullYear(), 0, 1);
-        
-        const total = await User.countDocuments({ 
-            createdAt: { 
-                $gte: lastYear,
-                $lt: thisYear
-            } 
-        });
-        
-        const year = lastYear.getFullYear();
-        
+        const result = await User.aggregate([
+            {
+                $group: {
+                    _id: { year: { $year: "$createdAt" } },
+                    value: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { "_id.year": 1 }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    year: "$_id.year",
+                    value: 1
+                }
+            }
+        ]);
         return {
             success: true,
             statusCode: 200,
             message: "Lấy số lượng người dùng theo năm thành công",
-            data: {
-                year: year,
-                total: total
-            }
+            data: result
         };
     } catch (error) {
         throw error;
@@ -128,7 +143,7 @@ const getTotalUserByLevel = async () => {
             {
                 $group: {
                     _id: "$level",
-                    count: { $sum: 1 }
+                    value: { $sum: 1 }
                 }
             },
             {
@@ -140,20 +155,20 @@ const getTotalUserByLevel = async () => {
                 }
             },
             {
-                $unwind: "$levelInfo"
-            },
-            {
-                $project: {
-                    level: {
-                        _id: "$levelInfo._id",
-                        name: "$levelInfo.name",
-                        description: "$levelInfo.description"
-                    },
-                    total: "$count"
+                $unwind: {
+                    path: "$levelInfo",
+                    preserveNullAndEmptyArrays: false
                 }
             },
             {
-                $sort: { "level.name": 1 }
+                $project: {
+                    _id: 1,
+                    type: "$levelInfo.name",
+                    value: 1
+                }
+            },
+            {
+                $sort: { type: 1 }
             }
         ]);
 
@@ -198,16 +213,12 @@ const getTotalUserBySkill = async () => {
             },
             {
                 $project: {
-                    skill: {
-                        _id: "$skillInfo._id",
-                        name: "$skillInfo.name",
-                        description: "$skillInfo.description"
-                    },
-                    total: "$count"
+                    type: "$skillInfo.name",
+                    value: "$count"
                 }
             },
             {
-                $sort: { "skill.name": 1 }
+                $sort: { "type": 1 }
             }
         ]);
 
