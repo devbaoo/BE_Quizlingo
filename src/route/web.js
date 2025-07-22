@@ -18,6 +18,8 @@ import adDashboardController from "../controllers/adDashboardController.js";
 import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
 import topicController from "../controllers/topicController.js";
+import marxistEconomicsController from "../controllers/marxistEconomicsController.js";
+import marxistTopicController from "../controllers/marxistTopicController.js";
 
 const router = express.Router();
 
@@ -387,6 +389,82 @@ const initWebRoutes = (app) => {
     protect,
     authorize("staff"),
     topicController.deleteTopic
+  );
+
+  // Marxist Economics routes
+  router.post(
+    "/marxist-economics/generate-lesson",
+    protect,
+    marxistEconomicsController.generateLesson
+  );
+  router.get(
+    "/marxist-economics/learning-path",
+    protect,
+    marxistEconomicsController.getLearningPath
+  );
+  router.get(
+    "/marxist-economics/lessons/:pathId",
+    protect,
+    marxistEconomicsController.getLessonByPath
+  );
+  router.post(
+    "/marxist-economics/complete-lesson",
+    protect,
+    marxistEconomicsController.completeLesson
+  );
+  router.get(
+    "/marxist-economics/stats",
+    protect,
+    marxistEconomicsController.getStats
+  );
+  router.get(
+    "/marxist-economics/topics",
+    marxistEconomicsController.getTopics
+  );
+  router.get(
+    "/marxist-economics/analyze-progress",
+    protect,
+    marxistEconomicsController.analyzeProgress
+  );
+  router.get(
+    "/marxist-economics/test-gemini",
+    protect,
+    authorize("admin"),
+    marxistEconomicsController.testGeminiConnection
+  );
+
+  // Marxist Topics management routes
+  router.post(
+    "/marxist-topics",
+    protect,
+    authorize("staff"),
+    marxistTopicController.createTopic
+  );
+  router.get(
+    "/marxist-topics",
+    marxistTopicController.getTopics
+  );
+  router.get(
+    "/marxist-topics/:id",
+    marxistTopicController.getTopicById
+  );
+  router.put(
+    "/marxist-topics/:id",
+    protect,
+    authorize("staff"),
+    marxistTopicController.updateTopic
+  );
+  router.delete(
+    "/marxist-topics/:id",
+    protect,
+    authorize("staff"),
+    marxistTopicController.deleteTopic
+  );
+  router.post(
+    "/marxist-topics/seed",
+    protect,
+    authorize("staff"),
+    marxistTopicController.seedDefaultTopics
   );
 
   app.use("/api", router);
