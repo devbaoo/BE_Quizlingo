@@ -381,6 +381,7 @@ const manageUserPackage = async (req, res) => {
 };
 
 export default {
+
   getAllPackages,
   createPackage,
   updatePackage,

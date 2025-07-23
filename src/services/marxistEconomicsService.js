@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import geminiService from './geminiService.js';
 import Lesson from '../models/lesson.js';
 import Question from '../models/question.js';
@@ -9,6 +10,14 @@ import Level from '../models/level.js';
 import Topic from '../models/topic.js';
 import Skill from '../models/skill.js';
 import NotificationService from './notificationService.js';
+import UserPackage from '../models/userPackage.js';
+import moment from 'moment-timezone';
+
+// Import lives management từ lessonService
+import { checkAndRegenerateLives } from './lessonService.js';
+
+// Mutex để tránh concurrent generation cho cùng 1 user
+const generatingUsers = new Set();
 
 // Hàm lấy tất cả chủ đề Marxist từ database
 const getAllMarxistTopics = async () => {
@@ -89,9 +98,11 @@ const analyzeUserProgress = async (userId) => {
             recommendedTopic = unstudiedTopics[0]._id;
         } else {
             // Ôn lại chủ đề yếu nhất
-            const weakestTopic = completedPaths.reduce((weakest, current) =>
-                (!weakest || current.achievedScore < weakest.achievedScore) ? current : weakest
-            );
+            const weakestTopic = completedPaths.length > 0
+                ? completedPaths.reduce((weakest, current) =>
+                    (!weakest || current.achievedScore < weakest.achievedScore) ? current : weakest
+                )
+                : null;
             recommendedTopic = weakestTopic ? weakestTopic.marxistTopic : allTopics[0]._id;
         }
 
@@ -122,7 +133,22 @@ const analyzeUserProgress = async (userId) => {
  * @returns {Object} Generated lesson
  */
 const generateMarxistLesson = async (userId, options = {}) => {
+    // Kiểm tra xem user đang generate lesson khác không
+    if (generatingUsers.has(userId)) {
+        console.warn(`⚠️ User ${userId} đang generate lesson khác, bỏ qua request này`);
+        return {
+            success: false,
+            statusCode: 429,
+            message: 'Đang tạo bài học khác, vui lòng chờ...',
+            generating: true
+        };
+    }
+
     try {
+        // Lock user để tránh concurrent generation
+        generatingUsers.add(userId);
+        console.log(`🔒 Locked user ${userId} for lesson generation`);
+
         const user = await User.findById(userId);
         if (!user) {
             return {
@@ -192,55 +218,168 @@ Yêu cầu:
   ]
 }`;
 
-        console.log('🔄 Generating Marxist lesson with Gemini...');
-        const geminiResult = await geminiService.generateJsonContent(prompt);
+        // Khai báo lessonData variable
+        let lessonData;
 
-        if (!geminiResult.success) {
+        // Kiểm tra development mode - skip Gemini nếu có biến môi trường
+        if (process.env.SKIP_GEMINI === 'true') {
+            console.warn('🚧 SKIP_GEMINI enabled - creating demo lesson...');
+
+            // Tạo demo lesson với 30 câu hỏi để user có thể test đầy đủ
+            const demoQuestions = [];
+            for (let i = 1; i <= 30; i++) {
+                demoQuestions.push({
+                    type: "multiple_choice",
+                    content: `Câu ${i}: Theo ${topicInfo.title}, điều nào sau đây đúng? (Demo khi Gemini API không khả dụng)`,
+                    options: [
+                        `A. Đáp án A của câu ${i}`,
+                        `B. Đáp án B của câu ${i}`,
+                        `C. Đáp án C của câu ${i}`,
+                        `D. Đáp án D của câu ${i}`
+                    ],
+                    correctAnswer: `A. Đáp án A của câu ${i}`,
+                    score: 100,
+                    timeLimit: 45
+                });
+            }
+
+            lessonData = {
+                title: `[DEMO] ${topicInfo.title} - Cấp độ ${difficulty}`,
+                questions: demoQuestions
+            };
+
+            console.log('📝 Creating demo lesson with 30 questions...');
+
+        } else {
+            console.log('🔄 Generating Marxist lesson with Gemini...');
+            const geminiResult = await geminiService.generateJsonContent(prompt);
+
+            if (!geminiResult.success) {
+                // Nếu Gemini API thất bại, tạo demo lesson để không block user
+                console.warn('⚠️ Gemini API failed, creating demo lesson...');
+
+                // Tạo demo lesson với 30 câu hỏi để user có thể test đầy đủ
+                const demoQuestions = [];
+                for (let i = 1; i <= 30; i++) {
+                    demoQuestions.push({
+                        type: "multiple_choice",
+                        content: `Câu ${i}: Theo ${topicInfo.title}, điều nào sau đây đúng? (Demo khi Gemini API không khả dụng)`,
+                        options: [
+                            `A. Đáp án A của câu ${i}`,
+                            `B. Đáp án B của câu ${i}`,
+                            `C. Đáp án C của câu ${i}`,
+                            `D. Đáp án D của câu ${i}`
+                        ],
+                        correctAnswer: `A. Đáp án A của câu ${i}`,
+                        score: 100,
+                        timeLimit: 45
+                    });
+                }
+
+                lessonData = {
+                    title: `[DEMO] ${topicInfo.title} - Cấp độ ${difficulty}`,
+                    questions: demoQuestions
+                };
+
+                console.log('📝 Creating demo lesson with generated questions...');
+            } else {
+                lessonData = geminiResult.data;
+                console.log('✅ Using Gemini-generated lesson data');
+            }
+        }
+
+        // Validate lesson data
+        if (!lessonData || !lessonData.questions) {
+            console.error('❌ Invalid lesson data:', lessonData);
             return {
                 success: false,
                 statusCode: 500,
-                message: 'Lỗi khi tạo câu hỏi với Gemini: ' + geminiResult.message
+                message: 'Lesson data không hợp lệ'
             };
         }
 
-        const lessonData = geminiResult.data;
+        console.log(`📊 Lesson data: ${lessonData.questions.length} questions`);
 
-        // Validate số lượng câu hỏi
-        if (!lessonData.questions || lessonData.questions.length !== 30) {
+        // Validate số lượng câu hỏi (flexible cho demo)
+        if (lessonData.questions.length === 0) {
             return {
                 success: false,
                 statusCode: 500,
-                message: `Số lượng câu hỏi không đúng. Yêu cầu 30 câu, nhận được ${lessonData.questions?.length || 0} câu`
+                message: 'Không có câu hỏi nào trong bài học'
             };
         }
 
-        // Tìm hoặc tạo Topic và Level
-        let [topicDoc, levelDoc, skillDoc] = await Promise.all([
-            Topic.findOne({ name: 'Marxist Economics' }) ||
-            Topic.create({
+        // Warn nếu không phải 30 câu nhưng vẫn cho phép tạo
+        if (lessonData.questions.length !== 30) {
+            console.warn(`⚠️ Expected 30 questions, got ${lessonData.questions.length}`);
+        }
+
+        // Tìm hoặc tạo Topic, Level, Skill với error handling
+        console.log('📋 Finding or creating Topic, Level, Skill...');
+
+        let topicDoc = await Topic.findOne({ name: 'Marxist Economics' });
+        if (!topicDoc) {
+            console.log('🔧 Creating Marxist Economics topic...');
+            topicDoc = await Topic.create({
                 name: 'Marxist Economics',
                 description: 'Kinh tế chính trị Mác-Lê-Nin',
                 isActive: true
-            }),
+            });
+        }
 
-            Level.findOne({ name: 'marxist_intermediate' }) ||
-            Level.create({
+        let levelDoc = await Level.findOne({ name: 'marxist_intermediate' });
+        if (!levelDoc) {
+            console.log('🔧 Creating marxist_intermediate level...');
+
+            // Tìm order cao nhất hiện tại và +1
+            const lastLevel = await Level.findOne().sort({ order: -1 });
+            const nextOrder = lastLevel ? lastLevel.order + 1 : 1;
+
+            levelDoc = await Level.create({
                 name: 'marxist_intermediate',
                 description: 'Trình độ trung cấp Marxist',
+                order: nextOrder,
                 minScoreRequired: 70,
+                minUserLevel: 1,
+                minLessonPassed: 0,
                 maxScore: 3000,
                 timeLimit: 2250, // 45s * 50 câu
                 isActive: true
-            }),
+            });
 
-            Skill.findOne({ name: 'marxist_theory' }) ||
-            Skill.create({
+            console.log(`✅ Created level with order: ${nextOrder}`);
+        }
+
+        let skillDoc = await Skill.findOne({ name: 'marxist_theory' });
+        if (!skillDoc) {
+            console.log('🔧 Creating marxist_theory skill...');
+            skillDoc = await Skill.create({
                 name: 'marxist_theory',
                 description: 'Lý thuyết Mác-Lê-Nin',
                 supportedTypes: ['multiple_choice'],
                 isActive: true
-            })
-        ]);
+            });
+        }
+
+        // Validate tất cả đều tồn tại
+        if (!topicDoc || !levelDoc || !skillDoc) {
+            console.error('❌ Failed to create required models:', {
+                topicDoc: !!topicDoc,
+                levelDoc: !!levelDoc,
+                skillDoc: !!skillDoc
+            });
+            return {
+                success: false,
+                statusCode: 500,
+                message: 'Không thể tạo Topic, Level, hoặc Skill cần thiết'
+            };
+        }
+
+        console.log('✅ Topic, Level, Skill ready:', {
+            topic: topicDoc.name,
+            level: levelDoc.name,
+            skill: skillDoc.name
+        });
 
         // Chuẩn hóa câu hỏi
         const processedQuestions = lessonData.questions.map(q => ({
@@ -252,30 +391,45 @@ Yêu cầu:
         }));
 
         // Tạo lesson
+        console.log('📝 Creating lesson document...');
         const lesson = await Lesson.create({
-            title: lessonData.title,
+            title: lessonData.title || `Bài học ${topicInfo.title}`,
             topic: topicDoc._id,
             level: levelDoc._id,
             skills: [skillDoc._id],
-            maxScore: 3000,
+            maxScore: lessonData.questions.length * 100, // 100 điểm mỗi câu
             questions: [],
             isActive: true
         });
 
+        console.log('✅ Lesson created:', lesson._id);
+
         // Tạo questions
+        console.log(`🔄 Creating ${processedQuestions.length} questions...`);
         const questionIds = [];
-        for (const qData of processedQuestions) {
-            const question = await Question.create({
-                lessonId: lesson._id,
-                skill: qData.skill,
-                type: qData.type,
-                content: qData.content,
-                options: qData.options,
-                correctAnswer: qData.correctAnswer,
-                score: qData.score,
-                timeLimit: qData.timeLimit
-            });
-            questionIds.push(question._id);
+
+        for (let i = 0; i < processedQuestions.length; i++) {
+            const qData = processedQuestions[i];
+            try {
+                const question = await Question.create({
+                    lessonId: lesson._id,
+                    skill: qData.skill,
+                    type: qData.type,
+                    content: qData.content,
+                    options: qData.options || [],
+                    correctAnswer: qData.correctAnswer,
+                    score: qData.score || 100,
+                    timeLimit: qData.timeLimit || 45
+                });
+                questionIds.push(question._id);
+
+                if ((i + 1) % 10 === 0) {
+                    console.log(`✅ Created ${i + 1}/${processedQuestions.length} questions`);
+                }
+            } catch (error) {
+                console.error(`❌ Failed to create question ${i + 1}:`, error.message);
+                throw error;
+            }
         }
 
         // Cập nhật lesson với question IDs
@@ -304,7 +458,7 @@ Yêu cầu:
         await NotificationService.createNotification(userId, {
             title: '📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!',
             message: `AI đã tạo bài học về "${topicInfo.title}" với 30 câu hỏi. Hãy vào học ngay!`,
-            type: 'marxist_generated',
+            type: 'ai_generated',
             link: '/marxist-economics'
         });
 
@@ -340,6 +494,10 @@ Yêu cầu:
             statusCode: 500,
             message: 'Lỗi khi tạo bài học: ' + error.message
         };
+    } finally {
+        // Luôn unlock user sau khi hoàn thành
+        generatingUsers.delete(userId);
+        console.log(`🔓 Unlocked user ${userId} after lesson generation`);
     }
 };
 
@@ -396,19 +554,19 @@ const getMarxistLearningPath = async (userId, options = {}) => {
             .skip(skip)
             .limit(limit);
 
-        // Lấy danh sách lesson đã hoàn thành
-        const completedLessonIds = (
-            await Progress.distinct('lessonId', {
-                userId,
-                status: 'COMPLETE'
-            })
-        ).map(id => id.toString());
+        // ❌ OLD: Using Progress table - WRONG for Marxist system
+        // const completedLessonIds = (
+        //     await Progress.distinct('lessonId', {
+        //         userId,
+        //         status: 'COMPLETE'
+        //     })
+        // ).map(id => id.toString());
 
         // Xử lý dữ liệu trả về
         const learningPath = pathDocs.map(doc => {
             const lesson = doc.lessonId;
-            const lessonIdStr = lesson?._id?.toString();
-            const isCompleted = completedLessonIds.includes(lessonIdStr);
+            // ✅ NEW: Use MarxistLearningPath.completed field directly
+            const isCompleted = doc.completed || false; // Use doc.completed from MarxistLearningPath
             const marxistTopic = doc.marxistTopic;
 
             return {
@@ -425,7 +583,7 @@ const getMarxistLearningPath = async (userId, options = {}) => {
                 recommendedReason: doc.recommendedReason,
                 previousScore: doc.previousScore,
                 order: doc.order,
-                completed: isCompleted,
+                completed: isCompleted, // ✅ Now uses MarxistLearningPath.completed
                 achievedScore: doc.achievedScore,
                 completedAt: doc.completedAt,
                 status: isCompleted ? 'COMPLETE' : 'LOCKED',
@@ -457,21 +615,66 @@ const getMarxistLearningPath = async (userId, options = {}) => {
 };
 
 /**
- * Hoàn thành bài học Marxist và tạo bài tiếp theo
- * @param {string} userId - User ID
+ * Hoàn thành bài học kinh tế chính trị Mác-Lê-Nin với lives system
+ * @param {string} userId - User ID  
  * @param {string} lessonId - Lesson ID
- * @param {number} score - Achieved score
- * @returns {Object} Result
+ * @param {number} score - Điểm số (0-100)
+ * @returns {Object} Completion result
  */
 const completeMarxistLesson = async (userId, lessonId, score) => {
     try {
-        // Cập nhật MarxistLearningPath
+        const user = await User.findById(userId);
+        if (!user) {
+            return {
+                success: false,
+                statusCode: 404,
+                message: 'Không tìm thấy người dùng'
+            };
+        }
+
+        // Regenerate lives trước nếu cần
+        await checkAndRegenerateLives(user);
+
+        // Kiểm tra gói premium
+        const now = moment().tz("Asia/Ho_Chi_Minh");
+        const activePackage = await UserPackage.findOne({
+            user: userId,
+            isActive: true,
+            endDate: { $gt: now.toDate() },
+            paymentStatus: "completed",
+        }).populate("package");
+
+        const hasPremium = activePackage?.package?.features || {};
+        const unlimitedLives = hasPremium.unlimitedLives || false;
+
+        // Trừ lives nếu score < 70% và không phải premium
+        let livesDeducted = false;
+        if (score < 70 && !unlimitedLives) {
+            if (user.lives <= 0) {
+                return {
+                    success: false,
+                    statusCode: 403,
+                    message: 'Không đủ lượt chơi. Hãy chờ lives hồi phục hoặc mua gói premium.',
+                    needsLives: true,
+                    currentLives: user.lives
+                };
+            }
+
+            user.lives -= 1;
+            user.lastLivesRegenerationTime = new Date();
+            await user.save();
+            livesDeducted = true;
+
+            console.log(`💔 Deducted 1 life from user ${userId} (score: ${score}%, lives: ${user.lives})`);
+        }
+
+        // Cập nhật MarxistLearningPath với logic completed dựa vào score
         const pathDoc = await MarxistLearningPath.findOneAndUpdate(
             { userId, lessonId },
             {
-                completed: true,
+                completed: score >= 70, // Chỉ completed = true khi score >= 70%
                 achievedScore: score,
-                completedAt: new Date()
+                completedAt: score >= 70 ? new Date() : null // Chỉ set completedAt khi thực sự completed
             },
             { new: true }
         );
@@ -484,22 +687,34 @@ const completeMarxistLesson = async (userId, lessonId, score) => {
             };
         }
 
-        // Tự động tạo bài học tiếp theo nếu hoàn thành tốt
-        if (score >= 70) {
-            try {
-                await generateMarxistLesson(userId);
-                console.log('✅ Auto-generated next Marxist lesson for user:', userId);
-            } catch (error) {
-                console.warn('⚠️ Failed to auto-generate next Marxist lesson:', error.message);
-            }
-        }
+        // Tự động tạo bài học tiếp theo nếu hoàn thành tốt (score >= 70)
+        // 🚫 REMOVED: Auto-generation moved to client-side to prevent API blocking
+        let nextLessonGenerated = false;
+        // if (score >= 70) {
+        //     try {
+        //         const nextLessonResult = await generateMarxistLesson(userId);
+        //         if (nextLessonResult.success) {
+        //             nextLessonGenerated = true;
+        //             console.log('✅ Auto-generated next Marxist lesson for user:', userId);
+        //         }
+        //     } catch (error) {
+        //         console.warn('⚠️ Failed to auto-generate next Marxist lesson:', error.message);
+        //     }
+        // }
 
         return {
             success: true,
             statusCode: 200,
-            message: 'Hoàn thành bài học Marxist thành công',
+            message: score >= 70
+                ? 'Hoàn thành xuất sắc! Bài học đã completed.'
+                : `Điểm số: ${score}%. Bài học chưa completed. ${livesDeducted ? 'Đã trừ 1 life.' : ''} Hãy cố gắng hơn!`,
             pathUpdated: true,
-            nextLessonGenerated: score >= 70
+            completed: score >= 70,
+            nextLessonGenerated,
+            livesDeducted,
+            currentLives: user.lives,
+            scoreAchieved: score,
+            passed: score >= 70
         };
 
     } catch (error) {
@@ -508,6 +723,100 @@ const completeMarxistLesson = async (userId, lessonId, score) => {
             success: false,
             statusCode: 500,
             message: 'Lỗi khi hoàn thành bài học: ' + error.message
+        };
+    }
+};
+
+/**
+ * Làm lại bài học kinh tế chính trị Mác-Lê-Nin
+ * @param {string} userId - User ID
+ * @param {string} lessonId - Lesson ID  
+ * @param {string} pathId - Learning Path ID (optional)
+ * @returns {Object} Retry result
+ */
+const retryMarxistLesson = async (userId, lessonId, pathId = null) => {
+    try {
+        const user = await User.findById(userId);
+        const lesson = await Lesson.findById(lessonId);
+
+        if (!user || !lesson) {
+            return {
+                success: false,
+                statusCode: 404,
+                message: "Không tìm thấy người dùng hoặc bài học",
+            };
+        }
+
+        // Regenerate lives trước nếu cần
+        await checkAndRegenerateLives(user);
+
+        // Kiểm tra gói premium
+        const now = moment().tz("Asia/Ho_Chi_Minh");
+        const activePackage = await UserPackage.findOne({
+            user: userId,
+            isActive: true,
+            endDate: { $gt: now.toDate() },
+            paymentStatus: "completed",
+        }).populate("package");
+
+        const hasPremium = activePackage?.package?.features || {};
+        const unlimitedLives = hasPremium.unlimitedLives || false;
+
+        // Nếu không có quyền lợi lives không giới hạn thì phải kiểm tra
+        if (!unlimitedLives && user.lives <= 0) {
+            return {
+                success: false,
+                statusCode: 403,
+                message: "Không đủ lượt chơi để làm lại. Hãy chờ lives hồi phục hoặc mua gói premium.",
+                needsLives: true,
+                currentLives: user.lives
+            };
+        }
+
+        // Reset learning path về chưa hoàn thành nếu có pathId
+        if (pathId) {
+            await MarxistLearningPath.findByIdAndUpdate(pathId, {
+                completed: false,
+                achievedScore: null,
+                completedAt: null
+            });
+        } else {
+            // Nếu không có pathId, tìm path theo lessonId
+            await MarxistLearningPath.findOneAndUpdate(
+                { userId, lessonId },
+                {
+                    completed: false,
+                    achievedScore: null,
+                    completedAt: null
+                }
+            );
+        }
+
+        // Trừ lives nếu không phải là premium
+        if (!unlimitedLives) {
+            user.lives -= 1;
+            user.lastLivesRegenerationTime = new Date();
+            await user.save();
+            console.log(`💔 Deducted 1 life for retry from user ${userId} (lives: ${user.lives})`);
+        }
+
+        return {
+            success: true,
+            statusCode: 200,
+            message: unlimitedLives
+                ? "Có thể làm lại bài học (Premium)"
+                : `Có thể làm lại bài học. Lives còn lại: ${user.lives}`,
+            livesDeducted: !unlimitedLives,
+            currentLives: user.lives,
+            canRetry: true
+        };
+
+    } catch (error) {
+        console.error('Error retrying Marxist lesson:', error);
+        return {
+            success: false,
+            statusCode: 500,
+            message: 'Lỗi khi làm lại bài học: ' + error.message
         };
     }
 };
@@ -603,9 +912,10 @@ const getMarxistStats = async (userId) => {
 
 export default {
     generateMarxistLesson,
+    analyzeUserProgress,
     getMarxistLearningPath,
     completeMarxistLesson,
+    retryMarxistLesson,
     getMarxistStats,
-    analyzeUserProgress,
     getAllMarxistTopics
 }; 

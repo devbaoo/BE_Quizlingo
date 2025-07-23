@@ -14,7 +14,7 @@ import userService from "./userService.js";
 import UserLearningPath from "../models/userLearningPath.js";
 
 const checkAndRegenerateLives = async (user) => {
-  if (!user || user.lives >= 5) return;
+  if (!user || user.lives >= 5) return user;
 
   const now = new Date();
   const lastRegeneration = user.lastLivesRegenerationTime || now;
@@ -1466,6 +1466,9 @@ const getUserLearningPath = async (userId, { page = 1, limit = 5 } = {}) => {
     };
   }
 };
+
+// Named export cho checkAndRegenerateLives
+export { checkAndRegenerateLives };
 
 export default {
   createLesson,
