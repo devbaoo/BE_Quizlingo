@@ -55,9 +55,9 @@ const initWebRoutes = (app) => {
   router.post("/auth/change-password", protect, authController.changePassword);
   router.post("/auth/google-login", authController.googleLogin);
 
-  // User routes (protected)
-  router.get("/users/profile", protect, userController.getUserProfile);
-  router.put("/users/profile", protect, userController.updateUserProfile);
+  // User routes
+  router.get("/user/profile", protect, userController.getUserProfile);
+  router.put("/user/profile", protect, upload.single("avatar"), userController.updateUserProfile);
   router.post("/user/level", protect, userController.chooseLevel);
   router.post("/user/skill", protect, userController.chooseSkill);
   router.get("/user/lives-status", protect, userController.getUserLivesStatus);
@@ -391,7 +391,7 @@ const initWebRoutes = (app) => {
     topicController.deleteTopic
   );
 
-  // Marxist Economics routes
+  // Marxist Economics Learning System routes
   router.post(
     "/marxist-economics/generate-lesson",
     protect,
@@ -412,6 +412,11 @@ const initWebRoutes = (app) => {
     protect,
     marxistEconomicsController.completeLesson
   );
+  router.post(
+    "/marxist-economics/retry-lesson",
+    protect,
+    marxistEconomicsController.retryMarxistLesson
+  );
   router.get(
     "/marxist-economics/stats",
     protect,
@@ -419,6 +424,7 @@ const initWebRoutes = (app) => {
   );
   router.get(
     "/marxist-economics/topics",
+    protect,
     marxistEconomicsController.getTopics
   );
   router.get(
@@ -427,10 +433,16 @@ const initWebRoutes = (app) => {
     marxistEconomicsController.analyzeProgress
   );
   router.get(
-    "/marxist-economics/test-gemini",
+    "/marxist-economics/test-connection",
     protect,
     authorize("admin"),
     marxistEconomicsController.testGeminiConnection
+  );
+  router.post(
+    "/marxist-economics/test-gemini",
+    protect,
+    authorize("admin"),
+    marxistEconomicsController.testGemini
   );
 
   // Marxist Topics management routes
@@ -465,6 +477,44 @@ const initWebRoutes = (app) => {
     protect,
     authorize("staff"),
     marxistTopicController.seedDefaultTopics
+  );
+
+  // Admin package management routes
+  router.get(
+    "/admin/packages",
+    protect,
+    authorize("admin"),
+    adminPackageController.getAllPackages
+  );
+  router.post(
+    "/admin/packages",
+    protect,
+    authorize("admin"),
+    adminPackageController.createPackage
+  );
+  router.put(
+    "/admin/packages/:id",
+    protect,
+    authorize("admin"),
+    adminPackageController.updatePackage
+  );
+  router.delete(
+    "/admin/packages/:id",
+    protect,
+    authorize("admin"),
+    adminPackageController.deletePackage
+  );
+  router.get(
+    "/admin/packages/stats",
+    protect,
+    authorize("admin"),
+    adminPackageController.getPackageStats
+  );
+  router.post(
+    "/admin/users/:userId/packages",
+    protect,
+    authorize("admin"),
+    adminPackageController.manageUserPackage
   );
 
   app.use("/api", router);

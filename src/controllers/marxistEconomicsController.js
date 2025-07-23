@@ -236,9 +236,16 @@ const getLessonByPath = async (req, res, next) => {
             });
         }
 
-        // Lấy chi tiết lesson với questions
+        // Lấy chi tiết lesson với questions - OPTIMIZED for performance
         const lesson = await Lesson.findById(pathDoc.lessonId)
-            .populate('questions topic level skills');
+            .populate({
+                path: 'questions',
+                select: '_id content options correctAnswer score timeLimit type' // Only select needed fields
+            })
+            .populate('topic', '_id name description') // Only select needed topic fields
+            .populate('level', '_id name description minScoreRequired timeLimit') // Only select needed level fields
+            .populate('skills', '_id name description') // Only select needed skill fields
+            .lean(); // Use lean() for better performance - returns plain JS objects
 
         if (!lesson) {
             return res.status(404).json({
@@ -306,13 +313,103 @@ const testGeminiConnection = async (req, res, next) => {
     }
 };
 
+/**
+ * Làm lại bài học kinh tế chính trị Mác-Lê-Nin  
+ * POST /api/marxist-economics/retry-lesson
+ */
+const retryMarxistLesson = async (req, res, next) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Yêu cầu đăng nhập'
+            });
+        }
+
+        const { lessonId, pathId } = req.body;
+
+        if (!lessonId) {
+            return res.status(400).json({
+                success: false,
+                message: 'lessonId là bắt buộc'
+            });
+        }
+
+        const result = await marxistEconomicsService.retryMarxistLesson(userId, lessonId, pathId);
+
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Retry Marxist lesson error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi làm lại bài học'
+        });
+    }
+};
+
+// Test Gemini connection with real Marxist question
+const testGemini = async (req, res) => {
+    try {
+        console.log('🧪 Testing Gemini connection...');
+
+        // Test simple connection first
+        const connectionTest = await geminiService.validateConnection();
+        if (!connectionTest.success) {
+            return res.status(500).json({
+                success: false,
+                message: 'Gemini API connection failed',
+                error: connectionTest.message
+            });
+        }
+
+        // Test generating actual Marxist question
+        const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về Kinh tế chính trị Mác-Lê-Nin:
+
+Chủ đề: Lý thuyết giá trị thặng dư
+Yêu cầu: 
+- 1 câu hỏi multiple choice với 4 đáp án A,B,C,D
+- Nội dung chính xác theo lý thuyết Marx
+- Format JSON
+
+Trả về JSON:
+{
+  "question": {
+    "content": "Câu hỏi...",
+    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+    "correctAnswer": "A. ...",
+    "explanation": "Giải thích..."
+  }
+}`;
+
+        const result = await geminiService.generateJsonContent(testPrompt);
+
+        res.json({
+            success: true,
+            message: 'Gemini AI working correctly',
+            connectionModel: connectionTest.model,
+            testResult: result
+        });
+
+    } catch (error) {
+        console.error('❌ Gemini test failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Gemini test failed',
+            error: error.message
+        });
+    }
+};
+
 export default {
     generateLesson,
     getLearningPath,
     getLessonByPath,
     completeLesson,
+    retryMarxistLesson,
     getStats,
     getTopics,
     analyzeProgress,
-    testGeminiConnection
+    testGeminiConnection,
+    testGemini
 }; 
