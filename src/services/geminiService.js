@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyC-f4u4ZvfIOi1WReflo_aoQanP_Ilg6tM';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = 'gemini-1.5-flash'; // Sử dụng model ổn định nhất
 
 // Chỉ dùng 1 model ổn định nhất để tránh tạo nhiều lesson
-const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_API_URL = process.env.GEMINI_API_URL;
 
 /**
  * Sleep function for retry delays
