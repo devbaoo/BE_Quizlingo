@@ -298,17 +298,23 @@ const testGeminiConnection = async (req, res, next) => {
         const geminiService = await import('../services/geminiService.js');
         const result = await geminiService.default.validateConnection();
 
-        return res.status(200).json({
+        const statusCode = result.success ? 200 : 400;
+
+        return res.status(statusCode).json({
             success: result.success,
             message: result.message,
-            connected: result.connected
+            connected: result.connected,
+            config: result.config,
+            response: result.response,
+            error: result.error
         });
     } catch (error) {
         console.error('Test Gemini connection error:', error);
         return res.status(500).json({
             success: false,
             message: 'Lỗi server khi test kết nối Gemini',
-            connected: false
+            connected: false,
+            error: error.message
         });
     }
 };
