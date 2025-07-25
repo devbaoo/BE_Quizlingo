@@ -76,7 +76,7 @@ const completeLesson = async (req, res, next) => {
             });
         }
 
-        const { lessonId, score } = req.body;
+        const { lessonId, score, questionResults } = req.body;
 
         if (!lessonId || typeof score !== 'number') {
             return res.status(400).json({
@@ -92,7 +92,15 @@ const completeLesson = async (req, res, next) => {
             });
         }
 
-        const result = await marxistEconomicsService.completeMarxistLesson(userId, lessonId, score);
+        // questionResults là optional, default = []
+        const validQuestionResults = Array.isArray(questionResults) ? questionResults : [];
+
+        const result = await marxistEconomicsService.completeMarxistLesson(
+            userId,
+            lessonId,
+            score,
+            validQuestionResults
+        );
 
         return res.status(result.statusCode).json(result);
     } catch (error) {
