@@ -1,10 +1,12 @@
 import axios from 'axios';
 
+// Sử dụng environment variables với fallback values
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash'; // Sử dụng model ổn định nhất
+const GEMINI_MODEL = process.env.GEMINI_MODEL; // Try gemini-pro instead
+const GEMINI_BASE_URL = process.env.GEMINI_API_URL;
 
-// Chỉ dùng 1 model ổn định nhất để tránh tạo nhiều lesson
-const GEMINI_API_URL = process.env.GEMINI_API_URL;
+// Construct full API URL
+const GEMINI_API_URL = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent`;
 
 /**
  * Sleep function for retry delays
@@ -20,6 +22,39 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  */
 const generateContent = async (prompt, maxRetries = 3) => {
     console.log(`🤖 Using single stable model: ${GEMINI_MODEL}`);
+    console.log(`🔑 API Key status: ${GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : 'MISSING'}`);
+    console.log(`🔗 API URL: ${GEMINI_API_URL}`);
+
+    // Check if should skip Gemini API
+    if (process.env.SKIP_GEMINI === 'true') {
+        console.log('🚫 Skipping Gemini API (SKIP_GEMINI=true)');
+        return {
+            success: false,
+            message: 'Gemini API skipped - using demo content',
+            data: null,
+            error: {
+                message: 'Gemini API disabled',
+                code: 'GEMINI_DISABLED',
+                model: GEMINI_MODEL,
+                totalAttempts: 0
+            }
+        };
+    }
+
+    // Validate API key
+    if (!GEMINI_API_KEY) {
+        return {
+            success: false,
+            message: 'GEMINI_API_KEY is missing from environment variables. Please set it in .env file.',
+            data: null,
+            error: {
+                message: 'Missing API key',
+                code: 'MISSING_API_KEY',
+                model: GEMINI_MODEL,
+                totalAttempts: 0
+            }
+        };
+    }
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -150,6 +185,10 @@ const generateJsonContent = async (prompt) => {
 const validateConnection = async () => {
     try {
         console.log('🔍 Testing Gemini API connection...');
+        console.log(`🔑 Using API Key: ${GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : 'MISSING'}`);
+        console.log(`🔗 API URL: ${GEMINI_API_URL}`);
+        console.log(`🤖 Model: ${GEMINI_MODEL}`);
+
         const testPrompt = 'Test connection. Respond with: "Connection successful"';
 
         const result = await generateContent(testPrompt, 1); // Only 1 attempt for connection test
@@ -158,24 +197,48 @@ const validateConnection = async () => {
             console.log('✅ Gemini API connection successful');
             return {
                 success: true,
+                connected: true,
                 message: 'Gemini API connection successful',
                 model: result.model,
-                response: result.data
+                response: result.data,
+                config: {
+                    model: GEMINI_MODEL,
+                    baseUrl: GEMINI_BASE_URL,
+                    fullApiUrl: GEMINI_API_URL,
+                    apiKeyStatus: GEMINI_API_KEY ? 'Present' : 'Missing',
+                    source: 'Environment Variables'
+                }
             };
         } else {
             console.error('❌ Gemini API connection failed:', result.message);
             return {
                 success: false,
+                connected: false,
                 message: `Gemini API connection failed: ${result.message}`,
-                error: result.error
+                error: result.error,
+                config: {
+                    model: GEMINI_MODEL,
+                    baseUrl: GEMINI_BASE_URL,
+                    fullApiUrl: GEMINI_API_URL,
+                    apiKeyStatus: GEMINI_API_KEY ? 'Present' : 'Missing',
+                    source: 'Environment Variables'
+                }
             };
         }
     } catch (error) {
         console.error('❌ Gemini API connection error:', error);
         return {
             success: false,
+            connected: false,
             message: 'Gemini API connection error',
-            error: error.message
+            error: error.message,
+            config: {
+                model: GEMINI_MODEL,
+                baseUrl: GEMINI_BASE_URL,
+                fullApiUrl: GEMINI_API_URL,
+                apiKeyStatus: GEMINI_API_KEY ? 'Present' : 'Missing',
+                source: 'Environment Variables'
+            }
         };
     }
 };
