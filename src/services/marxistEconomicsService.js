@@ -16,6 +16,16 @@ import moment from 'moment-timezone';
 // Import lives management từ lessonService
 import { checkAndRegenerateLives } from './lessonService.js';
 
+/**
+ * Tính XP cần thiết để lên level
+ * @param {number} level - Level hiện tại
+ * @returns {number} Required XP
+ */
+const getRequiredXpForLevel = (level) => {
+    // Giảm tốc độ tăng XP yêu cầu để user dễ lên cấp hơn
+    return Math.floor(100 * Math.pow(1.3, level - 1));
+};
+
 // Mutex để tránh concurrent generation cho cùng 1 user
 const generatingUsers = new Set();
 
@@ -515,9 +525,10 @@ const getMarxistLearningPath = async (userId, options = {}) => {
         // Đếm tổng số bài trong lộ trình
         let total = await MarxistLearningPath.countDocuments({ userId });
 
-        // Nếu chưa có bài học nào → tạo bài đầu tiên tự động
+        // ❌ REMOVED: Auto-generation moved to client-side to prevent duplicate lessons
+        // Client should explicitly call POST /marxist-economics/generate-lesson when needed
         if (total === 0) {
-            console.log('🔄 User mới chưa có bài học Marxist, đang tạo bài đầu tiên...');
+            console.log('📋 User mới chưa có bài học Marxist. Client cần gọi generate-lesson API.');
 
             // Kiểm tra xem có topic nào trong database không
             const availableTopics = await getAllMarxistTopics();
@@ -529,19 +540,20 @@ const getMarxistLearningPath = async (userId, options = {}) => {
                 };
             }
 
-            const genResult = await generateMarxistLesson(userId);
-            if (!genResult.success) {
-                return {
-                    success: false,
-                    statusCode: 500,
-                    message: "Không thể tạo bài học đầu tiên: " + genResult.message,
-                };
-            }
-
-            console.log('✅ Đã tạo bài học đầu tiên cho user:', userId);
-
-            // Cập nhật lại total count
-            total = await MarxistLearningPath.countDocuments({ userId });
+            // Trả về empty learning path với thông báo để client gọi generate
+            return {
+                success: true,
+                statusCode: 200,
+                message: "Chưa có bài học nào. Hãy tạo bài học đầu tiên!",
+                learningPath: [],
+                total: 0,
+                currentPage: parseInt(page),
+                totalPages: 0,
+                hasNextPage: false,
+                hasPrevPage: false,
+                needsFirstLesson: true, // Flag để client biết cần tạo lesson đầu tiên
+                availableTopics: availableTopics.length
+            };
         }
 
         // Lấy dữ liệu lộ trình
@@ -619,9 +631,10 @@ const getMarxistLearningPath = async (userId, options = {}) => {
  * @param {string} userId - User ID  
  * @param {string} lessonId - Lesson ID
  * @param {number} score - Điểm số (0-100)
+ * @param {Array} questionResults - Kết quả từng câu hỏi (optional)
  * @returns {Object} Completion result
  */
-const completeMarxistLesson = async (userId, lessonId, score) => {
+const completeMarxistLesson = async (userId, lessonId, score, questionResults = []) => {
     try {
         const user = await User.findById(userId);
         if (!user) {
@@ -687,6 +700,88 @@ const completeMarxistLesson = async (userId, lessonId, score) => {
             };
         }
 
+        // 📊 TẠO PROGRESS RECORD (giống lesson tiếng Anh)
+        const lessonStatus = score >= 70 ? 'COMPLETE' : 'FAILED';
+        const isRetried = false; // TODO: Implement retry tracking if needed
+
+        // 🔍 VALIDATE và FILTER questionResults để đảm bảo schema compliance
+        const validQuestionResults = Array.isArray(questionResults)
+            ? questionResults.filter(result => {
+                // Chỉ giữ lại results có đầy đủ required fields
+                return result &&
+                    result.questionId &&
+                    typeof result.answer === 'string' &&
+                    typeof result.isCorrect === 'boolean' &&
+                    typeof result.score === 'number';
+            }).map(result => ({
+                questionId: result.questionId,
+                answer: result.answer,
+                isCorrect: result.isCorrect,
+                score: result.score,
+                isTimeout: result.isTimeout || false,
+                transcription: result.transcription || null,
+                feedback: result.feedback || null
+            }))
+            : [];
+
+        console.log(`📝 Creating Progress record: userId=${userId}, lessonId=${lessonId}, score=${score}, status=${lessonStatus}`);
+        console.log(`📊 Valid questionResults: ${validQuestionResults.length}/${questionResults?.length || 0}`);
+
+        const progress = await Progress.create({
+            userId,
+            lessonId,
+            score,
+            status: lessonStatus,
+            isRetried,
+            questionResults: validQuestionResults
+        });
+
+        console.log(`✅ Progress record created: ${progress._id}`);
+
+        // 🎯 CỘNG XP VÀ KIỂM TRA LEVEL UP
+        let earnedXP = 0;
+        let leveledUp = false;
+        let newLevel = user.userLevel;
+        let livesFromLevelUp = 0;
+
+        if (score >= 70) { // Chỉ cộng XP khi pass
+            // Tính XP: điểm / 10 (giống logic English learning)
+            earnedXP = Math.round(score / 10);
+            user.xp += earnedXP;
+
+            console.log(`⭐ User ${userId} earned ${earnedXP} XP (score: ${score}%, total XP: ${user.xp})`);
+
+            // Kiểm tra level up
+            const requiredXp = getRequiredXpForLevel(user.userLevel);
+            if (user.xp >= requiredXp) {
+                const oldLevel = user.userLevel;
+                user.userLevel += 1;
+                user.xp = 0; // Reset XP về 0
+                user.lives = Math.min(user.lives + 1, 5); // +1 life (max 5)
+
+                leveledUp = true;
+                newLevel = user.userLevel;
+                livesFromLevelUp = 1;
+
+                console.log(`🎉 User ${userId} leveled up! ${oldLevel} → ${newLevel} (gained 1 life, total: ${user.lives})`);
+
+                // Gửi notification level up
+                try {
+                    await NotificationService.createNotification(userId, {
+                        title: '🎉 Chúc mừng lên cấp!',
+                        message: `Bạn đã lên Level ${newLevel}! Nhận thêm 1 ❤️ lives và unlock tính năng mới.`,
+                        type: 'level_up',
+                        link: '/profile'
+                    });
+                } catch (error) {
+                    console.error('Failed to create level up notification:', error);
+                }
+            }
+
+            // Lưu user với XP và level mới
+            await user.save();
+        }
+
         // Tự động tạo bài học tiếp theo nếu hoàn thành tốt (score >= 70)
         // 🚫 REMOVED: Auto-generation moved to client-side to prevent API blocking
         let nextLessonGenerated = false;
@@ -706,15 +801,29 @@ const completeMarxistLesson = async (userId, lessonId, score) => {
             success: true,
             statusCode: 200,
             message: score >= 70
-                ? 'Hoàn thành xuất sắc! Bài học đã completed.'
+                ? (leveledUp
+                    ? `🎉 Hoàn thành xuất sắc! Nhận ${earnedXP} XP và lên Level ${newLevel}!`
+                    : `✅ Hoàn thành xuất sắc! Nhận ${earnedXP} XP. Bài học đã completed.`)
                 : `Điểm số: ${score}%. Bài học chưa completed. ${livesDeducted ? 'Đã trừ 1 life.' : ''} Hãy cố gắng hơn!`,
             pathUpdated: true,
             completed: score >= 70,
             nextLessonGenerated,
+            // Lives info
             livesDeducted,
             currentLives: user.lives,
+            // Score info
             scoreAchieved: score,
-            passed: score >= 70
+            passed: score >= 70,
+            // XP & Level info
+            earnedXP,
+            leveledUp,
+            newLevel,
+            livesFromLevelUp,
+            currentXP: user.xp,
+            nextLevelRequiredXP: leveledUp ? getRequiredXpForLevel(newLevel) : getRequiredXpForLevel(user.userLevel) - user.xp,
+            // Progress info
+            progressId: progress._id,
+            progressStatus: lessonStatus
         };
 
     } catch (error) {
