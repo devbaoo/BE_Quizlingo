@@ -34,7 +34,8 @@ const progressSchema = new mongoose.Schema({
             },
             answer: {
                 type: String,
-                required: [true, 'Câu trả lời là bắt buộc']
+                required: false, // Cho phép rỗng nếu user không chọn đáp án
+                default: '' // Default empty string
             },
             isCorrect: {
                 type: Boolean,
