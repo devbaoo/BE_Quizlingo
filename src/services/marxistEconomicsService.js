@@ -707,17 +707,13 @@ const completeMarxistLesson = async (userId, lessonId, score, questionResults = 
         // 🔍 VALIDATE và FILTER questionResults để đảm bảo schema compliance
         const validQuestionResults = Array.isArray(questionResults)
             ? questionResults.filter(result => {
-                // Chỉ giữ lại results có đầy đủ required fields
-                return result &&
-                    result.questionId &&
-                    typeof result.answer === 'string' &&
-                    typeof result.isCorrect === 'boolean' &&
-                    typeof result.score === 'number';
+                // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
+                return result && result.questionId;
             }).map(result => ({
                 questionId: result.questionId,
-                answer: result.answer,
-                isCorrect: result.isCorrect,
-                score: result.score,
+                answer: result.answer || '', // Cho phép answer rỗng nếu user không chọn
+                isCorrect: result.isCorrect || false, // Default false nếu không có
+                score: typeof result.score === 'number' ? result.score : 0, // Default 0 nếu không có
                 isTimeout: result.isTimeout || false,
                 transcription: result.transcription || null,
                 feedback: result.feedback || null
