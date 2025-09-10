@@ -27,14 +27,14 @@ const sendEmail = async (mailOptions) => {
 // Template email xác thực
 const verificationEmailTemplate = (name, verificationLink) => {
   return {
-    subject: "Xác thực tài khoản QuizLingo của bạn",
+    subject: "Xác thực tài khoản MarxEdu của bạn",
     html: `
       <!DOCTYPE html>
       <html lang="vi">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Xác thực tài khoản QuizLingo</title>
+        <title>Xác thực tài khoản MarxEdu</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         </style>
@@ -52,7 +52,7 @@ const verificationEmailTemplate = (name, verificationLink) => {
                       ✉️
                     </div>
                     <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                      Quizlingo
+                      MarxEdu
                     </h1>
                     <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
                       Xác thực tài khoản của bạn
@@ -69,7 +69,7 @@ const verificationEmailTemplate = (name, verificationLink) => {
                     
                     <div style="background: #1e293b; padding: 30px; border-radius: 12px; margin: 20px 0; border: 1px solid #475569;">
                       <div style="color: #ffffff; font-size: 16px; line-height: 1.8; font-weight: 500;">
-                        Cảm ơn bạn đã đăng ký tài khoản trên QuizLingo. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
+                        Cảm ơn bạn đã đăng ký tài khoản trên MarxEdu. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
                       </div>
                     </div>
                     
@@ -96,7 +96,7 @@ const verificationEmailTemplate = (name, verificationLink) => {
                 <tr>
                   <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
-                      <strong>💫 Quizlingo Team</strong><br>
+                      <strong>💫 MarxEdu Team</strong><br>
                       Cùng bạn chinh phục tiếng Anh mỗi ngày!
                     </p>
                     
@@ -118,14 +118,14 @@ const verificationEmailTemplate = (name, verificationLink) => {
 // Template email reset password
 const resetPasswordEmailTemplate = (name, resetLink) => {
   return {
-    subject: "Đặt lại mật khẩu QuizLingo của bạn",
+    subject: "Đặt lại mật khẩu MarxEdu của bạn",
     html: `
       <!DOCTYPE html>
       <html lang="vi">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Đặt lại mật khẩu QuizLingo</title>
+        <title>Đặt lại mật khẩu MarxEdu</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         </style>
@@ -143,7 +143,7 @@ const resetPasswordEmailTemplate = (name, resetLink) => {
                       🔐
                     </div>
                     <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                      Quizlingo
+                      MarxEdu
                     </h1>
                     <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
                       Đặt lại mật khẩu của bạn
@@ -160,7 +160,7 @@ const resetPasswordEmailTemplate = (name, resetLink) => {
                     
                     <div style="background: #1e293b; padding: 30px; border-radius: 12px; margin: 20px 0; border: 1px solid #475569;">
                       <div style="color: #ffffff; font-size: 16px; line-height: 1.8; font-weight: 500;">
-                        Cảm ơn bạn đã đăng ký tài khoản trên QuizLingo. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
+                        Cảm ơn bạn đã đăng ký tài khoản trên MarxEdu. Để hoàn tất quá trình đăng ký, vui lòng xác thực tài khoản của bạn bằng cách nhấp vào nút bên dưới.
                       </div>
                     </div>
                     
@@ -187,12 +187,12 @@ const resetPasswordEmailTemplate = (name, resetLink) => {
                 <tr>
                   <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
-                      <strong>💫 Quizlingo Team</strong><br>
+                      <strong>💫 MarxEdu Team</strong><br>
                       Cùng bạn chinh phục tiếng Anh mỗi ngày!
                     </p>
                     
                     <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
-                      Đây là email đặt lại mật khẩu từ Quizlingo.<br>
+                      Đây là email đặt lại mật khẩu từ MarxEdu.<br>
                       Mật khẩu của bạn sẽ không thay đổi cho đến khi bạn truy cập liên kết trên.
                     </p>
                   </td>

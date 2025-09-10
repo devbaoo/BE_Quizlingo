@@ -18,7 +18,7 @@ import adDashboardController from "../controllers/adDashboardController.js";
 import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
 import topicController from "../controllers/topicController.js";
-import marxistEconomicsController from "../controllers/marxistEconomicsController.js";
+import marxistPhilosophyController from "../controllers/marxistPhilosophyController.js";
 import marxistTopicController from "../controllers/marxistTopicController.js";
 
 const router = express.Router();
@@ -391,58 +391,80 @@ const initWebRoutes = (app) => {
     topicController.deleteTopic
   );
 
-  // Marxist Economics Learning System routes
+  // Marxist Philosophy Learning System routes
   router.post(
-    "/marxist-economics/generate-lesson",
+    "/marxist-philosophy/generate-lesson",
     protect,
-    marxistEconomicsController.generateLesson
+    marxistPhilosophyController.generateLesson
   );
   router.get(
-    "/marxist-economics/learning-path",
+    "/marxist-philosophy/learning-path",
     protect,
-    marxistEconomicsController.getLearningPath
+    marxistPhilosophyController.getLearningPath
   );
   router.get(
-    "/marxist-economics/lessons/:pathId",
+    "/marxist-philosophy/lessons/:pathId",
     protect,
-    marxistEconomicsController.getLessonByPath
-  );
-  router.post(
-    "/marxist-economics/complete-lesson",
-    protect,
-    marxistEconomicsController.completeLesson
+    marxistPhilosophyController.getLessonByPath
   );
   router.post(
-    "/marxist-economics/retry-lesson",
+    "/marxist-philosophy/complete-lesson",
     protect,
-    marxistEconomicsController.retryMarxistLesson
+    marxistPhilosophyController.completeLesson
+  );
+  router.post(
+    "/marxist-philosophy/retry-lesson",
+    protect,
+    marxistPhilosophyController.retryMarxistLesson
   );
   router.get(
-    "/marxist-economics/stats",
+    "/marxist-philosophy/stats",
     protect,
-    marxistEconomicsController.getStats
+    marxistPhilosophyController.getStats
   );
   router.get(
-    "/marxist-economics/topics",
+    "/marxist-philosophy/topics",
     protect,
-    marxistEconomicsController.getTopics
+    marxistPhilosophyController.getTopics
   );
   router.get(
-    "/marxist-economics/analyze-progress",
+    "/marxist-philosophy/analyze-progress",
     protect,
-    marxistEconomicsController.analyzeProgress
+    marxistPhilosophyController.analyzeProgress
   );
   router.get(
-    "/marxist-economics/test-connection",
+    "/marxist-philosophy/test-connection",
     protect,
     authorize("admin"),
-    marxistEconomicsController.testGeminiConnection
+    marxistPhilosophyController.testGeminiConnection
   );
   router.post(
-    "/marxist-economics/test-gemini",
+    "/marxist-philosophy/test-gemini",
     protect,
     authorize("admin"),
-    marxistEconomicsController.testGemini
+    marxistPhilosophyController.testGemini
+  );
+
+  // Rate limiter monitoring route
+  router.get(
+    "/marxist-philosophy/rate-limiter-stats",
+    protect,
+    authorize("admin"),
+    marxistPhilosophyController.getRateLimiterStats
+  );
+
+  // Multi-AI monitoring routes
+  router.get(
+    "/marxist-philosophy/test-all-ai",
+    protect,
+    authorize("admin"),
+    marxistPhilosophyController.testAllAiConnections
+  );
+  router.get(
+    "/marxist-philosophy/multi-ai-stats",
+    protect,
+    authorize("admin"),
+    marxistPhilosophyController.getMultiAiStats
   );
 
   // Marxist Topics management routes

@@ -72,7 +72,7 @@ After setting up `.env`, test your configuration:
 npm start
 
 # Test Gemini connection (admin only)
-GET /api/marxist-economics/test-connection
+GET /api/marxist-philosophy/test-connection
 ```
 
 ## 🚨 Important Notes

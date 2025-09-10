@@ -1,29 +1,29 @@
-# Hệ Thống Kinh Tế Chính Trị Mác-Lê-Nin
+# Hệ Thống Triết Học Mác-Lê-Nin
 
 ## Tổng Quan
 
-Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản lý bộ câu hỏi về kinh tế chính trị Mác-Lê-Nin sử dụng Google Gemini AI. Hệ thống tự động tạo ra 30 câu hỏi trắc nghiệm cho mỗi bài học và điều chỉnh độ khó dựa trên kết quả học tập của người dùng.
+Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản lý bộ câu hỏi về triết học Mác-Lê-Nin sử dụng Google Gemini AI. Hệ thống tự động tạo ra 10 câu hỏi trắc nghiệm cho mỗi bài học và điều chỉnh độ khó dựa trên kết quả học tập của người dùng.
 
 ## Tính Năng Chính
 
 ### 🤖 AI-Generated Lessons
 
-- Tự động tạo bài học với 30 câu hỏi trắc nghiệm
+- Tự động tạo bài học với 10 câu hỏi trắc nghiệm
 - Sử dụng Google Gemini API
 - Điều chỉnh độ khó dựa trên kết quả trước đó (1-5 cấp độ)
 
-### 📚 10 Chủ Đề Marxist
+### 📚 10 Chủ Đề Triết Học Mác-Lê-Nin
 
-1. **Chủ nghĩa tư bản** - Lý thuyết về chế độ tư bản chủ nghĩa
-2. **Giá trị thặng dư** - Nguồn gốc lợi nhuận của nhà tư bản
-3. **Đấu tranh giai cấp** - Lý thuyết về đấu tranh giai cấp
-4. **Cộng hòa xã hội chủ nghĩa** - Lý thuyết về nhà nước
-5. **Đảng cộng sản** - Vai trò của Đảng trong cách mạng
-6. **Cách mạng vô sản** - Lý thuyết về cách mạng xã hội chủ nghĩa
-7. **Kinh tế chính trị** - Quy luật kinh tế cơ bản
-8. **Chủ nghĩa xã hội** - Lý thuyết về xã hội xã hội chủ nghĩa
-9. **Duy vật biện chứng** - Phương pháp luận Mác-xít
-10. **Duy vật lịch sử** - Quan niệm về phát triển xã hội
+1. **Duy vật biện chứng** - Phương pháp luận triết học Mác-xít
+2. **Duy vật lịch sử** - Quan niệm duy vật về lịch sử xã hội
+3. **Nhận thức luận** - Lý thuyết về quá trình nhận thức thế giới
+4. **Quy luật mâu thuẫn** - Quy luật thống nhất và đấu tranh của các mặt đối lập
+5. **Quy luật lượng chất** - Quy luật chuyển hóa từ lượng thành chất
+6. **Quy luật phủ định** - Quy luật phủ định của phủ định
+7. **Con người và xã hội** - Quan niệm về bản chất con người
+8. **Ý thức xã hội** - Lý thuyết về ý thức xã hội
+9. **Giai cấp và đấu tranh giai cấp** - Lý thuyết về giai cấp
+10. **Nhà nước và cách mạng** - Quan niệm về nhà nước và cách mạng
 
 ### 🎯 Adaptive Learning
 
@@ -34,18 +34,18 @@ Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản 
 
 ## API Endpoints
 
-### POST `/api/marxist-economics/generate-lesson`
+### POST `/api/marxist-philosophy/generate-lesson`
 
 **Tạo bài học mới**
 
 ```json
 {
-  "topic": "chu_nghia_tu_ban", // optional
+  "topic": "duy_vat_bien_chung", // optional
   "difficulty": 2 // optional (1-5)
 }
 ```
 
-### GET `/api/marxist-economics/learning-path`
+### GET `/api/marxist-philosophy/learning-path`
 
 **Lấy lộ trình học tập**
 
@@ -53,7 +53,7 @@ Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản 
 ?page=1&limit=10
 ```
 
-### POST `/api/marxist-economics/complete-lesson`
+### POST `/api/marxist-philosophy/complete-lesson`
 
 **Hoàn thành bài học**
 
@@ -64,19 +64,19 @@ Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản 
 }
 ```
 
-### GET `/api/marxist-economics/stats`
+### GET `/api/marxist-philosophy/stats`
 
 **Thống kê học tập**
 
-### GET `/api/marxist-economics/topics`
+### GET `/api/marxist-philosophy/topics`
 
 **Danh sách chủ đề** (public)
 
-### GET `/api/marxist-economics/analyze-progress`
+### GET `/api/marxist-philosophy/analyze-progress`
 
 **Phân tích tiến độ và đề xuất**
 
-### GET `/api/marxist-economics/test-gemini`
+### GET `/api/marxist-philosophy/test-gemini`
 
 **Test kết nối Gemini** (admin only)
 
@@ -88,7 +88,7 @@ Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản 
 {
   userId: ObjectId,
   lessonId: ObjectId,
-  marxistTopic: String,      // chu_nghia_tu_ban, gia_tri_thang_du...
+  marxistTopic: String,      // duy_vat_bien_chung, duy_vat_lich_su...
   difficultyLevel: Number,   // 1-5
   previousScore: Number,     // Điểm TB 3 bài trước
   recommendedReason: String, // Lý do AI tạo bài này
@@ -105,9 +105,9 @@ Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản 
 src/
 ├── services/
 │   ├── geminiService.js              # Google Gemini API integration
-│   └── marxistEconomicsService.js    # Core business logic
+│   └── marxistPhilosophyService.js    # Core business logic
 ├── controllers/
-│   ├── marxistEconomicsController.js # API handlers
+│   ├── marxistPhilosophyController.js # API handlers
 │   └── marxistTopicController.js     # Topic management
 ├── models/
 │   ├── marxistLearningPath.js        # Learning path tracking
@@ -123,18 +123,18 @@ src/
 ### 1. Khởi Tạo Học Tập
 
 ```bash
-GET /api/marxist-economics/learning-path
+GET /api/marxist-philosophy/learning-path
 # Tự động tạo bài đầu tiên nếu chưa có
 ```
 
 ### 2. Tạo Bài Học Thủ Công
 
 ```bash
-POST /api/marxist-economics/generate-lesson
+POST /api/marxist-philosophy/generate-lesson
 Content-Type: application/json
 
 {
-  "topic": "dau_tranh_giai_cap",
+  "topic": "nhan_thuc_luan",
   "difficulty": 3
 }
 ```
@@ -142,7 +142,7 @@ Content-Type: application/json
 ### 3. Hoàn Thành Bài Học
 
 ```bash
-POST /api/marxist-economics/complete-lesson
+POST /api/marxist-philosophy/complete-lesson
 Content-Type: application/json
 
 {
@@ -171,8 +171,10 @@ Content-Type: application/json
 
 ### Prompt Engineering
 
-- 30 câu hỏi trắc nghiệm chính xác
-- Nội dung dựa trên lý thuyết Mác-Lê-Nin
+- 10 câu hỏi trắc nghiệm chính xác
+- Nội dung CHỈ VỀ triết học Mác-Lê-Nin (KHÔNG phải kinh tế chính trị)
+- Tập trung vào: duy vật biện chứng, nhận thức luận, quy luật triết học
+- Loại trừ: câu hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
 - Độ khó phù hợp với cấp độ
 - 4 đáp án mỗi câu (A, B, C, D)
 - Thời gian 45s/câu
@@ -216,7 +218,7 @@ Hệ thống tự động gửi thông báo khi:
 Test kết nối Gemini:
 
 ```bash
-GET /api/marxist-economics/test-gemini
+GET /api/marxist-philosophy/test-gemini
 Authorization: Bearer <admin_token>
 ```
 

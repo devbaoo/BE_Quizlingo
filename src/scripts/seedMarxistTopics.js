@@ -16,86 +16,96 @@ const connectDB = async () => {
     }
 };
 
-// Dữ liệu chủ đề mặc định
+// Dữ liệu chủ đề triết học Mác-Lê-Nin
 const defaultTopics = [
-    {
-        name: 'chu_nghia_tu_ban',
-        title: 'Chủ nghĩa tư bản',
-        description: 'Lý thuyết về chế độ tư bản chủ nghĩa, mâu thuẫn cơ bản của chủ nghĩa tư bản',
-        keywords: ['tư bản', 'công nhân', 'bóc lột', 'thặng dư', 'tích lũy', 'khủng hoảng kinh tế'],
-        suggestedDifficulty: 2,
-        displayOrder: 1
-    },
-    {
-        name: 'gia_tri_thang_du',
-        title: 'Giá trị thặng dư',
-        description: 'Học thuyết về giá trị thặng dư - nguồn gốc lợi nhuận của nhà tư bản',
-        keywords: ['lao động', 'giá trị sử dụng', 'giá trị trao đổi', 'thời gian lao động', 'thặng dư tuyệt đối', 'thặng dư tương đối'],
-        suggestedDifficulty: 3,
-        displayOrder: 2
-    },
-    {
-        name: 'dau_tranh_giai_cap',
-        title: 'Đấu tranh giai cấp',
-        description: 'Lý thuyết về đấu tranh giai cấp trong xã hội',
-        keywords: ['giai cấp', 'vô sản', 'tư sản', 'đấu tranh', 'cách mạng', 'nhà nước'],
-        suggestedDifficulty: 2,
-        displayOrder: 3
-    },
-    {
-        name: 'cong_hoa_xa_hoi_chu_nghia',
-        title: 'Cộng hòa xã hội chủ nghĩa',
-        description: 'Lý thuyết về nhà nước và chính trị trong xã hội xã hội chủ nghĩa',
-        keywords: ['nhà nước', 'chuyên chính', 'dân chủ', 'công hòa', 'xã hội chủ nghĩa', 'quyền lực'],
-        suggestedDifficulty: 3,
-        displayOrder: 4
-    },
-    {
-        name: 'dang_cong_san',
-        title: 'Đảng cộng sán',
-        description: 'Vai trò và sứ mệnh của Đảng cộng sản trong cách mạng',
-        keywords: ['đảng', 'lãnh đạo', 'tổ chức', 'cương lĩnh', 'chiến lược', 'chiến thuật'],
-        suggestedDifficulty: 2,
-        displayOrder: 5
-    },
-    {
-        name: 'cach_mang_vo_san',
-        title: 'Cách mạng vô sản',
-        description: 'Lý thuyết về cách mạng xã hội chủ nghĩa',
-        keywords: ['cách mạng', 'vô sản', 'bạo lực', 'hòa bình', 'chuyển đổi', 'xã hội mới'],
-        suggestedDifficulty: 4,
-        displayOrder: 6
-    },
-    {
-        name: 'kinh_te_chinh_tri',
-        title: 'Kinh tế chính trị',
-        description: 'Những quy luật kinh tế cơ bản của chủ nghĩa Mác',
-        keywords: ['sản xuất', 'phân phối', 'lưu thông', 'tiêu dùng', 'quan hệ sản xuất', 'lực lượng sản xuất'],
-        suggestedDifficulty: 3,
-        displayOrder: 7
-    },
-    {
-        name: 'chu_nghia_xa_hoi',
-        title: 'Chủ nghĩa xã hội',
-        description: 'Lý thuyết về xã hội xã hội chủ nghĩa và cộng sản chủ nghĩa',
-        keywords: ['xã hội chủ nghĩa', 'cộng sản chủ nghĩa', 'sở hữu chung', 'phân phối', 'lao động'],
-        suggestedDifficulty: 3,
-        displayOrder: 8
-    },
     {
         name: 'duy_vat_bien_chung',
         title: 'Duy vật biện chứng',
-        description: 'Phương pháp luận Mác-xít về nhận thức và thực tiễn',
-        keywords: ['mâu thuẫn', 'phủ định', 'lượng chất', 'thực tiễn', 'nhận thức', 'quy luật'],
-        suggestedDifficulty: 4,
-        displayOrder: 9
+        description: 'Phương pháp luận triết học Mác-xít về quy luật biến đổi và phát triển của thế giới',
+        keywords: ['duy vật', 'biện chứng', 'quy luật', 'nhận thức', 'thực tiễn', 'mâu thuẫn'],
+        suggestedDifficulty: 3,
+        suggestedQuestionCount: 10,
+        displayOrder: 1
     },
     {
         name: 'duy_vat_lich_su',
         title: 'Duy vật lịch sử',
-        description: 'Quan niệm Mác-xít về sự phát triển của xã hội loài người',
-        keywords: ['hình thái kinh tế xã hội', 'cơ sở hạ tầng', 'kiến trúc thượng tầng', 'ý thức xã hội', 'tồn tại xã hội'],
-        suggestedDifficulty: 5,
+        description: 'Quan niệm duy vật về lịch sử xã hội và quy luật phát triển xã hội',
+        keywords: ['lịch sử', 'xã hội', 'hình thái', 'cơ sở', 'thượng tầng', 'ý thức xã hội'],
+        suggestedDifficulty: 4,
+        suggestedQuestionCount: 10,
+        displayOrder: 2
+    },
+    {
+        name: 'nhan_thuc_luan',
+        title: 'Nhận thức luận',
+        description: 'Lý thuyết về quá trình nhận thức thế giới và vai trò của thực tiễn trong nhận thức',
+        keywords: ['nhận thức', 'thực tiễn', 'chân lý', 'kiến thức', 'kinh nghiệm', 'cảm tính'],
+        suggestedDifficulty: 3,
+        suggestedQuestionCount: 10,
+        displayOrder: 3
+    },
+    {
+        name: 'quy_luat_mau_thuan',
+        title: 'Quy luật mâu thuẫn',
+        description: 'Quy luật thống nhất và đấu tranh của các mặt đối lập trong sự vật',
+        keywords: ['mâu thuẫn', 'đối lập', 'thống nhất', 'đấu tranh', 'phủ định', 'chuyển hóa'],
+        suggestedDifficulty: 4,
+        suggestedQuestionCount: 10,
+        displayOrder: 4
+    },
+    {
+        name: 'quy_luat_luong_chat',
+        title: 'Quy luật lượng chất',
+        description: 'Quy luật chuyển hóa từ những thay đổi về lượng thành thay đổi về chất',
+        keywords: ['lượng', 'chất', 'độ', 'bước nhảy', 'tích lũy', 'chuyển hóa'],
+        suggestedDifficulty: 3,
+        suggestedQuestionCount: 10,
+        displayOrder: 5
+    },
+    {
+        name: 'quy_luat_phu_dinh',
+        title: 'Quy luật phủ định của phủ định',
+        description: 'Quy luật về sự phát triển theo hình xoắn ốc của sự vật, hiện tượng',
+        keywords: ['phủ định', 'khẳng định', 'xoắn ốc', 'phát triển', 'tiến bộ', 'tương lai'],
+        suggestedDifficulty: 4,
+        suggestedQuestionCount: 10,
+        displayOrder: 6
+    },
+    {
+        name: 'con_nguoi_va_xa_hoi',
+        title: 'Con người và xã hội',
+        description: 'Quan niệm Mác-xít về bản chất con người và mối quan hệ cá nhân - xã hội',
+        keywords: ['con người', 'bản chất', 'xã hội', 'cá nhân', 'quan hệ xã hội', 'hoạt động'],
+        suggestedDifficulty: 2,
+        suggestedQuestionCount: 10,
+        displayOrder: 7
+    },
+    {
+        name: 'y_thuc_xa_hoi',
+        title: 'Ý thức xã hội',
+        description: 'Lý thuyết về ý thức xã hội, các hình thái ý thức xã hội và vai trò của chúng',
+        keywords: ['ý thức', 'tồn tại', 'hình thái', 'tư tưởng', 'văn hóa', 'tôn giáo'],
+        suggestedDifficulty: 3,
+        suggestedQuestionCount: 10,
+        displayOrder: 8
+    },
+    {
+        name: 'giai_cap_va_dau_tranh_giai_cap',
+        title: 'Giai cấp và đấu tranh giai cấp',
+        description: 'Lý thuyết về sự hình thành giai cấp và đấu tranh giai cấp trong xã hội',
+        keywords: ['giai cấp', 'đấu tranh', 'vô sản', 'tư sản', 'lợi ích', 'mâu thuẫn'],
+        suggestedDifficulty: 3,
+        suggestedQuestionCount: 10,
+        displayOrder: 9
+    },
+    {
+        name: 'nha_nuoc_va_cach_mang',
+        title: 'Nhà nước và cách mạng',
+        description: 'Quan niệm về nhà nước, cách mạng xã hội và sự chuyển đổi xã hội',
+        keywords: ['nhà nước', 'cách mạng', 'chuyên chính', 'dân chủ', 'quyền lực', 'chính trị'],
+        suggestedDifficulty: 4,
+        suggestedQuestionCount: 10,
         displayOrder: 10
     }
 ];
@@ -103,7 +113,7 @@ const defaultTopics = [
 // Hàm seed dữ liệu
 const seedTopics = async () => {
     try {
-        console.log('🌱 Đang seed dữ liệu chủ đề Marxist...');
+        console.log('🌱 Đang seed dữ liệu chủ đề triết học Mác-Lê-Nin...');
 
         // Tạo admin user giả để làm createdBy
         const fakeAdminId = new mongoose.Types.ObjectId();
@@ -159,7 +169,7 @@ const main = async () => {
     try {
         await connectDB();
         await seedTopics();
-        console.log('\n🎉 Hoàn thành seed dữ liệu!');
+        console.log('\n🎉 Hoàn thành seed dữ liệu triết học Mác-Lê-Nin!');
         process.exit(0);
     } catch (error) {
         console.error('❌ Script thất bại:', error);
@@ -172,4 +182,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     main();
 }
 
-export { seedTopics, defaultTopics }; 
+export { seedTopics, defaultTopics };
