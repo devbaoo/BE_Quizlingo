@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import geminiService from './geminiService.js';
+import multiAiService from './multiAiService.js';
 import Lesson from '../models/lesson.js';
 import Question from '../models/question.js';
 import MarxistLearningPath from '../models/marxistLearningPath.js';
@@ -12,6 +13,8 @@ import Skill from '../models/skill.js';
 import NotificationService from './notificationService.js';
 import UserPackage from '../models/userPackage.js';
 import moment from 'moment-timezone';
+import generationRateLimiter from '../middleware/rateLimiter.js';
+import cacheService from './cacheService.js';
 
 // Import lives management từ lessonService
 import { checkAndRegenerateLives } from './lessonService.js';
@@ -29,12 +32,15 @@ const getRequiredXpForLevel = (level) => {
 // Mutex để tránh concurrent generation cho cùng 1 user
 const generatingUsers = new Set();
 
-// Hàm lấy tất cả chủ đề Marxist từ database
+// Hàm lấy tất cả chủ đề Marxist từ database (với caching)
 const getAllMarxistTopics = async () => {
     try {
-        const topics = await MarxistTopic.find({ isActive: true })
-            .sort({ displayOrder: 1, createdAt: 1 });
-        return topics;
+        return await cacheService.getOrSetMarxistTopics(async () => {
+            const topics = await MarxistTopic.find({ isActive: true })
+                .sort({ displayOrder: 1, createdAt: 1 });
+            console.log(`📚 Loaded ${topics.length} Marxist topics from database`);
+            return topics;
+        });
     } catch (error) {
         console.error('Error getting Marxist topics:', error);
         return [];
@@ -78,7 +84,7 @@ const analyzeUserProgress = async (userId) => {
             return {
                 recommendedTopic: firstTopic,
                 difficultyLevel: allTopics[0].suggestedDifficulty || 1,
-                reason: 'Người học mới bắt đầu với kinh tế chính trị Mác-Lê-Nin'
+                reason: 'Người học mới bắt đầu với triết học Mác-Lê-Nin'
             };
         }
 
@@ -137,27 +143,35 @@ const analyzeUserProgress = async (userId) => {
 };
 
 /**
- * Generate câu hỏi về kinh tế chính trị Mác-Lê-Nin
+ * Generate câu hỏi về triết học Mác-Lê-Nin với Rate Limiting
  * @param {string} userId - User ID
  * @param {Object} options - Generation options
  * @returns {Object} Generated lesson
  */
 const generateMarxistLesson = async (userId, options = {}) => {
-    // Kiểm tra xem user đang generate lesson khác không
-    if (generatingUsers.has(userId)) {
-        console.warn(`⚠️ User ${userId} đang generate lesson khác, bỏ qua request này`);
-        return {
-            success: false,
-            statusCode: 429,
-            message: 'Đang tạo bài học khác, vui lòng chờ...',
-            generating: true
-        };
+    console.log(`🚀 Request to generate Marxist lesson for user ${userId}`);
+
+    // Sử dụng Rate Limiter thay vì simple mutex
+    try {
+        return await generationRateLimiter.requestGeneration(userId, async () => {
+            return await _generateMarxistLessonInternal(userId, options);
+        });
+    } catch (rateLimitError) {
+        console.warn(`⚠️ Rate limit error for user ${userId}:`, rateLimitError.message);
+        return rateLimitError;
     }
+};
+
+/**
+ * Internal function để generate lesson (được gọi bởi rate limiter)
+ * @param {string} userId - User ID
+ * @param {Object} options - Generation options
+ * @returns {Object} Generated lesson
+ */
+const _generateMarxistLessonInternal = async (userId, options = {}) => {
 
     try {
-        // Lock user để tránh concurrent generation
-        generatingUsers.add(userId);
-        console.log(`🔒 Locked user ${userId} for lesson generation`);
+        console.log(`🔄 Generating lesson for user ${userId} (within rate limit)`);
 
         const user = await User.findById(userId);
         if (!user) {
@@ -168,8 +182,10 @@ const generateMarxistLesson = async (userId, options = {}) => {
             };
         }
 
-        // Phân tích tiến độ học tập
-        const analysis = await analyzeUserProgress(userId);
+        // Phân tích tiến độ học tập (với caching)
+        const analysis = await cacheService.getOrSetUserProgress(userId, async (userId) => {
+            return await analyzeUserProgress(userId);
+        });
         let topicId = options.topic || analysis.recommendedTopic;
         const difficulty = options.difficulty || analysis.difficultyLevel;
 
@@ -198,18 +214,21 @@ const generateMarxistLesson = async (userId, options = {}) => {
 
         // Xây dựng prompt cho Gemini
         const prompt = `
-Bạn là chuyên gia về kinh tế chính trị Mác-Lê-Nin. Hãy tạo 30 câu hỏi trắc nghiệm về chủ đề "${topicInfo.title}" với độ khó cấp độ ${difficulty}/5.
+Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Hãy tạo 10 câu hỏi trắc nghiệm về chủ đề "${topicInfo.title}" với độ khó cấp độ ${difficulty}/5.
+
+⚠️ QUAN TRỌNG: CHỈ TẬP TRUNG VÀO TRIẾT HỌC MÁC-LÊ-NIN, KHÔNG PHẢI KINH TẺ CHÍNH TRỊ!
 
 Chủ đề: ${topicInfo.title}
 Mô tả: ${topicInfo.description}
 Từ khóa quan trọng: ${topicInfo.keywords.join(', ')}
 
 Yêu cầu:
-- Đúng 30 câu hỏi trắc nghiệm (multiple choice)
+- Đúng 10 câu hỏi trắc nghiệm (multiple choice)
 - Mỗi câu có 4 đáp án (A, B, C, D)
-- Nội dung chính xác theo lý thuyết Mác-Lê-Nin
+- Nội dung CHỈ VỀ TRIẾT HỌC Mác-Lê-Nin (duy vật biện chứng, nhận thức luận, quy luật triết học)
+- KHÔNG hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
 - Độ khó phù hợp với cấp độ ${difficulty}
-- Câu hỏi đa dạng: lý thuyết, ứng dụng, phân tích
+- Câu hỏi về: quy luật, phương pháp luận, nhận thức, thực tiễn, ý thức
 - Thời gian làm mỗi câu: 45 giây
 
 ⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
@@ -235,12 +254,25 @@ Yêu cầu:
         if (process.env.SKIP_GEMINI === 'true') {
             console.warn('🚧 SKIP_GEMINI enabled - creating demo lesson...');
 
-            // Tạo demo lesson với 30 câu hỏi để user có thể test đầy đủ
+            // Tạo demo lesson với 10 câu hỏi triết học để user có thể test đầy đủ
             const demoQuestions = [];
-            for (let i = 1; i <= 30; i++) {
+            const philosophyDemoQuestions = [
+                "Theo triết học Mác-Lê-Nin, quy luật cơ bản của duy vật biện chứng là gì?",
+                "Theo ${topicInfo.title}, mối quan hệ giữa nhận thức và thực tiễn như thế nào?",
+                "Quy luật thống nhất và đấu tranh của các mặt đối lập thể hiện điều gì?",
+                "Theo duy vật lịch sử, cơ sở hạ tầng và kiến trúc thượng tầng có mối quan hệ ra sao?",
+                "Chân lý trong triết học Mác-Lê-Nin có đặc điểm gì?",
+                "Quy luật lượng chất thể hiện quy luật nào của sự phát triển?",
+                "Theo nhận thức luận Mác-xít, vai trò của thực tiễn là gì?",
+                "Quy luật phủ định của phủ định giải thích điều gì?",
+                "Theo triết học Mác-Lê-Nin, ý thức xã hội được quy định bởi điều gì?",
+                "Bản chất con người theo quan niệm Mác-xít là gì?"
+            ];
+
+            for (let i = 1; i <= 10; i++) {
                 demoQuestions.push({
                     type: "multiple_choice",
-                    content: `Câu ${i}: Theo ${topicInfo.title}, điều nào sau đây đúng? (Demo khi Gemini API không khả dụng)`,
+                    content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] || `Theo triết học ${topicInfo.title}, điều nào sau đây đúng?`} (Demo)`,
                     options: [
                         `A. Đáp án A của câu ${i}`,
                         `B. Đáp án B của câu ${i}`,
@@ -258,22 +290,40 @@ Yêu cầu:
                 questions: demoQuestions
             };
 
-            console.log('📝 Creating demo lesson with 30 questions...');
+            console.log('📝 Creating demo lesson with 10 questions...');
 
         } else {
-            console.log('🔄 Generating Marxist lesson with Gemini...');
-            const geminiResult = await geminiService.generateJsonContent(prompt);
+            console.log('🔄 Generating Marxist lesson with Multi-AI (Gemini + DeepSeek)...');
+            const aiResult = await multiAiService.generateJsonContent(prompt, {
+                strategy: 'weighted', // Load balance between Gemini and DeepSeek
+                maxRetries: 3,
+                maxProviderRetries: 2
+            });
 
-            if (!geminiResult.success) {
-                // Nếu Gemini API thất bại, tạo demo lesson để không block user
-                console.warn('⚠️ Gemini API failed, creating demo lesson...');
+            if (!aiResult.success) {
+                // Nếu tất cả AI APIs thất bại, tạo demo lesson để không block user
+                console.warn('⚠️ All AI APIs failed, creating demo lesson...');
+                console.log('AI failure details:', aiResult.loadBalancer);
 
-                // Tạo demo lesson với 30 câu hỏi để user có thể test đầy đủ
+                // Tạo demo lesson với 10 câu hỏi triết học để user có thể test đầy đủ
                 const demoQuestions = [];
-                for (let i = 1; i <= 30; i++) {
+                const philosophyDemoQuestions = [
+                    "Theo triết học Mác-Lê-Nin, quy luật cơ bản của duy vật biện chứng là gì?",
+                    "Theo ${topicInfo.title}, mối quan hệ giữa nhận thức và thực tiễn như thế nào?",
+                    "Quy luật thống nhất và đấu tranh của các mặt đối lập thể hiện điều gì?",
+                    "Theo duy vật lịch sử, cơ sở hạ tầng và kiến trúc thượng tầng có mối quan hệ ra sao?",
+                    "Chân lý trong triết học Mác-Lê-Nin có đặc điểm gì?",
+                    "Quy luật lượng chất thể hiện quy luật nào của sự phát triển?",
+                    "Theo nhận thức luận Mác-xít, vai trò của thực tiễn là gì?",
+                    "Quy luật phủ định của phủ định giải thích điều gì?",
+                    "Theo triết học Mác-Lê-Nin, ý thức xã hội được quy định bởi điều gì?",
+                    "Bản chất con người theo quan niệm Mác-xít là gì?"
+                ];
+
+                for (let i = 1; i <= 10; i++) {
                     demoQuestions.push({
                         type: "multiple_choice",
-                        content: `Câu ${i}: Theo ${topicInfo.title}, điều nào sau đây đúng? (Demo khi Gemini API không khả dụng)`,
+                        content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] || `Theo triết học ${topicInfo.title}, điều nào sau đây đúng?`} (Demo)`,
                         options: [
                             `A. Đáp án A của câu ${i}`,
                             `B. Đáp án B của câu ${i}`,
@@ -293,8 +343,17 @@ Yêu cầu:
 
                 console.log('📝 Creating demo lesson with generated questions...');
             } else {
-                lessonData = geminiResult.data;
-                console.log('✅ Using Gemini-generated lesson data');
+                lessonData = aiResult.data;
+                console.log(`✅ Using AI-generated lesson data from ${aiResult.provider}`);
+
+                // Log load balancer stats
+                if (aiResult.loadBalancer) {
+                    console.log('📊 Load balancer stats:', {
+                        provider: aiResult.provider,
+                        strategy: aiResult.loadBalancer.strategy,
+                        totalProviders: aiResult.loadBalancer.totalProviders
+                    });
+                }
             }
         }
 
@@ -319,20 +378,20 @@ Yêu cầu:
             };
         }
 
-        // Warn nếu không phải 30 câu nhưng vẫn cho phép tạo
-        if (lessonData.questions.length !== 30) {
-            console.warn(`⚠️ Expected 30 questions, got ${lessonData.questions.length}`);
+        // Warn nếu không phải 10 câu nhưng vẫn cho phép tạo
+        if (lessonData.questions.length !== 10) {
+            console.warn(`⚠️ Expected 10 questions, got ${lessonData.questions.length}`);
         }
 
         // Tìm hoặc tạo Topic, Level, Skill với error handling
         console.log('📋 Finding or creating Topic, Level, Skill...');
 
-        let topicDoc = await Topic.findOne({ name: 'Marxist Economics' });
+        let topicDoc = await Topic.findOne({ name: 'Marxist Philosophy' });
         if (!topicDoc) {
-            console.log('🔧 Creating Marxist Economics topic...');
+            console.log('🔧 Creating Marxist Philosophy topic...');
             topicDoc = await Topic.create({
-                name: 'Marxist Economics',
-                description: 'Kinh tế chính trị Mác-Lê-Nin',
+                name: 'Marxist Philosophy',
+                description: 'Triết học Mác-Lê-Nin: duy vật biện chứng, nhận thức luận, quy luật triết học',
                 isActive: true
             });
         }
@@ -353,19 +412,19 @@ Yêu cầu:
                 minUserLevel: 1,
                 minLessonPassed: 0,
                 maxScore: 3000,
-                timeLimit: 2250, // 45s * 50 câu
+                timeLimit: 450, // 45s * 10 câu
                 isActive: true
             });
 
             console.log(`✅ Created level with order: ${nextOrder}`);
         }
 
-        let skillDoc = await Skill.findOne({ name: 'marxist_theory' });
+        let skillDoc = await Skill.findOne({ name: 'marxist_philosophy' });
         if (!skillDoc) {
-            console.log('🔧 Creating marxist_theory skill...');
+            console.log('🔧 Creating marxist_philosophy skill...');
             skillDoc = await Skill.create({
-                name: 'marxist_theory',
-                description: 'Lý thuyết Mác-Lê-Nin',
+                name: 'marxist_philosophy',
+                description: 'Triết học Mác-Lê-Nin: phương pháp luận, nhận thức luận, quy luật biện chứng',
                 supportedTypes: ['multiple_choice'],
                 isActive: true
             });
@@ -467,15 +526,15 @@ Yêu cầu:
         // Gửi notification
         await NotificationService.createNotification(userId, {
             title: '📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!',
-            message: `AI đã tạo bài học về "${topicInfo.title}" với 30 câu hỏi. Hãy vào học ngay!`,
+            message: `AI đã tạo bài học về "${topicInfo.title}" với 10 câu hỏi. Hãy vào học ngay!`,
             type: 'ai_generated',
-            link: '/marxist-economics'
+            link: '/marxist-philosophy'
         });
 
         return {
             success: true,
             statusCode: 201,
-            message: 'Tạo bài học kinh tế chính trị Mác-Lê-Nin thành công',
+            message: 'Tạo bài học triết học Mác-Lê-Nin thành công',
             lesson: {
                 lessonId: lesson._id,
                 title: lesson.title,
@@ -498,16 +557,8 @@ Yêu cầu:
         };
 
     } catch (error) {
-        console.error('Error generating Marxist lesson:', error);
-        return {
-            success: false,
-            statusCode: 500,
-            message: 'Lỗi khi tạo bài học: ' + error.message
-        };
-    } finally {
-        // Luôn unlock user sau khi hoàn thành
-        generatingUsers.delete(userId);
-        console.log(`🔓 Unlocked user ${userId} after lesson generation`);
+        console.error('Error in _generateMarxistLessonInternal:', error);
+        throw error; // Re-throw để rate limiter xử lý
     }
 };
 
@@ -526,7 +577,7 @@ const getMarxistLearningPath = async (userId, options = {}) => {
         let total = await MarxistLearningPath.countDocuments({ userId });
 
         // ❌ REMOVED: Auto-generation moved to client-side to prevent duplicate lessons
-        // Client should explicitly call POST /marxist-economics/generate-lesson when needed
+        // Client should explicitly call POST /marxist-philosophy/generate-lesson when needed
         if (total === 0) {
             console.log('📋 User mới chưa có bài học Marxist. Client cần gọi generate-lesson API.');
 
@@ -627,7 +678,7 @@ const getMarxistLearningPath = async (userId, options = {}) => {
 };
 
 /**
- * Hoàn thành bài học kinh tế chính trị Mác-Lê-Nin với lives system
+ * Hoàn thành bài học triết học Mác-Lê-Nin với lives system
  * @param {string} userId - User ID  
  * @param {string} lessonId - Lesson ID
  * @param {number} score - Điểm số (0-100)
@@ -833,7 +884,7 @@ const completeMarxistLesson = async (userId, lessonId, score, questionResults = 
 };
 
 /**
- * Làm lại bài học kinh tế chính trị Mác-Lê-Nin
+ * Làm lại bài học triết học Mác-Lê-Nin
  * @param {string} userId - User ID
  * @param {string} lessonId - Lesson ID  
  * @param {string} pathId - Learning Path ID (optional)
@@ -1023,4 +1074,4 @@ export default {
     retryMarxistLesson,
     getMarxistStats,
     getAllMarxistTopics
-}; 
+};

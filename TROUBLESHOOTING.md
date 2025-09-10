@@ -29,7 +29,7 @@ Thêm vào `.env`:
 SKIP_GEMINI=true
 ```
 
-Hệ thống sẽ tạo demo lessons với 30 câu hỏi thay vì gọi Gemini.
+Hệ thống sẽ tạo demo lessons với 10 câu hỏi thay vì gọi Gemini.
 
 ### **2. Đợi và thử lại sau**
 
@@ -37,7 +37,7 @@ Google Gemini thường phục hồi trong 5-15 phút:
 
 ```bash
 # Test kết nối
-GET /api/marxist-economics/test-gemini
+GET /api/marxist-philosophy/test-gemini
 ```
 
 ### **3. Thay đổi API Key**
@@ -97,7 +97,7 @@ npm run seed:marxist
 4. **Test system:**
 
 ```bash
-GET /api/marxist-economics/learning-path
+GET /api/marxist-philosophy/learning-path
 # Sẽ tạo demo lesson tự động
 ```
 
@@ -110,14 +110,14 @@ GET /api/marxist-economics/learning-path
 ```
 🤖 Trying model: gemini-1.5-flash
 ✅ gemini-1.5-flash success on attempt 1
-📝 Created lesson với 30 câu hỏi
+📝 Created lesson với 10 câu hỏi
 ```
 
 ### **Fallback logs:**
 
 ```
 ⚠️ Gemini API failed, creating demo lesson...
-📝 Creating demo lesson với 30 câu hỏi
+📝 Creating demo lesson với 10 câu hỏi
 ✅ Demo lesson created successfully
 ```
 
@@ -146,7 +146,7 @@ GET /api/marxist-economics/learning-path
 
 1. Set `SKIP_GEMINI=true`
 2. Seed topics: `npm run seed:marxist`
-3. Test: `GET /api/marxist-economics/learning-path`
+3. Test: `GET /api/marxist-philosophy/learning-path`
 4. Demo lessons sẽ hoạt động 100%
 
 ### **Contact Support:**

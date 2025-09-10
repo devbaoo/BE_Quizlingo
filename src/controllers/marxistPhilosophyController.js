@@ -1,4 +1,7 @@
 import marxistPhilosophyService from '../services/marxistPhilosophyService.js';
+import generationRateLimiter from '../middleware/rateLimiter.js';
+import cacheService from '../services/cacheService.js';
+import multiAiService from '../services/multiAiService.js';
 
 /**
  * Tạo bài học triết học Mác-Lê-Nin mới
@@ -378,12 +381,15 @@ const testGemini = async (req, res) => {
         }
 
         // Test generating actual Marxist question
-        const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về Triết học Mác-Lê-Nin:
+        const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về TRIẾT HỌC Mác-Lê-Nin:
 
-Chủ đề: Lý thuyết nhận thức duy vật
+⚠️ QUAN TRỌNG: CHỈ VỀ TRIẾT HỌC, KHÔNG PHẢI KINH TẺ!
+
+Chủ đề: Duy vật biện chứng - Quy luật mâu thuận
 Yêu cầu: 
 - 1 câu hỏi multiple choice với 4 đáp án A,B,C,D
-- Nội dung chính xác theo triết học Marx
+- Nội dung CHỈ VỀ triết học Mác-Lê-Nin (quy luật, phương pháp luận, nhận thức)
+- KHÔNG hỏi về kinh tế, giá trị, tư bản, bóc lột
 - Format JSON
 
 Trả về JSON:
@@ -415,6 +421,107 @@ Trả về JSON:
     }
 };
 
+/**
+ * Lấy thống kê Rate Limiter (Admin only)
+ * GET /api/marxist-philosophy/rate-limiter-stats
+ */
+const getRateLimiterStats = async (req, res, next) => {
+    try {
+        const rateLimiterStats = generationRateLimiter.getStats();
+        const cacheStats = cacheService.getStats();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Thống kê hiệu năng hệ thống',
+            data: {
+                rateLimiter: {
+                    ...rateLimiterStats,
+                    description: 'AI Generation Rate Limiting Status'
+                },
+                cache: {
+                    ...cacheStats,
+                    description: 'In-memory Cache Status'
+                },
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Get rate limiter stats error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy thống kê rate limiter',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Test tất cả AI connections (Admin only)
+ * GET /api/marxist-philosophy/test-all-ai
+ */
+const testAllAiConnections = async (req, res, next) => {
+    try {
+        console.log('🔍 Testing all AI connections...');
+
+        const result = await multiAiService.testAllConnections();
+
+        return res.status(result.success ? 200 : 503).json({
+            success: result.success,
+            message: result.message,
+            data: {
+                ...result,
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Test all AI connections error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi test AI connections',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Lấy thống kê Multi-AI Service (Admin only)
+ * GET /api/marxist-philosophy/multi-ai-stats
+ */
+const getMultiAiStats = async (req, res, next) => {
+    try {
+        const multiAiStats = multiAiService.getStats();
+        const rateLimiterStats = generationRateLimiter.getStats();
+        const cacheStats = cacheService.getStats();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Thống kê Multi-AI Service',
+            data: {
+                multiAi: {
+                    ...multiAiStats,
+                    description: 'Load balancing between Gemini and DeepSeek'
+                },
+                rateLimiter: {
+                    ...rateLimiterStats,
+                    description: 'AI Generation Rate Limiting Status'
+                },
+                cache: {
+                    ...cacheStats,
+                    description: 'In-memory Cache Status'
+                },
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Get multi-AI stats error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy thống kê multi-AI',
+            error: error.message
+        });
+    }
+};
+
 export default {
     generateLesson,
     getLearningPath,
@@ -425,5 +532,8 @@ export default {
     getTopics,
     analyzeProgress,
     testGeminiConnection,
-    testGemini
+    testGemini,
+    getRateLimiterStats,
+    testAllAiConnections,
+    getMultiAiStats
 }; 

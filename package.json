@@ -7,7 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon --exec npx babel-node src/server.js",
-    "seed:marxist": "node src/scripts/seedMarxistTopics.js"
+    "seed:marxist": "node src/scripts/seedMarxistTopics.js",
+    "clear:marxist": "node src/scripts/clearOldMarxistTopics.js"
   },
   "author": "",
   "license": "ISC",

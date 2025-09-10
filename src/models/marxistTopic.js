@@ -37,7 +37,7 @@ const marxistTopicSchema = new mongoose.Schema({
         type: Number,
         min: 10,
         max: 50,
-        default: 30
+        default: 10
     },
     // Chủ đề có đang hoạt động không
     isActive: {
