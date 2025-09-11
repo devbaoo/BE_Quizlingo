@@ -192,7 +192,7 @@ const createPackagePurchase = async (userId, packageId, paymentMethod) => {
     const paymentResult = await paymentService.createPaymentUrl({
       orderCode, // Sử dụng orderCode số
       amount: Math.round(finalPrice), // PayOS yêu cầu số tiền là số nguyên
-      description: `Mua gói ${packageData.name} - QuizLingo`,
+      description: `Mua gói ${packageData.name} - Marxedu`,
       expiredAt: moment().add(15, "minutes").unix(), // Link thanh toán hết hạn sau 15 phút
     });
 

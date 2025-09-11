@@ -6,50 +6,76 @@ services:
     build: .
     container_name: quizlingo-backend
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:${PORT:-8080}"
     env_file:
       - .env
     environment:
       # Server Configuration
-      - PORT=8080
+      - PORT=${PORT:-8080}
       - NODE_ENV=${NODE_ENV:-development}
       - HOST=${HOST:-0.0.0.0}
 
       # MongoDB Configuration
-      - MONGODB_URI=mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-password}@mongodb:27017/${MONGODB_DATABASE:-quizlingo}?authSource=admin
-      - MONGODB_DATABASE=${MONGODB_DATABASE:-quizlingo}
+      - MONGO_URI=${MONGO_URI}
 
       # JWT Configuration
       - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-30d}
+
+      # AI Configuration
+      - SKIP_GEMINI=${SKIP_GEMINI:-false}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL}
+      - GEMINI_API_URL=${GEMINI_API_URL}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_URL=${GROQ_API_URL}
+
+      # Base URL
+      - BASE_URL=${BASE_URL}
+
+      # reCAPTCHA Configuration
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY}
+      - RECAPTCHA_SITE_KEY=${RECAPTCHA_SITE_KEY}
 
       # Cloudinary Configuration
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
-      - CLOUDINARY_FOLDER=${CLOUDINARY_FOLDER:-quizlingo}
 
       # Email Configuration
-      - EMAIL_SERVICE=${EMAIL_SERVICE:-gmail}
+      - EMAIL_SERVICE=${EMAIL_SERVICE}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_FROM=${EMAIL_FROM:-Quizlingo <noreply@quizlingo.com>}
 
       # Frontend Configuration
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - FRONTEND_URL=${FRONTEND_URL}
 
-      # Other Configuration
-      - TIMEZONE=${TIMEZONE:-Asia/Ho_Chi_Minh}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - API_PREFIX=${API_PREFIX:-/api/v1}
+      # AssemblyAI Configuration
+      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY}
+      - ASSEMBLYAI_UPLOAD_URL=${ASSEMBLYAI_UPLOAD_URL}
+      - ASSEMBLYAI_TRANSCRIPT_URL=${ASSEMBLYAI_TRANSCRIPT_URL}
+
+      # Notification Configuration
+      - NOTIFICATION_SMTP_HOST=${NOTIFICATION_SMTP_HOST}
+      - NOTIFICATION_SMTP_PORT=${NOTIFICATION_SMTP_PORT}
+      - NOTIFICATION_SMTP_SECURE=${NOTIFICATION_SMTP_SECURE}
+      - NOTIFICATION_SMTP_USER=${NOTIFICATION_SMTP_USER}
+      - NOTIFICATION_SMTP_PASS=${NOTIFICATION_SMTP_PASS}
+      - NOTIFICATION_SMTP_FROM=${NOTIFICATION_SMTP_FROM}
+
+      # PayOS Configuration
+      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
+      - PAYOS_API_KEY=${PAYOS_API_KEY}
+      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
+      - PAYOS_BASE_URL=${PAYOS_BASE_URL}
+      - PAYOS_RETURN_URL=${PAYOS_RETURN_URL}
+      - PAYOS_CANCEL_URL=${PAYOS_CANCEL_URL}
+      - PAYOS_WEBHOOK_URL=${PAYOS_WEBHOOK_URL}
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
-    depends_on:
-      - mongodb
     networks:
       - quizlingo-network
     restart: unless-stopped
@@ -61,30 +87,8 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:8080/api/v1/health",
+          "http://localhost:${PORT:-8080}/api/health",
         ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # MongoDB service
-  mongodb:
-    image: mongo:latest
-    container_name: quizlingo-mongodb
-    ports:
-      - "${MONGODB_PORT:-27017}:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=${MONGODB_DATABASE:-quizlingo}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-admin}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - quizlingo-network
-    restart: unless-stopped
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 30s
       timeout: 10s
       retries: 3
@@ -93,6 +97,3 @@ services:
 networks:
   quizlingo-network:
     driver: bridge
-
-volumes:
-  mongodb_data:
