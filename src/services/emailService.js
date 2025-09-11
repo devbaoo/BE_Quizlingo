@@ -45,7 +45,7 @@ const sendVerificationEmail = async (user, baseUrl) => {
 
     // Thông tin người nhận
     const mailOptions = {
-      from: `"QuizLingo" <${process.env.EMAIL_USER}>`,
+      from: `"MarxEdu" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: emailContent.subject,
       html: emailContent.html,
@@ -97,7 +97,7 @@ const verifyEmail = async (token) => {
         success: false,
         statusCode: 404,
         message: "Không tìm thấy người dùng",
-      };  
+      };
     }
 
     // Xóa token sau khi đã sử dụng
@@ -157,7 +157,7 @@ const sendResetPasswordEmail = async (user, baseUrl) => {
 
     // Thông tin người nhận
     const mailOptions = {
-      from: `"QuizLingo" <${process.env.EMAIL_USER}>`,
+      from: `"MarxEdu" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: emailContent.subject,
       html: emailContent.html,

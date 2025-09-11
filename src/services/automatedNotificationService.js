@@ -136,23 +136,23 @@ class AutomatedNotificationService {
       };
     } else if (daysInactive <= 3) {
       return {
-        title: "⏰ Nhớ học tiếng Anh đều đặn nhé!",
+        title: "⏰ Nhớ học Triết học đều đặn nhé!",
         message: `Chào ${name}! Bạn đã không học ${daysInactive} ngày rồi. Chỉ cần 10 phút mỗi ngày để duy trì kỹ năng! 💪`,
       };
     } else if (daysInactive <= 7) {
       return {
         title: "🎯 Hãy quay lại học tập!",
-        message: `${name} ơi! Đã ${daysInactive} ngày bạn chưa học. Đừng để kỹ năng tiếng Anh bị "gỉ" nhé! Quay lại ngay thôi! ⭐`,
+        message: `${name} ơi! Đã ${daysInactive} ngày bạn chưa học. Đừng để kỹ năng Triết học bị "gỉ" nhé! Quay lại ngay thôi! ⭐`,
       };
     } else if (daysInactive <= 14) {
       return {
-        title: "💔 Quizlingo nhớ bạn!",
-        message: `${name} à! ${daysInactive} ngày rồi bạn không ghé thăm. Hãy quay lại để tiếp tục hành trình học tiếng Anh của mình! 🌟`,
+        title: "💔 MarxEdu nhớ bạn!",
+        message: `${name} à! ${daysInactive} ngày rồi bạn không ghé thăm. Hãy quay lại để tiếp tục hành trình học Triết học của mình! 🌟`,
       };
     } else {
       return {
         title: "🌟 Chúng mình đang chờ bạn!",
-        message: `Chào ${name}! Dù đã lâu rồi (${daysInactive} ngày), nhưng chưa bao giờ là quá muộn để bắt đầu lại. Hãy cùng học tiếng Anh nhé! 🚀`,
+        message: `Chào ${name}! Dù đã lâu rồi (${daysInactive} ngày), nhưng chưa bao giờ là quá muộn để bắt đầu lại. Hãy cùng học Triết học nhé! 🚀`,
       };
     }
   }
