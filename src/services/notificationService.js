@@ -172,10 +172,10 @@ class NotificationService {
                     <tr>
                       <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
                         <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                          🐧 Quizlingo
+                          🐧 MarxEdu
                         </h1>
                         <p style="color:rgb(10, 10, 10); font-size: 16px; margin: 0; font-weight: 600;">
-                          Học tiếng Anh thông minh mỗi ngày
+                          Học Triết học thông minh mỗi ngày
                         </p>
                       </td>
                     </tr>
@@ -195,7 +195,7 @@ class NotificationService {
                         
                         <!-- Call to Action Button -->
                         <div style="text-align: center; margin: 30px 0;">
-                          <a href="https://quizlingo.netlify.app/learn" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                          <a href="https://marx-edu.netlify.app/philosophy" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
                             🚀 Bắt đầu học ngay
                           </a>
                         </div>                       
@@ -206,8 +206,8 @@ class NotificationService {
                     <tr>
                       <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                         <p style="color:rgb(0, 0, 0); font-size: 14px; margin: 10px 0;">
-                          <strong>Quizlingo Team</strong><br>
-                          Cùng bạn chinh phục tiếng Anh mỗi ngày! 🌟
+                          <strong>MarxEdu Team</strong><br>
+                          Cùng bạn chinh phục Triết học mỗi ngày! 🌟
                         </p>
                         
                         <!-- Social media icons placeholder -->
@@ -469,7 +469,7 @@ class NotificationService {
                           ${headerEmoji}
                         </div>
                         <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                          Quizlingo
+                          MarxEdu
                         </h1>
                         <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 500;">
                           ${motivationText}
@@ -502,7 +502,7 @@ class NotificationService {
                         
                         <!-- Call to Action Button -->
                         <div style="text-align: center; margin: 30px 0;">
-                          <a href="https://quizlingo.netlify.app/learn" style="display: inline-block; background: linear-gradient(135deg, ${gradientColors}); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                          <a href="https://marx-edu.netlify.app/philosophy" style="display: inline-block; background: linear-gradient(135deg, ${gradientColors}); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
                             🚀 Bắt đầu học ngay
                           </a>
                         </div>
@@ -513,13 +513,13 @@ class NotificationService {
                     <tr>
                       <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                         <p style="color: #1e293b; font-size: 14px; margin: 10px 0;">
-                          <strong>💫 Quizlingo Team</strong><br>
-                          Cùng bạn chinh phục tiếng Anh mỗi ngày!
+                          <strong>💫 MarxEdu Team</strong><br>
+                          Cùng bạn chinh phục Triết học mỗi ngày!
                         </p>
 
                         
                         <p style="color: #334155; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
-                          Đây là email nhắc nhở học tập từ Quizlingo.<br>
+                          Đây là email nhắc nhở học tập từ MarxEdu.<br>
                         </p>
                       </td>
                     </tr>
