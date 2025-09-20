@@ -20,6 +20,8 @@ import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
 import topicController from "../controllers/topicController.js";
 import marxistPhilosophyController from "../controllers/marxistPhilosophyController.js";
 import marxistTopicController from "../controllers/marxistTopicController.js";
+import checkInController from "../controllers/checkInController.js";
+import surveyController from "../controllers/surveyController.js";
 
 const router = express.Router();
 
@@ -57,7 +59,12 @@ const initWebRoutes = (app) => {
 
   // User routes
   router.get("/user/profile", protect, userController.getUserProfile);
-  router.put("/user/profile", protect, upload.single("avatar"), userController.updateUserProfile);
+  router.put(
+    "/user/profile",
+    protect,
+    upload.single("avatar"),
+    userController.updateUserProfile
+  );
   router.post("/user/level", protect, userController.chooseLevel);
   router.post("/user/skill", protect, userController.chooseSkill);
   router.get("/user/lives-status", protect, userController.getUserLivesStatus);
@@ -371,6 +378,39 @@ const initWebRoutes = (app) => {
   );
   router.get("/leaderboard", protect, leaderboardController.getLeaderboard);
 
+  // Check-in routes
+  router.post("/check-in", protect, checkInController.dailyCheckIn);
+  router.get("/check-in/status", protect, checkInController.getCheckInStatus);
+
+  // Survey routes - Single survey approach
+  router.get("/survey", protect, surveyController.getActiveSurvey);
+  router.get(
+    "/survey/status",
+    protect,
+    surveyController.checkUserSurveyCompletion
+  );
+  router.post("/survey/submit", protect, surveyController.submitSurveyResponse);
+
+  // Admin/staff survey routes
+  router.post(
+    "/admin/survey",
+    protect,
+    authorize("admin", "staff"),
+    surveyController.updateMainSurvey
+  );
+  router.get(
+    "/admin/survey/versions",
+    protect,
+    authorize("admin", "staff"),
+    surveyController.getAllSurveyVersions
+  );
+  router.get(
+    "/admin/survey/statistics",
+    protect,
+    authorize("admin", "staff"),
+    surveyController.getSurveyStatistics
+  );
+
   // Topic routes
   router.post(
     "/topics",
@@ -474,14 +514,8 @@ const initWebRoutes = (app) => {
     authorize("staff"),
     marxistTopicController.createTopic
   );
-  router.get(
-    "/marxist-topics",
-    marxistTopicController.getTopics
-  );
-  router.get(
-    "/marxist-topics/:id",
-    marxistTopicController.getTopicById
-  );
+  router.get("/marxist-topics", marxistTopicController.getTopics);
+  router.get("/marxist-topics/:id", marxistTopicController.getTopicById);
   router.put(
     "/marxist-topics/:id",
     protect,
