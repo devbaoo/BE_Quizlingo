@@ -55,6 +55,30 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  lastCheckInDate: {
+    type: Date,
+    default: null,
+  },
+  consecutiveCheckIns: {
+    type: Number,
+    default: 0,
+  },
+  totalCheckIns: {
+    type: Number,
+    default: 0,
+  },
+  checkInRewards: {
+    type: [
+      {
+        day: Number,
+        claimed: Boolean,
+        rewardType: String,
+        rewardValue: Number,
+        claimedAt: Date,
+      },
+    ],
+    default: [],
+  },
   lives: {
     type: Number,
     default: 5,
@@ -100,13 +124,14 @@ const UserSchema = new mongoose.Schema({
     },
   },
   lastResetEmailSentAt: {
-    type: Date
+    type: Date,
   },
   loginAttempts: {
-    type: Number, default: 0
+    type: Number,
+    default: 0,
   },
   lastLoginAttempt: {
-    type: Date
+    type: Date,
   },
   createdAt: {
     type: Date,
