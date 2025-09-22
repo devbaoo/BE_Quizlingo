@@ -1,10 +1,10 @@
-# BE_Quizlingo
+# Marx-Edu Backend
 
 ## Overview | Tổng quan
 
-BE_Quizlingo is a backend service for a language learning application that provides quiz and learning features.
+Marx-Edu is a backend service for a Marxist philosophy learning application that provides AI-generated quiz and learning features.
 
-BE_Quizlingo là một dịch vụ backend cho ứng dụng học ngôn ngữ cung cấp các tính năng học tập và kiểm tra.
+Marx-Edu là một dịch vụ backend cho ứng dụng học triết học Mác-Lê-Nin cung cấp các tính năng học tập và kiểm tra được tạo bởi AI.
 
 ## Project Structure | Cấu trúc dự án
 
@@ -32,7 +32,7 @@ src/
 
 ```bash
 git clone <repository-url>
-cd BE_Quizlingo
+cd Marx-Edu
 ```
 
 2. Install dependencies | Cài đặt các dependency:
@@ -48,7 +48,7 @@ yarn install
 
 ```
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/quizlingo
+MONGODB_URI=mongodb://localhost:27017/marxedu
 JWT_SECRET=your_jwt_secret
 ```
 
@@ -151,7 +151,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongodb:27017/quizlingo
+      - MONGODB_URI=mongodb://mongodb:27017/marxedu
       - JWT_SECRET=your_jwt_secret
     depends_on:
       - mongodb
@@ -159,7 +159,7 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     networks:
-      - quizlingo-network
+      - marxedu-network
 
   mongodb:
     image: mongo:latest
@@ -168,10 +168,10 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - quizlingo-network
+      - marxedu-network
 
 networks:
-  quizlingo-network:
+  marxedu-network:
     driver: bridge
 
 volumes:

@@ -2,7 +2,7 @@
 
 ## Tổng Quan
 
-Hệ thống này được tích hợp vào BE_Quizlingo để tạo và quản lý bộ câu hỏi về triết học Mác-Lê-Nin sử dụng Google Gemini AI. Hệ thống tự động tạo ra 10 câu hỏi trắc nghiệm cho mỗi bài học và điều chỉnh độ khó dựa trên kết quả học tập của người dùng.
+Hệ thống này được tích hợp vào Marx-Edu để tạo và quản lý bộ câu hỏi về triết học Mác-Lê-Nin sử dụng Grok4 và Google Gemini AI. Hệ thống tự động tạo ra 10 câu hỏi trắc nghiệm cho mỗi bài học và điều chỉnh độ khó dựa trên kết quả học tập của người dùng.
 
 ## Tính Năng Chính
 

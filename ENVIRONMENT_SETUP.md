@@ -5,12 +5,17 @@
 Create a `.env` file in the project root with the following variables:
 
 ```bash
-# Gemini AI Configuration
+# Grok4 AI Configuration (Primary AI - 70%)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+SITE_URL=https://marx-edu.netlify.app
+SITE_NAME=Marx-Edu - Marxist Philosophy Learning
+
+# Gemini AI Configuration (Backup AI - 30%)
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-1.5-flash
 GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/models
 
-# Skip Gemini API for development (set to true to use demo lessons)
+# Skip AI for development (set to true to use demo lessons)
 SKIP_GEMINI=false
 ```
 
@@ -25,12 +30,17 @@ SKIP_GEMINI=false
 ### Option 2: Command Line (Windows)
 
 ```powershell
-echo "# Gemini AI Configuration
-GEMINI_API_KEY=your_api_key_here
+echo "# Grok4 AI Configuration (Primary AI - 70%)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+SITE_URL=https://marx-edu.netlify.app
+SITE_NAME=Marx-Edu - Marxist Philosophy Learning
+
+# Gemini AI Configuration (Backup AI - 30%)
+GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-1.5-flash
 GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/models
 
-# Skip Gemini API for development
+# Skip AI for development
 SKIP_GEMINI=false" > .env
 ```
 
@@ -38,30 +48,46 @@ SKIP_GEMINI=false" > .env
 
 ```bash
 cat > .env << 'EOF'
-# Gemini AI Configuration
-GEMINI_API_KEY=your_api_key_here
+# Grok4 AI Configuration (Primary AI - 70%)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+SITE_URL=https://marx-edu.netlify.app
+SITE_NAME=Marx-Edu - Marxist Philosophy Learning
+
+# Gemini AI Configuration (Backup AI - 30%)
+GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-1.5-flash
 GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/models
 
-# Skip Gemini API for development
+# Skip AI for development
 SKIP_GEMINI=false
 EOF
 ```
 
-## 🔑 Getting Gemini API Key
+## 🔑 Getting API Keys
+
+### Grok4 API Key (Primary - Required)
+
+1. Visit [OpenRouter](https://openrouter.ai/keys)
+2. Create a new API key
+3. Copy the key and paste it as `OPENROUTER_API_KEY` in your `.env` file
+
+### Gemini API Key (Backup - Required)
 
 1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Create a new API key
-3. Copy the key and paste it in your `.env` file
+3. Copy the key and paste it as `GEMINI_API_KEY` in your `.env` file
 
 ## ⚙️ Configuration Options
 
-| Variable         | Description              | Default               | Required |
-| ---------------- | ------------------------ | --------------------- | -------- |
-| `GEMINI_API_KEY` | Google Gemini API key    | -                     | ✅       |
-| `GEMINI_MODEL`   | Model to use             | `gemini-1.5-flash`    | ❌       |
-| `GEMINI_API_URL` | Base API URL             | Google's official URL | ❌       |
-| `SKIP_GEMINI`    | Use demo lessons instead | `false`               | ❌       |
+| Variable             | Description                   | Default                        | Required |
+| -------------------- | ----------------------------- | ------------------------------ | -------- |
+| `OPENROUTER_API_KEY` | OpenRouter API key for Grok4  | -                              | ✅       |
+| `SITE_URL`           | Your site URL for OpenRouter  | `https://marx-edu.netlify.app` | ❌       |
+| `SITE_NAME`          | Your site name for OpenRouter | `Marx-Edu`                     | ❌       |
+| `GEMINI_API_KEY`     | Google Gemini API key         | -                              | ✅       |
+| `GEMINI_MODEL`       | Gemini model to use           | `gemini-1.5-flash`             | ❌       |
+| `GEMINI_API_URL`     | Gemini base API URL           | Google's official URL          | ❌       |
+| `SKIP_GEMINI`        | Use demo lessons instead      | `false`                        | ❌       |
 
 ## 🧪 Testing Configuration
 
@@ -71,8 +97,9 @@ After setting up `.env`, test your configuration:
 # Start the server
 npm start
 
-# Test Gemini connection (admin only)
-GET /api/marxist-philosophy/test-connection
+# Test AI connections (admin only)
+GET /api/marxist-philosophy/test-all-ai
+GET /api/marxist-philosophy/multi-ai-stats
 ```
 
 ## 🚨 Important Notes
@@ -82,7 +109,16 @@ GET /api/marxist-philosophy/test-connection
 - **Use `SKIP_GEMINI=true`** for development without API costs
 - **Restart server** after changing `.env` variables
 
-## 🔄 Available Models
+## 🔄 Available AI Models
+
+### Grok4 Models (Primary AI)
+
+| Model                   | Speed        | Quality | Cost      |
+| ----------------------- | ------------ | ------- | --------- |
+| `x-ai/grok-4-fast:free` | ⚡ Very Fast | 🟢 Good | 💰 Free   |
+| `x-ai/grok-4-fast`      | ⚡ Very Fast | 🟢 Good | 💰💰 Paid |
+
+### Gemini Models (Backup AI)
 
 | Model                  | Speed   | Quality   | Cost        |
 | ---------------------- | ------- | --------- | ----------- |
@@ -92,21 +128,31 @@ GET /api/marxist-philosophy/test-connection
 
 ## 🛠️ Troubleshooting
 
+### Error: "OPENROUTER_API_KEY is missing"
+
+- Check if `.env` file exists in project root
+- Verify `OPENROUTER_API_KEY` is set correctly
+- Visit [OpenRouter](https://openrouter.ai/keys) to get API key
+- Restart the server after changes
+
 ### Error: "GEMINI_API_KEY is missing"
 
 - Check if `.env` file exists in project root
 - Verify `GEMINI_API_KEY` is set correctly
+- Visit [Google AI Studio](https://makersuite.google.com/app/apikey) to get API key
 - Restart the server after changes
 
 ### Error: "403 Forbidden"
 
 - API key might be invalid or expired
-- Check Google Cloud Console for billing/quota
+- For Grok4: Check OpenRouter account credits/limits
+- For Gemini: Check Google Cloud Console for billing/quota
 - Try generating a new API key
 
-### Error: "404 Not Found"
+### Error: "404 Not Found" or "Invalid model ID"
 
-- Check `GEMINI_MODEL` is correct
-- Verify `GEMINI_API_URL` format
+- Check model names are correct (`x-ai/grok-4-fast:free`, `gemini-1.5-flash`)
+- Verify API URLs format
+- For Grok4: Ensure using OpenRouter endpoint
 
 For more help, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
