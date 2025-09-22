@@ -1,28 +1,28 @@
 import geminiService from './geminiService.js';
-import deepseekService from './deepseekService.js';
+import grokService from './grokService.js';
 
 // Multi-AI Load Balancer Configuration
 const AI_PROVIDERS = [
     {
+        name: 'grok',
+        service: grokService,
+        priority: 1,
+        weight: 70, // 70% traffic (Grok4 is primary AI)
+        maxConcurrent: 15,
+        rateLimit: {
+            free: { requestsPerMinute: 100, requestsPerSecond: 5 }, // Grok4 free tier
+            paid: { requestsPerMinute: 500, requestsPerSecond: 25 }
+        }
+    },
+    {
         name: 'gemini',
         service: geminiService,
-        priority: 1,
-        weight: 70, // 70% traffic (prefer faster Gemini)
+        priority: 2,
+        weight: 30, // 30% traffic (Gemini is backup AI)
         maxConcurrent: 10,
         rateLimit: {
             free: { requestsPerMinute: 15, requestsPerSecond: 1 },
             paid: { requestsPerMinute: 300, requestsPerSecond: 20 }
-        }
-    },
-    {
-        name: 'deepseek',
-        service: deepseekService,
-        priority: 2,
-        weight: 30, // 30% traffic (backup/overflow)
-        maxConcurrent: 15,
-        rateLimit: {
-            free: { requestsPerMinute: 200, requestsPerSecond: 10 }, // DeepSeek free tier generous
-            paid: { requestsPerMinute: 1000, requestsPerSecond: 50 }
         }
     }
 ];
@@ -244,12 +244,22 @@ class MultiAiLoadBalancer {
 
                 const result = await provider.service.generateJsonContent(prompt);
 
-                if (result.success) {
+                // Normalize result: accept either plain JSON object or { success, data }
+                const isWrapped = result && typeof result === 'object' && ('success' in result || 'data' in result);
+                const data = isWrapped ? (result.data ?? result.content ?? result.result) : result;
+
+                if (!data) {
+                    const message = (isWrapped && result && result.message) ? result.message : 'Empty data returned';
+                    console.warn(`⚠️ ${provider.name} JSON failed:`, message);
+                    this.incrementFailure(provider.name);
+                    lastError = { success: false, message, provider: provider.name };
+                } else {
                     console.log(`✅ Successfully generated JSON with ${provider.name}`);
                     this.failureCount.set(provider.name, 0);
 
                     return {
-                        ...result,
+                        success: true,
+                        data,
                         provider: provider.name,
                         loadBalancer: {
                             strategy,
@@ -257,10 +267,6 @@ class MultiAiLoadBalancer {
                             totalProviders: attemptedProviders.size
                         }
                     };
-                } else {
-                    console.warn(`⚠️ ${provider.name} JSON failed:`, result.message);
-                    this.incrementFailure(provider.name);
-                    lastError = result;
                 }
 
             } catch (error) {
