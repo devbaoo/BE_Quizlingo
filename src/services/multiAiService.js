@@ -8,10 +8,10 @@ const AI_PROVIDERS = [
         service: grokService,
         priority: 1,
         weight: 70, // 70% traffic (Grok4 is primary AI)
-        maxConcurrent: 15,
+        maxConcurrent: 5, // Reduce concurrent requests for Grok4
         rateLimit: {
-            free: { requestsPerMinute: 100, requestsPerSecond: 5 }, // Grok4 free tier
-            paid: { requestsPerMinute: 500, requestsPerSecond: 25 }
+            free: { requestsPerMinute: 30, requestsPerSecond: 1 }, // Grok4 free tier - more conservative
+            paid: { requestsPerMinute: 200, requestsPerSecond: 10 }
         }
     },
     {
@@ -224,6 +224,7 @@ class MultiAiLoadBalancer {
     async generateJsonContent(prompt, options = {}) {
         const strategy = options.strategy || 'weighted';
         const maxProviderRetries = options.maxProviderRetries || 2;
+        const baseDelay = options.baseDelay || 1000; // Base delay for exponential backoff
 
         let lastError = null;
         let attemptedProviders = new Set();
@@ -273,6 +274,13 @@ class MultiAiLoadBalancer {
                 console.error(`❌ ${provider.name} JSON error:`, error.message);
                 this.incrementFailure(provider.name);
                 lastError = { success: false, message: error.message, provider: provider.name };
+
+                // Handle rate limiting with exponential backoff
+                if (error.message.includes('429') || error.message.includes('rate limit')) {
+                    const backoffDelay = baseDelay * Math.pow(2, providerAttempt - 1);
+                    console.log(`⏳ Rate limited by ${provider.name}, waiting ${backoffDelay}ms before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                }
             } finally {
                 this.decrementLoad(provider.name);
             }

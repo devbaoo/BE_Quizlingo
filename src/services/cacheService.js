@@ -68,6 +68,15 @@ class CacheService {
         };
     }
 
+    // Generic helper
+    async getOrSet(key, fetchFunction, ttl = this.defaultTTL) {
+        let value = this.get(key);
+        if (value !== null && value !== undefined) return value;
+        value = await fetchFunction();
+        if (value !== null && value !== undefined) this.set(key, value, ttl);
+        return value;
+    }
+
     // Specialized methods for common cached items
 
     async getOrSetMarxistTopics(fetchFunction) {
