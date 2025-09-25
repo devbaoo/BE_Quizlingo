@@ -19,6 +19,7 @@ import registerLimiter from "../middleware/registerLimiter.js";
 import forgotPasswordLimiter from "../middleware/forgotPasswordLimiter.js";
 import topicController from "../controllers/topicController.js";
 import marxistPhilosophyController from "../controllers/marxistPhilosophyController.js";
+import contentController from "../controllers/contentController.js";
 import marxistTopicController from "../controllers/marxistTopicController.js";
 import checkInController from "../controllers/checkInController.js";
 import surveyController from "../controllers/surveyController.js";
@@ -471,6 +472,23 @@ const initWebRoutes = (app) => {
     "/marxist-philosophy/analyze-progress",
     protect,
     marxistPhilosophyController.analyzeProgress
+  );
+
+  // Pre-study Content routes
+  router.post(
+    "/marxist-philosophy/content/generate",
+    protect,
+    contentController.generateContent
+  );
+  router.get(
+    "/marxist-philosophy/content/latest",
+    protect,
+    contentController.getLatestContent
+  );
+  router.post(
+    "/marxist-philosophy/lesson-from-content",
+    protect,
+    contentController.generateLessonFromContent
   );
   router.get(
     "/marxist-philosophy/test-connection",

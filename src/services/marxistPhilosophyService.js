@@ -11,6 +11,7 @@ import Level from "../models/level.js";
 import Topic from "../models/topic.js";
 import Skill from "../models/skill.js";
 import NotificationService from "./notificationService.js";
+import contentService from "./contentService.js";
 import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 import generationRateLimiter from "../middleware/rateLimiter.js";
@@ -31,6 +32,8 @@ const getRequiredXpForLevel = (level) => {
 
 // Mutex để tránh concurrent generation cho cùng 1 user
 const generatingUsers = new Set();
+// Flag để tránh tạo bài học khi đang trong background generation
+const backgroundGeneratingUsers = new Set();
 
 // Hàm lấy tất cả chủ đề Marxist từ database (với caching)
 const getAllMarxistTopics = async () => {
@@ -129,10 +132,10 @@ const analyzeUserProgress = async (userId) => {
       const weakestTopic =
         completedPaths.length > 0
           ? completedPaths.reduce((weakest, current) =>
-              !weakest || current.achievedScore < weakest.achievedScore
-                ? current
-                : weakest
-            )
+            !weakest || current.achievedScore < weakest.achievedScore
+              ? current
+              : weakest
+          )
           : null;
       recommendedTopic = weakestTopic
         ? weakestTopic.marxistTopic
@@ -143,9 +146,8 @@ const analyzeUserProgress = async (userId) => {
       recommendedTopic,
       difficultyLevel: newDifficulty,
       previousScore: Math.round(averageScore),
-      reason: `Dựa trên kết quả ${
-        completedPaths.length
-      } bài học gần nhất (điểm TB: ${Math.round(averageScore)})`,
+      reason: `Dựa trên kết quả ${completedPaths.length
+        } bài học gần nhất (điểm TB: ${Math.round(averageScore)})`,
     };
   } catch (error) {
     console.error("Error analyzing user progress:", error);
@@ -168,6 +170,16 @@ const analyzeUserProgress = async (userId) => {
  */
 const generateMarxistLesson = async (userId, options = {}) => {
   console.log(`🚀 Request to generate Marxist lesson for user ${userId}`);
+
+  // Kiểm tra xem có đang trong background generation không
+  if (backgroundGeneratingUsers.has(userId)) {
+    console.log(`⏳ User ${userId} is in background generation, skipping manual generation...`);
+    return {
+      success: false,
+      statusCode: 429,
+      message: "Hệ thống đang tạo bài học tự động, vui lòng chờ...",
+    };
+  }
 
   // Sử dụng Rate Limiter thay vì simple mutex
   try {
@@ -209,8 +221,26 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
         return await analyzeUserProgress(userId);
       }
     );
-    let topicId = options.topic || analysis.recommendedTopic;
-    const difficulty = options.difficulty || analysis.difficultyLevel;
+
+    let topicId = options.topic;
+    let difficulty = options.difficulty;
+
+    // Luôn random topic thay vì dùng recommended (trừ khi có topic cụ thể)
+    if (!topicId) {
+      const allTopics = await getAllMarxistTopics();
+      if (allTopics.length > 0) {
+        const randomTopic = allTopics[Math.floor(Math.random() * allTopics.length)];
+        topicId = randomTopic._id;
+        console.log(`🎲 Random selected topic: ${randomTopic.title || randomTopic.name}`);
+      } else {
+        topicId = analysis.recommendedTopic; // Fallback
+      }
+    }
+
+    // Nếu không có difficulty, dùng từ analysis
+    if (!difficulty) {
+      difficulty = analysis.difficultyLevel;
+    }
 
     // Nếu topicId là string name, tìm topic trong database
     let topicInfo;
@@ -235,16 +265,24 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       }
     }
 
-    // Xây dựng prompt cho Gemini
+    // Xây dựng prompt cho Multi-AI, có thể thêm gợi ý từ ContentPack (summary, keyPoints)
+    const contentHints = options.contentHints || null;
+    const hintsText = contentHints
+      ? `\n\nCơ sở tạo câu hỏi (tóm tắt trước khi ôn):\n- Tiêu đề: ${contentHints.title || topicInfo.title}\n- Tóm tắt: ${contentHints.summary || ""}\n- Key points: ${(contentHints.keyPoints || []).join(", ")}`
+      : "";
+
+    // Sử dụng contentHints title nếu có, nếu không thì dùng topicInfo.title
+    const finalTitle = contentHints?.title || topicInfo.title;
+    const finalDescription = contentHints?.summary || topicInfo.description;
+
     const prompt = `
-Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Hãy tạo 10 câu hỏi trắc nghiệm về chủ đề "${
-      topicInfo.title
-    }" với độ khó cấp độ ${difficulty}/5.
+Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Hãy tạo 10 câu hỏi trắc nghiệm về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
 
-⚠️ QUAN TRỌNG: CHỈ TẬP TRUNG VÀO TRIẾT HỌC MÁC-LÊ-NIN, KHÔNG PHẢI KINH TẺ CHÍNH TRỊ!
+⚠️ QUAN TRỌNG: CHỈ TẬP TRUNG VÀO TRIẾT HỌC MÁC-LÊ-NIN, KHÔNG PHẢI KINH TẾ CHÍNH TRỊ!
+🎯 TITLE PHẢI LÀ: "${finalTitle}" - KHÔNG ĐƯỢC THAY ĐỔI!
 
-Chủ đề: ${topicInfo.title}
-Mô tả: ${topicInfo.description}
+Chủ đề: ${finalTitle}
+Mô tả: ${finalDescription}
 Từ khóa quan trọng: ${topicInfo.keywords.join(", ")}
 
 Yêu cầu:
@@ -254,12 +292,13 @@ Yêu cầu:
 - KHÔNG hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
 - Độ khó phù hợp với cấp độ ${difficulty}
 - Câu hỏi về: quy luật, phương pháp luận, nhận thức, thực tiễn, ý thức
-- Thời gian làm mỗi câu: 45 giây
+- Thời gian làm mỗi câu: 30 giây
+- QUAN TRỌNG: Đáp án đúng phải RANDOM (A, B, C, D), không được tất cả đều là A!
 
 ⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
 
 {
-  "title": "Bài tập ${topicInfo.title} - Cấp độ ${difficulty}",
+  "title": "${finalTitle}",
   "questions": [
     {
       "type": "multiple_choice",
@@ -267,7 +306,7 @@ Yêu cầu:
       "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
       "correctAnswer": "A. Đáp án A",
       "score": 100,
-      "timeLimit": 45
+      "timeLimit": 30
     }
   ]
 }`;
@@ -297,10 +336,9 @@ Yêu cầu:
       for (let i = 1; i <= 10; i++) {
         demoQuestions.push({
           type: "multiple_choice",
-          content: `Câu ${i}: ${
-            philosophyDemoQuestions[i - 1] ||
+          content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] ||
             `Theo triết học ${topicInfo.title}, điều nào sau đây đúng?`
-          } (Demo)`,
+            } (Demo)`,
           options: [
             `A. Đáp án A của câu ${i}`,
             `B. Đáp án B của câu ${i}`,
@@ -309,7 +347,7 @@ Yêu cầu:
           ],
           correctAnswer: `A. Đáp án A của câu ${i}`,
           score: 100,
-          timeLimit: 45,
+          timeLimit: 30,
         });
       }
 
@@ -321,7 +359,7 @@ Yêu cầu:
       console.log("📝 Creating demo lesson with 10 questions...");
     } else {
       console.log(
-        "🔄 Generating Marxist lesson with Multi-AI (Gemini + DeepSeek)..."
+        "🔄 Generating Marxist lesson with Multi-AI (Grok4 + Gemini)..."
       );
       const aiResult = await multiAiService.generateJsonContent(prompt, {
         strategy: "weighted", // Load balance between Gemini and DeepSeek
@@ -352,10 +390,9 @@ Yêu cầu:
         for (let i = 1; i <= 10; i++) {
           demoQuestions.push({
             type: "multiple_choice",
-            content: `Câu ${i}: ${
-              philosophyDemoQuestions[i - 1] ||
+            content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] ||
               `Theo triết học ${topicInfo.title}, điều nào sau đây đúng?`
-            } (Demo)`,
+              } (Demo)`,
             options: [
               `A. Đáp án A của câu ${i}`,
               `B. Đáp án B của câu ${i}`,
@@ -364,7 +401,7 @@ Yêu cầu:
             ],
             correctAnswer: `A. Đáp án A của câu ${i}`,
             score: 100,
-            timeLimit: 45,
+            timeLimit: 30,
           });
         }
 
@@ -449,7 +486,7 @@ Yêu cầu:
         minUserLevel: 1,
         minLessonPassed: 0,
         maxScore: 3000,
-        timeLimit: 450, // 45s * 10 câu
+        timeLimit: 300, // 30s * 10 câu
         isActive: true,
       });
 
@@ -488,14 +525,138 @@ Yêu cầu:
       skill: skillDoc.name,
     });
 
-    // Chuẩn hóa câu hỏi
-    const processedQuestions = lessonData.questions.map((q) => ({
-      ...q,
-      skill: skillDoc._id,
-      type: "multiple_choice",
-      timeLimit: 45,
-      score: 100,
-    }));
+    // Chuẩn hóa câu hỏi và correctAnswer do một số AI có thể trả về chỉ "A"/1 thay vì toàn bộ option
+    const normalizeCorrectAnswer = (question) => {
+      try {
+        const options = Array.isArray(question.options) ? question.options : [];
+        let answer = question.correctAnswer;
+
+        if (!options.length) return question.correctAnswer;
+
+        // Nếu answer là số (1-4)
+        if (typeof answer === "number") {
+          const idx = Math.max(0, Math.min(options.length - 1, answer - 1));
+          return options[idx];
+        }
+
+        if (typeof answer === "string") {
+          const trimmed = answer.trim();
+
+          // Nếu là chữ cái A-D
+          const letterMatch = trimmed.match(/^[A-Da-d]$/);
+          if (letterMatch) {
+            const idx = trimmed.toUpperCase().charCodeAt(0) - 65; // A->0
+            return options[idx] || options[0];
+          }
+
+          // Nếu là tiền tố "A." hoặc "A)"
+          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]?/);
+          if (letterPrefix) {
+            const idx = letterPrefix[1].toUpperCase().charCodeAt(0) - 65;
+            return options[idx] || options[0];
+          }
+
+          // Khớp gần đúng: loại bỏ tiền tố "A. " khi so sánh
+          const normalizeText = (s) => String(s).replace(/^\s*[A-Da-d][\.)\-]\s*/, "").trim();
+          const normalizedAnswer = normalizeText(trimmed);
+          const found = options.find((opt) => normalizeText(opt) === normalizedAnswer);
+          if (found) return found;
+
+          // Nếu đã khớp chính xác với một option
+          const exact = options.find((opt) => opt === trimmed);
+          if (exact) return exact;
+        }
+
+        // Fallback: chọn option đầu tiên để không chặn tạo bài
+        return options[0];
+      } catch (e) {
+        return question.correctAnswer;
+      }
+    };
+
+    // Force chia đều đáp án đúng giữa A, B, C, D
+    const balanceCorrectAnswers = (questions) => {
+      const answers = ['A', 'B', 'C', 'D'];
+      const balancedAnswers = [];
+
+      // Chia đều: 10 câu = 2-3 câu mỗi đáp án
+      const questionsPerAnswer = Math.floor(questions.length / 4); // 2 câu mỗi đáp án
+      const remainder = questions.length % 4; // 2 câu dư
+
+      // Thêm câu hỏi cho mỗi đáp án
+      for (let i = 0; i < 4; i++) {
+        const count = questionsPerAnswer + (i < remainder ? 1 : 0);
+        for (let j = 0; j < count; j++) {
+          balancedAnswers.push(answers[i]);
+        }
+      }
+
+      // Shuffle để random vị trí
+      for (let i = balancedAnswers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [balancedAnswers[i], balancedAnswers[j]] = [balancedAnswers[j], balancedAnswers[i]];
+      }
+
+      console.log(`🎯 Generated balanced answers: ${balancedAnswers.join(', ')}`);
+      return balancedAnswers;
+    };
+
+    // Kiểm tra và cảnh báo nếu tất cả đáp án đúng đều là A
+    const checkAnswerDistribution = (questions) => {
+      const correctAnswers = questions.map(q => {
+        const answer = q.correctAnswer || "";
+        const match = answer.match(/^([A-Da-d])/);
+        return match ? match[1].toUpperCase() : "A";
+      });
+
+      const aCount = correctAnswers.filter(a => a === "A").length;
+      if (aCount >= 8) { // Nếu 8/10 câu đều là A
+        console.warn(`⚠️ Warning: ${aCount}/10 questions have answer A. Balancing answers...`);
+        return true; // Cần balance
+      }
+
+      return false; // Không cần balance
+    };
+
+    const processedQuestions = lessonData.questions.map((q) => {
+      const normalized = {
+        ...q,
+        type: "multiple_choice",
+        timeLimit: 30,
+        score: 100,
+      };
+      return {
+        ...normalized,
+        skill: skillDoc._id,
+        correctAnswer: normalizeCorrectAnswer(normalized),
+      };
+    });
+
+    // LUÔN balance đáp án đúng để đảm bảo random đều
+    console.log("🔄 Balancing correct answers distribution...");
+    const balancedAnswers = balanceCorrectAnswers(processedQuestions);
+
+    // Cập nhật đáp án đúng cho từng câu hỏi
+    processedQuestions.forEach((question, index) => {
+      const balancedAnswer = balancedAnswers[index];
+      const options = question.options || [];
+
+      if (options.length >= 4) {
+        // Tìm option tương ứng với balanced answer
+        const targetOption = options.find(opt =>
+          opt.trim().toUpperCase().startsWith(balancedAnswer)
+        );
+
+        if (targetOption) {
+          question.correctAnswer = targetOption;
+          console.log(`✅ Question ${index + 1}: Set correct answer to ${balancedAnswer}`);
+        } else {
+          // Fallback: tạo đáp án đúng theo format chuẩn
+          question.correctAnswer = `${balancedAnswer}. ${question.options[balancedAnswer.charCodeAt(0) - 65]?.replace(/^[A-D]\.\s*/, '') || 'Đáp án đúng'}`;
+          console.log(`⚠️ Question ${index + 1}: Created fallback answer ${balancedAnswer}`);
+        }
+      }
+    });
 
     // Tạo lesson
     console.log("📝 Creating lesson document...");
@@ -526,7 +687,7 @@ Yêu cầu:
           options: qData.options || [],
           correctAnswer: qData.correctAnswer,
           score: qData.score || 100,
-          timeLimit: qData.timeLimit || 45,
+          timeLimit: qData.timeLimit || 30,
         });
         questionIds.push(question._id);
 
@@ -720,7 +881,7 @@ const getMarxistLearningPath = async (userId, options = {}) => {
 
 /**
  * Hoàn thành bài học triết học Mác-Lê-Nin với lives system
- * @param {string} userId - User ID
+ * @param {string} userId - User ID  
  * @param {string} lessonId - Lesson ID
  * @param {number} score - Điểm số (0-100)
  * @param {Array} questionResults - Kết quả từng câu hỏi (optional)
@@ -807,27 +968,26 @@ const completeMarxistLesson = async (
     // 🔍 VALIDATE và FILTER questionResults để đảm bảo schema compliance
     const validQuestionResults = Array.isArray(questionResults)
       ? questionResults
-          .filter((result) => {
-            // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
-            return result && result.questionId;
-          })
-          .map((result) => ({
-            questionId: result.questionId,
-            answer: result.answer || "", // Cho phép answer rỗng nếu user không chọn
-            isCorrect: result.isCorrect || false, // Default false nếu không có
-            score: typeof result.score === "number" ? result.score : 0, // Default 0 nếu không có
-            isTimeout: result.isTimeout || false,
-            transcription: result.transcription || null,
-            feedback: result.feedback || null,
-          }))
+        .filter((result) => {
+          // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
+          return result && result.questionId;
+        })
+        .map((result) => ({
+          questionId: result.questionId,
+          answer: result.answer || "", // Cho phép answer rỗng nếu user không chọn
+          isCorrect: result.isCorrect || false, // Default false nếu không có
+          score: typeof result.score === "number" ? result.score : 0, // Default 0 nếu không có
+          isTimeout: result.isTimeout || false,
+          transcription: result.transcription || null,
+          feedback: result.feedback || null,
+        }))
       : [];
 
     console.log(
       `📝 Creating Progress record: userId=${userId}, lessonId=${lessonId}, score=${score}, status=${lessonStatus}`
     );
     console.log(
-      `📊 Valid questionResults: ${validQuestionResults.length}/${
-        questionResults?.length || 0
+      `📊 Valid questionResults: ${validQuestionResults.length}/${questionResults?.length || 0
       }`
     );
 
@@ -891,20 +1051,94 @@ const completeMarxistLesson = async (
       await user.save();
     }
 
-    // Tự động tạo bài học tiếp theo nếu hoàn thành tốt (score >= 70)
-    // 🚫 REMOVED: Auto-generation moved to client-side to prevent API blocking
+    // Sau khi PASS: tạo học liệu ngắn gọn + bài ôn tập 10 câu dựa trên học liệu (background, không chặn response)
     let nextLessonGenerated = false;
-    // if (score >= 70) {
-    //     try {
-    //         const nextLessonResult = await generateMarxistLesson(userId);
-    //         if (nextLessonResult.success) {
-    //             nextLessonGenerated = true;
-    //             console.log('✅ Auto-generated next Marxist lesson for user:', userId);
-    //         }
-    //     } catch (error) {
-    //         console.warn('⚠️ Failed to auto-generate next Marxist lesson:', error.message);
-    //     }
-    // }
+    if (score >= 70) {
+      console.log(`🎯 User ${userId} passed lesson (${score}%), starting background generation...`);
+
+      // Đánh dấu user đang trong background generation để tránh tạo bài học thủ công
+      backgroundGeneratingUsers.add(userId);
+
+      Promise.resolve().then(async () => {
+        try {
+          // Random topic mới cho ContentPack và bài ôn tập
+          const allTopics = await getAllMarxistTopics();
+          let randomTopic = null;
+          if (allTopics.length > 0) {
+            randomTopic = allTopics[Math.floor(Math.random() * allTopics.length)];
+            console.log(`🎲 Random NEW topic for review: ${randomTopic.title || randomTopic.name}`);
+          }
+
+          const newTopicTitle = randomTopic
+            ? `Bài tập ${randomTopic.title || randomTopic.name} - Cấp độ ${pathDoc.difficultyLevel || 3}`
+            : `Bài tập Marxist Philosophy - Cấp độ ${pathDoc.difficultyLevel || 3}`;
+
+          console.log(`📚 Creating ContentPack for user ${userId}, with NEW random topic: ${newTopicTitle}`);
+          const contentPack = await contentService.getOrGenerateContentPack(userId, {
+            topicId: randomTopic?._id || pathDoc.marxistTopic, // Random topic mới
+            topicName: newTopicTitle, // Title với topic mới
+            level: "intermediate",
+            goal: `Ôn tập chủ đề mới: ${randomTopic?.title || randomTopic?.name || 'Marxist Philosophy'}`,
+            include: { summary: true, keyPoints: true, mindmap: true, slideOutline: true, flashcards: true },
+            forceNew: true, // Force tạo mới ContentPack sau khi pass lesson
+          });
+          console.log(`✅ ContentPack created: ${contentPack.title}`);
+
+          try {
+            await NotificationService.createNotification(userId, {
+              title: "📘 Học liệu ôn tập đã sẵn sàng",
+              message: `Đã tạo gói học liệu ngắn gọn cho chủ đề "${contentPack.title}". Vào xem nhanh trước khi ôn tập!`,
+              type: "study_pack",
+              link: "/philosophy",
+            });
+          } catch (e) {
+            console.warn("Notify study pack failed:", e.message);
+          }
+
+          // 2) Tạo bài ôn tập 10 câu dựa trên học liệu (contentHints) - gọi trực tiếp internal function
+          console.log(`📝 Creating review lesson for user ${userId} based on ContentPack`);
+
+          // Tạm thời xóa user khỏi background generation để tạo bài ôn tập
+          backgroundGeneratingUsers.delete(userId);
+
+          const reviewRes = await _generateMarxistLessonInternal(userId, {
+            questionCount: 10,
+            // Không random topic, sử dụng contentHints để match với ContentPack
+            contentHints: {
+              title: contentPack.title,
+              summary: contentPack.summary,
+              keyPoints: (contentPack.keyPoints || []).slice(0, 8),
+            },
+          });
+
+          // Thêm lại user vào background generation
+          backgroundGeneratingUsers.add(userId);
+
+          console.log(`✅ Review lesson created: ${reviewRes?.success ? 'SUCCESS' : 'FAILED'}`);
+
+          if (reviewRes?.success) {
+            nextLessonGenerated = true;
+            try {
+              await NotificationService.createNotification(userId, {
+                title: "📝 Bài ôn tập 10 câu đã tạo",
+                message: `AI đã tạo bài ôn tập dựa trên học liệu "${contentPack.title}". Vào làm ngay để củng cố kiến thức!`,
+                type: "ai_generated",
+                link: "/philosophy",
+              });
+            } catch (e) {
+              console.warn("Notify review quiz failed:", e.message);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Post-pass content/review generation failed:", err.message);
+          console.error("Error details:", err);
+        } finally {
+          // Xóa flag background generation
+          backgroundGeneratingUsers.delete(userId);
+          console.log(`🏁 Background generation completed for user ${userId}`);
+        }
+      });
+    }
 
     return {
       success: true,
@@ -914,9 +1148,8 @@ const completeMarxistLesson = async (
           ? leveledUp
             ? `🎉 Hoàn thành xuất sắc! Nhận ${earnedXP} XP và lên Level ${newLevel}!`
             : `✅ Hoàn thành xuất sắc! Nhận ${earnedXP} XP. Bài học đã completed.`
-          : `Điểm số: ${score}%. Bài học chưa completed. ${
-              livesDeducted ? "Đã trừ 1 life." : ""
-            } Hãy cố gắng hơn!`,
+          : `Điểm số: ${score}%. Bài học chưa completed. ${livesDeducted ? "Đã trừ 1 life." : ""
+          } Hãy cố gắng hơn!`,
       pathUpdated: true,
       completed: score >= 70,
       nextLessonGenerated,
@@ -952,7 +1185,7 @@ const completeMarxistLesson = async (
 /**
  * Làm lại bài học triết học Mác-Lê-Nin
  * @param {string} userId - User ID
- * @param {string} lessonId - Lesson ID
+ * @param {string} lessonId - Lesson ID  
  * @param {string} pathId - Learning Path ID (optional)
  * @returns {Object} Retry result
  */
@@ -1145,4 +1378,4 @@ export default {
   retryMarxistLesson,
   getMarxistStats,
   getAllMarxistTopics,
-};
+}; 
