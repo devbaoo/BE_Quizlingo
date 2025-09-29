@@ -11,7 +11,6 @@ import Level from "../models/level.js";
 import Topic from "../models/topic.js";
 import Skill from "../models/skill.js";
 import NotificationService from "./notificationService.js";
-import contentService from "./contentService.js";
 import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 import generationRateLimiter from "../middleware/rateLimiter.js";
@@ -265,7 +264,7 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       }
     }
 
-    // Xây dựng prompt cho Multi-AI, có thể thêm gợi ý từ ContentPack (summary, keyPoints)
+    // Xây dựng prompt cho Multi-AI
     const contentHints = options.contentHints || null;
     const hintsText = contentHints
       ? `\n\nCơ sở tạo câu hỏi (tóm tắt trước khi ôn):\n- Tiêu đề: ${contentHints.title || topicInfo.title}\n- Tóm tắt: ${contentHints.summary || ""}\n- Key points: ${(contentHints.keyPoints || []).join(", ")}`
@@ -961,93 +960,9 @@ const completeMarxistLesson = async (
       await user.save();
     }
 
-    // Sau khi PASS: tạo học liệu ngắn gọn + bài ôn tập 10 câu dựa trên học liệu (background, không chặn response)
-    let nextLessonGenerated = false;
+    // Sau khi PASS: chỉ log (bỏ logic tạo contentPack)
     if (score >= 70) {
-      console.log(`🎯 User ${userId} passed lesson (${score}%), starting background generation...`);
-
-      // Đánh dấu user đang trong background generation để tránh tạo bài học thủ công
-      backgroundGeneratingUsers.add(userId);
-
-      Promise.resolve().then(async () => {
-        try {
-          // Random topic mới cho ContentPack và bài ôn tập
-          const allTopics = await getAllMarxistTopics();
-          let randomTopic = null;
-          if (allTopics.length > 0) {
-            randomTopic = allTopics[Math.floor(Math.random() * allTopics.length)];
-            console.log(`🎲 Random NEW topic for review: ${randomTopic.title || randomTopic.name}`);
-          }
-
-          const newTopicTitle = randomTopic
-            ? `Bài tập ${randomTopic.title || randomTopic.name} - Cấp độ ${pathDoc.difficultyLevel || 3}`
-            : `Bài tập Marxist Philosophy - Cấp độ ${pathDoc.difficultyLevel || 3}`;
-
-          console.log(`📚 Creating ContentPack for user ${userId}, with NEW random topic: ${newTopicTitle}`);
-          const contentPack = await contentService.getOrGenerateContentPack(userId, {
-            topicId: randomTopic?._id || pathDoc.marxistTopic, // Random topic mới
-            topicName: newTopicTitle, // Title với topic mới
-            level: "intermediate",
-            goal: `Ôn tập chủ đề mới: ${randomTopic?.title || randomTopic?.name || 'Marxist Philosophy'}`,
-            include: { summary: true, keyPoints: true, mindmap: true, slideOutline: true, flashcards: true },
-            forceNew: true, // Force tạo mới ContentPack sau khi pass lesson
-          });
-          console.log(`✅ ContentPack created: ${contentPack.title}`);
-
-          try {
-            await NotificationService.createNotification(userId, {
-              title: "📘 Học liệu ôn tập đã sẵn sàng",
-              message: `Đã tạo gói học liệu ngắn gọn cho chủ đề "${contentPack.title}". Vào xem nhanh trước khi ôn tập!`,
-              type: "study_pack",
-              link: "/philosophy",
-            });
-          } catch (e) {
-            console.warn("Notify study pack failed:", e.message);
-          }
-
-          // 2) Tạo bài ôn tập 10 câu dựa trên học liệu (contentHints) - gọi trực tiếp internal function
-          console.log(`📝 Creating review lesson for user ${userId} based on ContentPack`);
-
-          // Tạm thời xóa user khỏi background generation để tạo bài ôn tập
-          backgroundGeneratingUsers.delete(userId);
-
-          const reviewRes = await _generateMarxistLessonInternal(userId, {
-            questionCount: 10,
-            // Không random topic, sử dụng contentHints để match với ContentPack
-            contentHints: {
-              title: contentPack.title,
-              summary: contentPack.summary,
-              keyPoints: (contentPack.keyPoints || []).slice(0, 8),
-            },
-          });
-
-          // Thêm lại user vào background generation
-          backgroundGeneratingUsers.add(userId);
-
-          console.log(`✅ Review lesson created: ${reviewRes?.success ? 'SUCCESS' : 'FAILED'}`);
-
-          if (reviewRes?.success) {
-            nextLessonGenerated = true;
-            try {
-              await NotificationService.createNotification(userId, {
-                title: "📝 Bài ôn tập 10 câu đã tạo",
-                message: `AI đã tạo bài ôn tập dựa trên học liệu "${contentPack.title}". Vào làm ngay để củng cố kiến thức!`,
-                type: "ai_generated",
-                link: "/philosophy",
-              });
-            } catch (e) {
-              console.warn("Notify review quiz failed:", e.message);
-            }
-          }
-        } catch (err) {
-          console.error("❌ Post-pass content/review generation failed:", err.message);
-          console.error("Error details:", err);
-        } finally {
-          // Xóa flag background generation
-          backgroundGeneratingUsers.delete(userId);
-          console.log(`🏁 Background generation completed for user ${userId}`);
-        }
-      });
+      console.log(`🎯 User ${userId} passed lesson (${score}%). No background generation needed.`);
     }
 
     return {
@@ -1062,7 +977,6 @@ const completeMarxistLesson = async (
           } Hãy cố gắng hơn!`,
       pathUpdated: true,
       completed: score >= 70,
-      nextLessonGenerated,
       // Lives info
       livesDeducted,
       currentLives: user.lives,
