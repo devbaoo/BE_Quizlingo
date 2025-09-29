@@ -320,126 +320,41 @@ Yêu cầu:
     // Khai báo lessonData variable
     let lessonData;
 
-    // Kiểm tra development mode - skip Gemini nếu có biến môi trường
-    if (process.env.SKIP_GEMINI === "true") {
-      console.warn("🚧 SKIP_GEMINI enabled - creating demo lesson...");
+    console.log(
+      " Generating Marxist lesson with Multi-AI (Grok4 + Gemini)..."
+    );
+    const aiResult = await multiAiService.generateJsonContent(prompt, {
+      strategy: "weighted", // Load balance between Gemini and DeepSeek
+      maxRetries: 3,
+      maxProviderRetries: 2,
+    });
 
-      // Tạo demo lesson với 10 câu hỏi triết học có phân bố đáp án cân bằng
-      const demoQuestions = [];
-      const philosophyDemoQuestions = [
-        "Theo triết học Mác-Lê-Nin, quy luật cơ bản của duy vật biện chứng là gì?",
-        "Theo ${topicInfo.title}, mối quan hệ giữa nhận thức và thực tiễn như thế nào?",
-        "Quy luật thống nhất và đấu tranh của các mặt đối lập thể hiện điều gì?",
-        "Theo duy vật lịch sử, cơ sở hạ tầng và kiến trúc thượng tầng có mối quan hệ ra sao?",
-        "Chân lý trong triết học Mác-Lê-Nin có đặc điểm gì?",
-        "Quy luật lượng chất thể hiện quy luật nào của sự phát triển?",
-        "Theo nhận thức luận Mác-xít, vai trò của thực tiễn là gì?",
-        "Quy luật phủ định của phủ định giải thích điều gì?",
-        "Theo triết học Mác-Lê-Nin, ý thức xã hội được quy định bởi điều gì?",
-        "Bản chất con người theo quan niệm Mác-xít là gì?",
-      ];
+    if (!aiResult.success) {
+      // Nếu tất cả AI APIs thất bại, return error để FE có thể retry
+      console.error("❌ All AI APIs failed!");
+      console.log("AI failure details:", aiResult.loadBalancer);
 
-      // Phân bố đáp án cân bằng: A:3, B:2, C:3, D:2
-      const balancedAnswers = ['A', 'A', 'A', 'B', 'B', 'C', 'C', 'C', 'D', 'D'];
-
-      for (let i = 1; i <= 10; i++) {
-        const correctLetter = balancedAnswers[i - 1];
-        demoQuestions.push({
-          type: "multiple_choice",
-          content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] ||
-            `Theo triết học ${topicInfo.title}, điều nào sau đây đúng?`
-            } (Demo)`,
-          options: [
-            `A. Đáp án A của câu ${i}`,
-            `B. Đáp án B của câu ${i}`,
-            `C. Đáp án C của câu ${i}`,
-            `D. Đáp án D của câu ${i}`,
-          ],
-          correctAnswer: `${correctLetter}. Đáp án ${correctLetter} của câu ${i}`,
-          score: 100,
-          timeLimit: 30,
-        });
-      }
-
-      lessonData = {
-        title: `[DEMO] ${topicInfo.title} - Cấp độ ${difficulty}`,
-        questions: demoQuestions,
+      return {
+        success: false,
+        statusCode: 503,
+        message: "Tất cả AI APIs đều thất bại. Vui lòng thử lại sau hoặc nhấn nút tạo bài học mới.",
+        error: "AI_GENERATION_FAILED",
+        retryable: true
       };
+    }
 
-      console.log("📝 Creating demo lesson with 10 questions...");
-    } else {
-      console.log(
-        "🔄 Generating Marxist lesson with Multi-AI (Grok4 + Gemini)..."
-      );
-      const aiResult = await multiAiService.generateJsonContent(prompt, {
-        strategy: "weighted", // Load balance between Gemini and DeepSeek
-        maxRetries: 3,
-        maxProviderRetries: 2,
+    lessonData = aiResult.data;
+    console.log(
+      `✅ Using AI-generated lesson data from ${aiResult.provider}`
+    );
+
+    // Log load balancer stats
+    if (aiResult.loadBalancer) {
+      console.log("📊 Load balancer stats:", {
+        provider: aiResult.provider,
+        strategy: aiResult.loadBalancer.strategy,
+        totalProviders: aiResult.loadBalancer.totalProviders,
       });
-
-      if (!aiResult.success) {
-        // Nếu tất cả AI APIs thất bại, tạo demo lesson để không block user
-        console.warn("⚠️ All AI APIs failed, creating demo lesson...");
-        console.log("AI failure details:", aiResult.loadBalancer);
-
-        // Tạo demo lesson với 10 câu hỏi triết học có phân bố đáp án cân bằng
-        const demoQuestions = [];
-        const philosophyDemoQuestions = [
-          "Theo triết học Mác-Lê-Nin, quy luật cơ bản của duy vật biện chứng là gì?",
-          "Theo ${topicInfo.title}, mối quan hệ giữa nhận thức và thực tiễn như thế nào?",
-          "Quy luật thống nhất và đấu tranh của các mặt đối lập thể hiện điều gì?",
-          "Theo duy vật lịch sử, cơ sở hạ tầng và kiến trúc thượng tầng có mối quan hệ ra sao?",
-          "Chân lý trong triết học Mác-Lê-Nin có đặc điểm gì?",
-          "Quy luật lượng chất thể hiện quy luật nào của sự phát triển?",
-          "Theo nhận thức luận Mác-xít, vai trò của thực tiễn là gì?",
-          "Quy luật phủ định của phủ định giải thích điều gì?",
-          "Theo triết học Mác-Lê-Nin, ý thức xã hội được quy định bởi điều gì?",
-          "Bản chất con người theo quan niệm Mác-xít là gì?",
-        ];
-
-        // Phân bố đáp án cân bằng: A:3, B:2, C:3, D:2
-        const balancedAnswers = ['A', 'A', 'A', 'B', 'B', 'C', 'C', 'C', 'D', 'D'];
-
-        for (let i = 1; i <= 10; i++) {
-          const correctLetter = balancedAnswers[i - 1];
-          demoQuestions.push({
-            type: "multiple_choice",
-            content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] ||
-              `Theo triết học ${topicInfo.title}, điều nào sau đây đúng?`
-              } (Demo)`,
-            options: [
-              `A. Đáp án A của câu ${i}`,
-              `B. Đáp án B của câu ${i}`,
-              `C. Đáp án C của câu ${i}`,
-              `D. Đáp án D của câu ${i}`,
-            ],
-            correctAnswer: `${correctLetter}. Đáp án ${correctLetter} của câu ${i}`,
-            score: 100,
-            timeLimit: 30,
-          });
-        }
-
-        lessonData = {
-          title: `[DEMO] ${topicInfo.title} - Cấp độ ${difficulty}`,
-          questions: demoQuestions,
-        };
-
-        console.log("📝 Creating demo lesson with generated questions...");
-      } else {
-        lessonData = aiResult.data;
-        console.log(
-          `✅ Using AI-generated lesson data from ${aiResult.provider}`
-        );
-
-        // Log load balancer stats
-        if (aiResult.loadBalancer) {
-          console.log("📊 Load balancer stats:", {
-            provider: aiResult.provider,
-            strategy: aiResult.loadBalancer.strategy,
-            totalProviders: aiResult.loadBalancer.totalProviders,
-          });
-        }
-      }
     }
 
     // Validate lesson data
