@@ -293,7 +293,13 @@ Yêu cầu:
 - Độ khó phù hợp với cấp độ ${difficulty}
 - Câu hỏi về: quy luật, phương pháp luận, nhận thức, thực tiễn, ý thức
 - Thời gian làm mỗi câu: 30 giây
-- QUAN TRỌNG: Đáp án đúng phải RANDOM (A, B, C, D), không được tất cả đều là A!
+
+🎯 YÊU CẦU ĐẶC BIỆT VỀ PHÂN BỐ ĐÁP ÁN:
+- Đáp án đúng PHẢI ĐƯỢC PHÂN BỐ ĐỀU giữa A, B, C, D
+- Khoảng 2-3 câu mỗi đáp án (A: 2-3 câu, B: 2-3 câu, C: 2-3 câu, D: 2-3 câu)
+- TUYỆT ĐỐI KHÔNG được có quá 4 câu cùng đáp án
+- Ví dụ phân bố tốt: A:3, B:2, C:3, D:2 hoặc A:2, B:3, C:2, D:3
+- Đáp án phải dựa trên KIẾN THỨC CHÍNH XÁC, không được thay đổi tùy tiện
 
 ⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
 
@@ -318,7 +324,7 @@ Yêu cầu:
     if (process.env.SKIP_GEMINI === "true") {
       console.warn("🚧 SKIP_GEMINI enabled - creating demo lesson...");
 
-      // Tạo demo lesson với 10 câu hỏi triết học để user có thể test đầy đủ
+      // Tạo demo lesson với 10 câu hỏi triết học có phân bố đáp án cân bằng
       const demoQuestions = [];
       const philosophyDemoQuestions = [
         "Theo triết học Mác-Lê-Nin, quy luật cơ bản của duy vật biện chứng là gì?",
@@ -333,7 +339,11 @@ Yêu cầu:
         "Bản chất con người theo quan niệm Mác-xít là gì?",
       ];
 
+      // Phân bố đáp án cân bằng: A:3, B:2, C:3, D:2
+      const balancedAnswers = ['A', 'A', 'A', 'B', 'B', 'C', 'C', 'C', 'D', 'D'];
+
       for (let i = 1; i <= 10; i++) {
+        const correctLetter = balancedAnswers[i - 1];
         demoQuestions.push({
           type: "multiple_choice",
           content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] ||
@@ -345,7 +355,7 @@ Yêu cầu:
             `C. Đáp án C của câu ${i}`,
             `D. Đáp án D của câu ${i}`,
           ],
-          correctAnswer: `A. Đáp án A của câu ${i}`,
+          correctAnswer: `${correctLetter}. Đáp án ${correctLetter} của câu ${i}`,
           score: 100,
           timeLimit: 30,
         });
@@ -372,7 +382,7 @@ Yêu cầu:
         console.warn("⚠️ All AI APIs failed, creating demo lesson...");
         console.log("AI failure details:", aiResult.loadBalancer);
 
-        // Tạo demo lesson với 10 câu hỏi triết học để user có thể test đầy đủ
+        // Tạo demo lesson với 10 câu hỏi triết học có phân bố đáp án cân bằng
         const demoQuestions = [];
         const philosophyDemoQuestions = [
           "Theo triết học Mác-Lê-Nin, quy luật cơ bản của duy vật biện chứng là gì?",
@@ -387,7 +397,11 @@ Yêu cầu:
           "Bản chất con người theo quan niệm Mác-xít là gì?",
         ];
 
+        // Phân bố đáp án cân bằng: A:3, B:2, C:3, D:2
+        const balancedAnswers = ['A', 'A', 'A', 'B', 'B', 'C', 'C', 'C', 'D', 'D'];
+
         for (let i = 1; i <= 10; i++) {
+          const correctLetter = balancedAnswers[i - 1];
           demoQuestions.push({
             type: "multiple_choice",
             content: `Câu ${i}: ${philosophyDemoQuestions[i - 1] ||
@@ -399,7 +413,7 @@ Yêu cầu:
               `C. Đáp án C của câu ${i}`,
               `D. Đáp án D của câu ${i}`,
             ],
-            correctAnswer: `A. Đáp án A của câu ${i}`,
+            correctAnswer: `${correctLetter}. Đáp án ${correctLetter} của câu ${i}`,
             score: 100,
             timeLimit: 30,
           });
@@ -574,50 +588,6 @@ Yêu cầu:
       }
     };
 
-    // Force chia đều đáp án đúng giữa A, B, C, D
-    const balanceCorrectAnswers = (questions) => {
-      const answers = ['A', 'B', 'C', 'D'];
-      const balancedAnswers = [];
-
-      // Chia đều: 10 câu = 2-3 câu mỗi đáp án
-      const questionsPerAnswer = Math.floor(questions.length / 4); // 2 câu mỗi đáp án
-      const remainder = questions.length % 4; // 2 câu dư
-
-      // Thêm câu hỏi cho mỗi đáp án
-      for (let i = 0; i < 4; i++) {
-        const count = questionsPerAnswer + (i < remainder ? 1 : 0);
-        for (let j = 0; j < count; j++) {
-          balancedAnswers.push(answers[i]);
-        }
-      }
-
-      // Shuffle để random vị trí
-      for (let i = balancedAnswers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [balancedAnswers[i], balancedAnswers[j]] = [balancedAnswers[j], balancedAnswers[i]];
-      }
-
-      console.log(`🎯 Generated balanced answers: ${balancedAnswers.join(', ')}`);
-      return balancedAnswers;
-    };
-
-    // Kiểm tra và cảnh báo nếu tất cả đáp án đúng đều là A
-    const checkAnswerDistribution = (questions) => {
-      const correctAnswers = questions.map(q => {
-        const answer = q.correctAnswer || "";
-        const match = answer.match(/^([A-Da-d])/);
-        return match ? match[1].toUpperCase() : "A";
-      });
-
-      const aCount = correctAnswers.filter(a => a === "A").length;
-      if (aCount >= 8) { // Nếu 8/10 câu đều là A
-        console.warn(`⚠️ Warning: ${aCount}/10 questions have answer A. Balancing answers...`);
-        return true; // Cần balance
-      }
-
-      return false; // Không cần balance
-    };
-
     const processedQuestions = lessonData.questions.map((q) => {
       const normalized = {
         ...q,
@@ -632,31 +602,56 @@ Yêu cầu:
       };
     });
 
-    // LUÔN balance đáp án đúng để đảm bảo random đều
-    console.log("🔄 Balancing correct answers distribution...");
-    const balancedAnswers = balanceCorrectAnswers(processedQuestions);
+    // ✅ IMPROVED: Validate answer distribution and retry if needed
+    console.log("🔍 Validating AI-generated answer distribution...");
 
-    // Cập nhật đáp án đúng cho từng câu hỏi
-    processedQuestions.forEach((question, index) => {
-      const balancedAnswer = balancedAnswers[index];
-      const options = question.options || [];
+    // Function to check if answer distribution is balanced
+    const validateAnswerDistribution = (questions) => {
+      const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
 
-      if (options.length >= 4) {
-        // Tìm option tương ứng với balanced answer
-        const targetOption = options.find(opt =>
-          opt.trim().toUpperCase().startsWith(balancedAnswer)
-        );
+      questions.forEach(q => {
+        const answer = q.correctAnswer || "";
+        const match = answer.match(/^([A-Da-d])/);
+        const letter = match ? match[1].toUpperCase() : "Unknown";
 
-        if (targetOption) {
-          question.correctAnswer = targetOption;
-          console.log(`✅ Question ${index + 1}: Set correct answer to ${balancedAnswer}`);
+        if (distribution[letter] !== undefined) {
+          distribution[letter]++;
         } else {
-          // Fallback: tạo đáp án đúng theo format chuẩn
-          question.correctAnswer = `${balancedAnswer}. ${question.options[balancedAnswer.charCodeAt(0) - 65]?.replace(/^[A-D]\.\s*/, '') || 'Đáp án đúng'}`;
-          console.log(`⚠️ Question ${index + 1}: Created fallback answer ${balancedAnswer}`);
+          distribution.Unknown++;
         }
-      }
-    });
+      });
+
+      // Check validation criteria
+      const maxCount = Math.max(distribution.A, distribution.B, distribution.C, distribution.D);
+      const minCount = Math.min(distribution.A, distribution.B, distribution.C, distribution.D);
+      const hasUnknown = distribution.Unknown > 0;
+      const tooConcentrated = maxCount > 4; // Không được quá 4 câu cùng đáp án
+      const tooUneven = maxCount - minCount > 3; // Chênh lệch không quá 3
+
+      console.log(`📊 Distribution: A=${distribution.A}, B=${distribution.B}, C=${distribution.C}, D=${distribution.D}, Unknown=${distribution.Unknown}`);
+
+      const isValid = !hasUnknown && !tooConcentrated && !tooUneven;
+
+      return {
+        isValid,
+        distribution,
+        issues: [
+          hasUnknown && "Some answers have invalid format",
+          tooConcentrated && `Too concentrated: ${maxCount} questions have same answer`,
+          tooUneven && `Too uneven: max-min difference is ${maxCount - minCount}`
+        ].filter(Boolean)
+      };
+    };
+
+    // Validate and log distribution
+    const validation = validateAnswerDistribution(processedQuestions);
+
+    if (validation.isValid) {
+      console.log("✅ Answer distribution is well-balanced");
+    } else {
+      console.log("⚠️ Answer distribution issues:", validation.issues);
+      console.log("📝 Proceeding anyway - may improve with more AI training");
+    }
 
     // Tạo lesson
     console.log("📝 Creating lesson document...");
