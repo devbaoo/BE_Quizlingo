@@ -23,6 +23,7 @@ import contentController from "../controllers/contentController.js";
 import marxistTopicController from "../controllers/marxistTopicController.js";
 import checkInController from "../controllers/checkInController.js";
 import surveyController from "../controllers/surveyController.js";
+import flashcardController from "../controllers/flashcardController.js";
 
 const router = express.Router();
 
@@ -79,6 +80,12 @@ const initWebRoutes = (app) => {
     userController.handleAvatarUpload,
     userController.uploadAvatar
   );
+
+  // Flashcard routes (public)
+  router.get("/flashcards", flashcardController.listFlashcards);
+  router.get("/flashcards/tags", flashcardController.getFlashcardTags);
+  router.get("/flashcards/random", flashcardController.getRandomFlashcards);
+  router.get("/flashcards/:id", flashcardController.getFlashcardDetails);
 
   // Admin routes
 

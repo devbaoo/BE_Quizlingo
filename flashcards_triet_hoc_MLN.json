@@ -1,0 +1,457 @@
+[
+  {
+    "id": "a5cf95b4-0888-48bf-9ab3-0da1ead90dac",
+    "front": "Triết học là gì?",
+    "back": "Triết học là hệ thống tri thức lý luận chung nhất về thế giới và vị trí của con người trong thế giới đó; \n    nghiên cứu các quy luật chung nhất của tự nhiên, xã hội và tư duy.",
+    "tags": [
+      "nhap-mon",
+      "khai-niem"
+    ]
+  },
+  {
+    "id": "13f23474-054d-45ff-a226-c0af9ebd5574",
+    "front": "Đối tượng nghiên cứu của triết học Mác–Lênin (THMLN)?",
+    "back": "Những quy luật vận động và phát triển chung nhất của tự nhiên, xã hội, tư duy và mối quan hệ giữa chúng, \n    trên lập trường duy vật biện chứng và duy vật lịch sử.",
+    "tags": [
+      "nhap-mon",
+      "doi-tuong"
+    ]
+  },
+  {
+    "id": "abf96d7c-8c67-4731-90ad-b37fb2fb34fa",
+    "front": "Chức năng cơ bản của THMLN?",
+    "back": "(1) Thế giới quan khoa học; (2) Phương pháp luận khoa học; (3) Chức năng phê phán–giải phóng; \n    (4) Chức năng thực tiễn – chỉ đạo hoạt động cải tạo thế giới.",
+    "tags": [
+      "nhap-mon",
+      "chuc-nang"
+    ]
+  },
+  {
+    "id": "9a8eaa83-3987-4c17-98ab-a7e2ad1ddbdc",
+    "front": "Cấu trúc cơ bản của THMLN?",
+    "back": "Gồm hai bộ phận: (1) Chủ nghĩa duy vật biện chứng (cơ sở thế giới quan & phương pháp luận chung);\n    (2) Chủ nghĩa duy vật lịch sử (vận dụng vào đời sống xã hội).",
+    "tags": [
+      "nhap-mon",
+      "cau-truc"
+    ]
+  },
+  {
+    "id": "f4535c5d-235d-4c83-bdfd-647b237b43b8",
+    "front": "Khái niệm vật chất (theo Lênin)?",
+    "back": "Vật chất là phạm trù triết học chỉ thực tại khách quan được đem lại cho con người trong cảm giác,\n    được cảm giác chép lại, phản ánh và tồn tại không lệ thuộc vào cảm giác.",
+    "tags": [
+      "vat-chat-y-thuc",
+      "vat-chat"
+    ]
+  },
+  {
+    "id": "0c479b36-4fb3-4130-a098-7b20e90c5d4f",
+    "front": "Thuộc tính cơ bản của vật chất?",
+    "back": "Tính khách quan: tồn tại độc lập với ý thức; là nguồn gốc khách quan của cảm giác/ý thức.",
+    "tags": [
+      "vat-chat-y-thuc",
+      "vat-chat"
+    ]
+  },
+  {
+    "id": "30e59e8a-56f6-4fb0-9b8a-bd342e964e25",
+    "front": "Ý thức là gì?",
+    "back": "Hình thức phản ánh đặc biệt có tính chủ quan, sáng tạo, xuất hiện trên nền tảng vật chất có tổ chức cao \n    (bộ não người) và thực tiễn xã hội; gồm tri thức, tình cảm, ý chí, niềm tin, mục tiêu…",
+    "tags": [
+      "vat-chat-y-thuc",
+      "y-thuc"
+    ]
+  },
+  {
+    "id": "071c9d5c-e782-43ce-a192-06e2d60887c0",
+    "front": "Nguồn gốc của ý thức?",
+    "back": "(1) Tự nhiên: bộ não người, thế giới vật chất; (2) Xã hội: lao động và ngôn ngữ; \n    (3) Phản ánh hiện thực vào não người thông qua hoạt động thực tiễn.",
+    "tags": [
+      "vat-chat-y-thuc",
+      "y-thuc"
+    ]
+  },
+  {
+    "id": "00f95c51-9d8c-4314-8871-c0fd92ad184e",
+    "front": "Mối quan hệ giữa vật chất và ý thức?",
+    "back": "Vật chất quyết định ý thức (tính thứ nhất), ý thức có tính độc lập tương đối và tác động trở lại thực tiễn\n    thông qua hoạt động của con người.",
+    "tags": [
+      "vat-chat-y-thuc",
+      "quan-he"
+    ]
+  },
+  {
+    "id": "5d591aec-4e60-47d9-ad5c-90e5ba6d06da",
+    "front": "Phép biện chứng là gì?",
+    "back": "Lý luận về mối liên hệ phổ biến và sự phát triển; THMLN kế thừa tinh hoa biện chứng cổ điển \n    và đặt trên nền duy vật.",
+    "tags": [
+      "bien-chung",
+      "khai-niem"
+    ]
+  },
+  {
+    "id": "c66566d1-70e4-4659-8f9d-f4c667876993",
+    "front": "Hai nguyên lý cơ bản của phép biện chứng duy vật?",
+    "back": "(1) Nguyên lý về mối liên hệ phổ biến; (2) Nguyên lý về sự phát triển (vận động, biến đổi là phổ biến, do mâu thuẫn nội tại).",
+    "tags": [
+      "bien-chung",
+      "nguyen-ly"
+    ]
+  },
+  {
+    "id": "c4c0ef76-ebbd-422e-a6dc-d822c6cb2353",
+    "front": "Các cặp phạm trù cơ bản của phép biện chứng?",
+    "back": "Nguyên nhân–kết quả; tất nhiên–ngẫu nhiên; nội dung–hình thức; bản chất–hiện tượng; khả năng–hiện thực; \n    cái chung–cái riêng–cái đơn nhất.",
+    "tags": [
+      "bien-chung",
+      "pham-tru"
+    ]
+  },
+  {
+    "id": "eeb96618-ff35-4d64-bf7c-1f59b438283a",
+    "front": "Quy luật thống nhất và đấu tranh của các mặt đối lập?",
+    "back": "Nêu nguồn gốc, động lực của sự phát triển: mâu thuẫn nội tại giữa các mặt đối lập \n    → đấu tranh → chuyển hóa → phát triển.",
+    "tags": [
+      "quy-luat",
+      "mau-thuan"
+    ]
+  },
+  {
+    "id": "ea4c4591-f7df-4a0c-ab7b-b439e952318d",
+    "front": "Quy luật lượng – chất?",
+    "back": "Sự thay đổi lượng (tích lũy, dồn nén) tới điểm nút dẫn đến bước nhảy làm thay đổi chất; \n    phát triển theo khuynh hướng chu kỳ nhưng tiến lên.",
+    "tags": [
+      "quy-luat",
+      "luong-chat"
+    ]
+  },
+  {
+    "id": "40323fb5-45a2-4035-9708-8b491a809067",
+    "front": "Quy luật phủ định của phủ định?",
+    "back": "Phát triển theo đường xoáy ốc: cái mới ra đời phủ định cái cũ nhưng kế thừa yếu tố hợp lý (phủ định biện chứng), \n    tạo thành chuỗi phủ định: A → ¬A → ¬(¬A).",
+    "tags": [
+      "quy-luat",
+      "phu-dinh"
+    ]
+  },
+  {
+    "id": "ea27cff6-bf20-4ac3-b001-258cccf0e0a7",
+    "front": "Thực tiễn là gì và vai trò?",
+    "back": "Hoạt động vật chất có mục đích mang tính lịch sử–xã hội của con người; \n    là cơ sở, động lực, mục đích và tiêu chuẩn của chân lý.",
+    "tags": [
+      "nhan-thuc",
+      "thuc-tien"
+    ]
+  },
+  {
+    "id": "f8fe2104-f992-49f1-9bf8-63a9259c63d6",
+    "front": "Con đường biện chứng của nhận thức?",
+    "back": "Từ trực quan sinh động → tư duy trừu tượng → thực tiễn kiểm nghiệm; quay trở lại thực tiễn để hoàn thiện tri thức.",
+    "tags": [
+      "nhan-thuc",
+      "qua-trinh"
+    ]
+  },
+  {
+    "id": "a06fe71e-29e6-4648-bdde-555c643c075b",
+    "front": "Chân lý là gì?",
+    "back": "Tri thức phản ánh đúng hiện thực khách quan, được kiểm nghiệm và khẳng định trong thực tiễn; \n    mang tính khách quan, cụ thể, tuyệt đối–tương đối.",
+    "tags": [
+      "nhan-thuc",
+      "chan-ly"
+    ]
+  },
+  {
+    "id": "dd40489c-a37a-4c64-bccc-7ca9677f0819",
+    "front": "Tính cụ thể của chân lý?",
+    "back": "Mọi chân lý đều gắn với điều kiện lịch sử–xã hội cụ thể; không có chân lý trừu tượng, bất biến ngoài điều kiện cụ thể.",
+    "tags": [
+      "nhan-thuc",
+      "chan-ly"
+    ]
+  },
+  {
+    "id": "5c1b18cf-a753-4a2f-8dfc-5100e5003dd5",
+    "front": "Sản xuất vật chất là gì?",
+    "back": "Hoạt động cơ bản nhất của con người nhằm tạo ra của cải vật chất, \n    giữ vai trò quyết định trong sự tồn tại và phát triển xã hội.",
+    "tags": [
+      "duy-vat-lich-su",
+      "san-xuat"
+    ]
+  },
+  {
+    "id": "ff8c08f4-5d06-4002-b670-9bb57bb26934",
+    "front": "Lực lượng sản xuất (LLSX) gồm gì?",
+    "back": "Người lao động (trình độ, kỹ năng) + tư liệu sản xuất (đối tượng & công cụ lao động); \n    ngày nay tri thức và KH–CN là LLSX trực tiếp.",
+    "tags": [
+      "duy-vat-lich-su",
+      "llsx"
+    ]
+  },
+  {
+    "id": "9ce09e63-3ed9-42b0-abd7-353226983b05",
+    "front": "Quan hệ sản xuất (QHSX) là gì?",
+    "back": "Các quan hệ giữa người với người trong quá trình sản xuất: sở hữu tư liệu sản xuất, \n    tổ chức–quản lý, phân phối sản phẩm.",
+    "tags": [
+      "duy-vat-lich-su",
+      "qhsx"
+    ]
+  },
+  {
+    "id": "bb40173c-a9a1-4670-9716-815313677e1f",
+    "front": "Quy luật quan hệ giữa LLSX và QHSX?",
+    "back": "LLSX quyết định QHSX; QHSX phải phù hợp trình độ LLSX, \n    khi không phù hợp sẽ kìm hãm và nảy sinh cách mạng xã hội.",
+    "tags": [
+      "duy-vat-lich-su",
+      "llsx-qhsx"
+    ]
+  },
+  {
+    "id": "3cf99370-0323-456f-9cc9-afeb732c1426",
+    "front": "Cơ sở hạ tầng và kiến trúc thượng tầng?",
+    "back": "Cơ sở hạ tầng (toàn bộ QHSX hợp thành) quyết định kiến trúc thượng tầng (chính trị, pháp luật, đạo đức, tôn giáo, nghệ thuật…);\n    KTTT tác động trở lại CSHT.",
+    "tags": [
+      "duy-vat-lich-su",
+      "csht-kttt"
+    ]
+  },
+  {
+    "id": "3b8de0f6-7f6d-48e0-8af1-5a74610984b6",
+    "front": "Hình thái kinh tế–xã hội (HTKT–XH) là gì?",
+    "back": "Xã hội ở một giai đoạn lịch sử nhất định với LLSX, QHSX và KTTT tương ứng; \n    sự phát triển là quá trình lịch sử–tự nhiên thay thế các HTKT–XH.",
+    "tags": [
+      "duy-vat-lich-su",
+      "htktxh"
+    ]
+  },
+  {
+    "id": "be036e9f-75a9-4298-a806-c90285a3fb81",
+    "front": "Giai cấp và đấu tranh giai cấp?",
+    "back": "Giai cấp: tập đoàn người khác nhau về địa vị trong hệ thống QHSX; \n    đấu tranh giai cấp là động lực trực tiếp của lịch sử trong xã hội có đối kháng giai cấp.",
+    "tags": [
+      "duy-vat-lich-su",
+      "giai-cap"
+    ]
+  },
+  {
+    "id": "8c52fe4c-31c6-455e-b3aa-25e769e8161e",
+    "front": "Nhà nước trong quan điểm MLN?",
+    "back": "Bộ máy quyền lực đặc biệt của một giai cấp thống trị, ra đời từ mâu thuẫn giai cấp không thể điều hòa; \n    vừa là công cụ thống trị, vừa có tính xã hội.",
+    "tags": [
+      "duy-vat-lich-su",
+      "nha-nuoc"
+    ]
+  },
+  {
+    "id": "5f66d073-6085-495a-969c-5910ddb6b121",
+    "front": "Ý thức xã hội và tồn tại xã hội?",
+    "back": "Tồn tại xã hội (điều kiện sinh hoạt vật chất) quyết định ý thức xã hội; \n    ý thức xã hội có tính độc lập tương đối và tác động trở lại tồn tại xã hội.",
+    "tags": [
+      "duy-vat-lich-su",
+      "y-thuc-xh"
+    ]
+  },
+  {
+    "id": "88ecaef5-0f84-47dd-a34d-dd8356f61d1b",
+    "front": "Con người là thực thể nào trong THMLN?",
+    "back": "Thống nhất giữa mặt sinh học và mặt xã hội; bản chất con người là tổng hòa các quan hệ xã hội.",
+    "tags": [
+      "con-nguoi",
+      "ban-chat"
+    ]
+  },
+  {
+    "id": "c0a15006-5827-4f9b-bd78-687516008fb4",
+    "front": "Vai trò của quần chúng nhân dân?",
+    "back": "Lực lượng sáng tạo ra lịch sử; anh hùng tạo thời thế chỉ khi đại biểu cho lợi ích và yêu cầu khách quan của quần chúng.",
+    "tags": [
+      "con-nguoi",
+      "quan-chung"
+    ]
+  },
+  {
+    "id": "1d7dcb6d-aac4-44a2-9e8b-ad5fe2b1de35",
+    "front": "Cá nhân và xã hội: quan hệ biện chứng?",
+    "back": "Cá nhân là sản phẩm của xã hội và tác nhân cải biến xã hội; \n    cần tôn trọng lợi ích chính đáng của cá nhân trong khuôn khổ lợi ích xã hội.",
+    "tags": [
+      "con-nguoi",
+      "ca-nhan-xa-hoi"
+    ]
+  },
+  {
+    "id": "cdaf5a9a-5c16-473d-bf97-a7d2d7bb8a54",
+    "front": "Nguyên tắc toàn diện trong nhận thức & hành động?",
+    "back": "Xem xét sự vật trong tổng thể các mối liên hệ, cả bên trong lẫn bên ngoài, cơ bản và không cơ bản; \n    chống phiến diện, chiết trung.",
+    "tags": [
+      "phuong-phap",
+      "toan-dien"
+    ]
+  },
+  {
+    "id": "fd80c347-08ed-4300-8435-a8b5881e09d7",
+    "front": "Nguyên tắc lịch sử–cụ thể?",
+    "back": "Đánh giá sự vật/hiện tượng gắn với điều kiện lịch sử–xã hội cụ thể; \n    tránh áp dụng máy móc kinh nghiệm từ nơi/khác thời.",
+    "tags": [
+      "phuong-phap",
+      "lich-su-cu-the"
+    ]
+  },
+  {
+    "id": "d2628f4e-6f72-4c31-9ca2-97dc7f815739",
+    "front": "Nguyên tắc phát triển?",
+    "back": "Nhận thức sự vật trong trạng thái vận động, biến đổi; \n    phát hiện xu hướng, khả năng và điều kiện cho bước nhảy.",
+    "tags": [
+      "phuong-phap",
+      "phat-trien"
+    ]
+  },
+  {
+    "id": "0c6f8d7d-4ee6-44d7-bdce-698e6ec115ab",
+    "front": "Phương pháp kết hợp lý luận với thực tiễn?",
+    "back": "Lý luận phải xuất phát từ thực tiễn và quay lại chỉ đạo thực tiễn; \n    kiểm nghiệm, bổ sung lý luận bằng thực tiễn.",
+    "tags": [
+      "phuong-phap",
+      "ly-luan-thuc-tien"
+    ]
+  },
+  {
+    "id": "eb203480-c0e2-4011-8b51-e6b982fb97f6",
+    "front": "Nguyên nhân – Kết quả",
+    "back": "Nguyên nhân là sự tác động sinh ra biến đổi; kết quả là biến đổi do nguyên nhân gây ra. Một nguyên nhân có thể dẫn đến nhiều kết quả và ngược lại.",
+    "tags": [
+      "pham-tru"
+    ]
+  },
+  {
+    "id": "e5f520b2-720a-4cb3-9ec6-659d7ebf4e46",
+    "front": "Tất nhiên – Ngẫu nhiên",
+    "back": "Tất nhiên: xu hướng ổn định do bản chất quyết định; Ngẫu nhiên: cái phụ thuộc điều kiện cụ thể, có thể có hoặc không. Chúng chuyển hóa lẫn nhau.",
+    "tags": [
+      "pham-tru"
+    ]
+  },
+  {
+    "id": "9eafba06-151e-4466-bece-1d881debfe09",
+    "front": "Nội dung – Hình thức",
+    "back": "Nội dung là tổng hợp các mặt, yếu tố, quá trình bên trong; hình thức là phương thức tồn tại, biểu hiện của nội dung. Nội dung quyết định hình thức, hình thức tác động trở lại.",
+    "tags": [
+      "pham-tru"
+    ]
+  },
+  {
+    "id": "ffb8f020-493f-4e86-a701-d8eff550c325",
+    "front": "Bản chất – Hiện tượng",
+    "back": "Bản chất là những mối liên hệ tất nhiên, tương đối ổn định; hiện tượng là cái bề ngoài, biểu hiện đa dạng. Nhận thức phải đi từ hiện tượng đến bản chất.",
+    "tags": [
+      "pham-tru"
+    ]
+  },
+  {
+    "id": "b5a8d307-f29d-46b8-946d-884b82d253f2",
+    "front": "Khả năng – Hiện thực",
+    "back": "Khả năng là cái chưa có nhưng có thể xuất hiện khi đủ điều kiện; hiện thực là cái đang tồn tại. Biện chứng là quá trình biến khả năng thành hiện thực.",
+    "tags": [
+      "pham-tru"
+    ]
+  },
+  {
+    "id": "5fffc196-77a3-45d7-be64-a4318af28d42",
+    "front": "Vì sao nói đổi mới phải toàn diện và đồng bộ? (gợi ý vận dụng)",
+    "back": "Vì các lĩnh vực kinh tế–chính trị–văn hóa–xã hội có liên hệ hữu cơ; \n    thay đổi một khâu kéo theo các khâu khác, cần đồng bộ để tránh mâu thuẫn kìm hãm.",
+    "tags": [
+      "van-dung"
+    ]
+  },
+  {
+    "id": "1751b4bb-be09-4081-9d94-8e8c33babe19",
+    "front": "Tại sao khoa học–công nghệ là LLSX trực tiếp?",
+    "back": "Tri thức khoa học kết tinh trong con người, máy móc, quy trình… quyết định năng suất; \n    cách mạng KH–CN thúc đẩy biến đổi QHSX và KTTT.",
+    "tags": [
+      "van-dung",
+      "llsx"
+    ]
+  },
+  {
+    "id": "38247259-d2ce-4133-817c-0eeef97689a4",
+    "front": "Tính khách quan của thế giới vật chất",
+    "back": "Thế giới tồn tại không phụ thuộc ý muốn chủ quan của con người.",
+    "tags": [
+      "vat-chat-y-thuc"
+    ]
+  },
+  {
+    "id": "a1530e36-bbd5-4379-910c-76bbe852e87c",
+    "front": "Tính năng động sáng tạo của ý thức",
+    "back": "Ý thức có thể dự báo, đề ra mục tiêu, lập kế hoạch và điều khiển hoạt động thực tiễn.",
+    "tags": [
+      "vat-chat-y-thuc"
+    ]
+  },
+  {
+    "id": "4b92f2c1-8926-4d5f-9279-c2af0fce2515",
+    "front": "Mâu thuẫn là gì?",
+    "back": "Sự thống nhất và đấu tranh giữa các mặt đối lập trong một sự vật/quá trình.",
+    "tags": [
+      "quy-luat",
+      "mau-thuan"
+    ]
+  },
+  {
+    "id": "96ae9f44-e403-4a4c-ab80-0e1eaec86ec4",
+    "front": "Bước nhảy là gì?",
+    "back": "Sự chuyển hóa về chất, diễn ra khi lượng tích lũy đến điểm nút; có thể nhanh/chậm, đột biến/tiệm tiến.",
+    "tags": [
+      "quy-luat",
+      "luong-chat"
+    ]
+  },
+  {
+    "id": "f79baa26-9e79-48ef-a7f0-33c564deef56",
+    "front": "Phủ định siêu hình vs phủ định biện chứng",
+    "back": "Siêu hình: thủ tiêu đơn giản; Biện chứng: kế thừa, phát triển cái cũ trên trình độ cao hơn.",
+    "tags": [
+      "quy-luat",
+      "phu-dinh"
+    ]
+  },
+  {
+    "id": "ef8a7597-f59d-45e6-b308-46b1eefc7bb8",
+    "front": "Vai trò của thực tiễn với nhận thức",
+    "back": "Là cơ sở, động lực, mục đích và tiêu chuẩn kiểm nghiệm chân lý.",
+    "tags": [
+      "nhan-thuc"
+    ]
+  },
+  {
+    "id": "ce12daa2-f801-4c1f-b134-5743877948a4",
+    "front": "Tính tuyệt đối–tương đối của chân lý",
+    "back": "Tuyệt đối ở hạt nhân đúng; tương đối vì bị giới hạn bởi điều kiện lịch sử cụ thể.",
+    "tags": [
+      "nhan-thuc"
+    ]
+  },
+  {
+    "id": "956eee0f-b5ab-4635-b6fe-38cb80d54404",
+    "front": "Quan hệ biện chứng CSHT–KTTT",
+    "back": "CSHT quyết định KTTT; KTTT có tính độc lập tương đối và tác động trở lại (có thể thúc đẩy/kìm hãm).",
+    "tags": [
+      "duy-vat-lich-su"
+    ]
+  },
+  {
+    "id": "bc963e96-d46a-46be-81a8-a8a4381114bd",
+    "front": "Nguồn gốc nhà nước",
+    "back": "Ra đời khi mâu thuẫn giai cấp trở nên đối kháng, cần bộ máy đặc biệt để duy trì trật tự có lợi cho giai cấp thống trị.",
+    "tags": [
+      "duy-vat-lich-su"
+    ]
+  },
+  {
+    "id": "4b4a5d28-778d-4559-9ca6-f356f5309e81",
+    "front": "Vai trò quần chúng – lãnh tụ",
+    "back": "Quần chúng là lực lượng quyết định; lãnh tụ chỉ phát huy khi gắn bó, đại diện lợi ích của quần chúng.",
+    "tags": [
+      "con-nguoi"
+    ]
+  }
+]

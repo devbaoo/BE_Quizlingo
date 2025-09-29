@@ -80,6 +80,15 @@ Hệ thống này được tích hợp vào Marx-Edu để tạo và quản lý 
 
 **Test kết nối Gemini** (admin only)
 
+### 📇 Flashcard JSON API
+
+- `GET /api/flashcards`: danh sách thẻ, hỗ trợ `tag`, `search`, `page`, `limit`.
+- `GET /api/flashcards/tags`: tổng hợp tag cùng số lượng thẻ.
+- `GET /api/flashcards/random`: lấy thẻ ngẫu nhiên, hỗ trợ `tag`, `limit`.
+- `GET /api/flashcards/:id`: chi tiết một thẻ.
+
+> Mặc định dữ liệu được load từ `flashcards_triet_hoc_MLN.json`. Đặt biến `FLASHCARD_JSON_PATH` khi cần chỉ định file khác.
+
 ## Database Models
 
 ### MarxistLearningPath
