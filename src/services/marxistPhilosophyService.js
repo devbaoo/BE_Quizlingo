@@ -310,7 +310,7 @@ Yêu cầu:
       "content": "Nội dung câu hỏi...",
       "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
       "correctAnswer": "A. Đáp án A",
-      "score": 100,
+      "score": 10,
       "timeLimit": 30
     }
   ]
@@ -413,7 +413,7 @@ Yêu cầu:
         minScoreRequired: 70,
         minUserLevel: 1,
         minLessonPassed: 0,
-        maxScore: 3000,
+        maxScore: 100,
         timeLimit: 300, // 30s * 10 câu
         isActive: true,
       });
