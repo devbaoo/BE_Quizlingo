@@ -8,21 +8,21 @@ const AI_PROVIDERS = [
         service: grokService,
         priority: 1,
         weight: 70, // 70% traffic (Grok4 is primary AI)
-        maxConcurrent: 5, // Reduce concurrent requests for Grok4
+        maxConcurrent: 10, // ⚡ Increase concurrent for better performance
         rateLimit: {
-            free: { requestsPerMinute: 30, requestsPerSecond: 1 }, // Grok4 free tier - more conservative
-            paid: { requestsPerMinute: 200, requestsPerSecond: 10 }
+            free: { requestsPerMinute: 60, requestsPerSecond: 2 }, // ⚡ More aggressive for speed
+            paid: { requestsPerMinute: 300, requestsPerSecond: 15 }
         }
     },
     {
         name: 'gemini',
         service: geminiService,
         priority: 2,
-        weight: 30, // 30% traffic (Gemini is backup AI)
-        maxConcurrent: 10,
+        weight: 30, // 30% traffic (Gemini is backup AI)  
+        maxConcurrent: 15, // ⚡ Increase concurrent
         rateLimit: {
-            free: { requestsPerMinute: 15, requestsPerSecond: 1 },
-            paid: { requestsPerMinute: 300, requestsPerSecond: 20 }
+            free: { requestsPerMinute: 30, requestsPerSecond: 2 }, // ⚡ More aggressive
+            paid: { requestsPerMinute: 400, requestsPerSecond: 25 }
         }
     }
 ];

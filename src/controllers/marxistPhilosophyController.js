@@ -522,6 +522,33 @@ const getMultiAiStats = async (req, res, next) => {
     }
 };
 
+/**
+ * Lấy thống kê performance AI generation (Admin only)
+ * GET /api/marxist-philosophy/generation-stats
+ */
+const getGenerationStats = async (req, res, next) => {
+    try {
+        const generationStats = await marxistPhilosophyService.getGenerationStats();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Thống kê performance AI generation',
+            data: {
+                ...generationStats,
+                timestamp: new Date().toISOString(),
+                description: 'AI Generation Queue Performance & Optimization Stats'
+            }
+        });
+    } catch (error) {
+        console.error('Get generation stats error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy thống kê generation',
+            error: error.message
+        });
+    }
+};
+
 export default {
     generateLesson,
     getLearningPath,
@@ -535,5 +562,6 @@ export default {
     testGemini,
     getRateLimiterStats,
     testAllAiConnections,
-    getMultiAiStats
+    getMultiAiStats,
+    getGenerationStats
 }; 

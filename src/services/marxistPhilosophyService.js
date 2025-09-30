@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import geminiService from "./geminiService.js";
 import multiAiService from "./multiAiService.js";
+import aiGenerationQueue from "./aiGenerationQueue.js";
 import Lesson from "../models/lesson.js";
 import Question from "../models/question.js";
 import MarxistLearningPath from "../models/marxistLearningPath.js";
@@ -33,6 +34,29 @@ const getRequiredXpForLevel = (level) => {
 const generatingUsers = new Set();
 // Flag để tránh tạo bài học khi đang trong background generation
 const backgroundGeneratingUsers = new Set();
+
+// ⚡ PERFORMANCE: In-memory cache for frequently accessed data
+const memoryCache = {
+  userProgress: new Map(), // Cache user progress analysis
+  topicSelections: new Map(), // Cache recent topic selections
+
+  // Cache with TTL
+  set(key, value, ttlSeconds = 300) {
+    this[key] = {
+      data: value,
+      expires: Date.now() + (ttlSeconds * 1000)
+    };
+  },
+
+  get(key) {
+    const cached = this[key];
+    if (cached && cached.expires > Date.now()) {
+      return cached.data;
+    }
+    delete this[key];
+    return null;
+  }
+};
 
 // Hàm lấy tất cả chủ đề Marxist từ database (với caching)
 const getAllMarxistTopics = async () => {
@@ -180,11 +204,13 @@ const generateMarxistLesson = async (userId, options = {}) => {
     };
   }
 
-  // Sử dụng Rate Limiter thay vì simple mutex
+  // ⚡ PERFORMANCE: Use queue system to manage concurrent AI generations
   try {
-    return await generationRateLimiter.requestGeneration(userId, async () => {
-      return await _generateMarxistLessonInternal(userId, options);
-    });
+    return await aiGenerationQueue.add(async () => {
+      return await generationRateLimiter.requestGeneration(userId, async () => {
+        return await _generateMarxistLessonInternal(userId, options);
+      });
+    }, userId);
   } catch (rateLimitError) {
     console.warn(
       `⚠️ Rate limit error for user ${userId}:`,
@@ -213,13 +239,22 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       };
     }
 
-    // Phân tích tiến độ học tập (với caching)
-    const analysis = await cacheService.getOrSetUserProgress(
-      userId,
-      async (userId) => {
-        return await analyzeUserProgress(userId);
-      }
-    );
+    // ⚡ PERFORMANCE: Cache user progress analysis với caching thông minh
+    const progressCacheKey = `user_progress_${userId}`;
+    let analysis = memoryCache.get(progressCacheKey);
+
+    if (!analysis) {
+      analysis = await cacheService.getOrSetUserProgress(
+        userId,
+        async (userId) => {
+          return await analyzeUserProgress(userId);
+        }
+      );
+      // Cache trong memory cho 2 phút để tránh re-calculate quá nhiều
+      memoryCache.set(progressCacheKey, analysis, 120);
+    } else {
+      console.log(`⚡ Using cached progress analysis for user ${userId}`);
+    }
 
     let topicId = options.topic;
     let difficulty = options.difficulty;
@@ -320,12 +355,13 @@ Yêu cầu:
     let lessonData;
 
     console.log(
-      " Generating Marxist lesson with Multi-AI (Grok4 + Gemini)..."
+      "🔄 Generating Marxist lesson with Multi-AI (optimized for speed)..."
     );
     const aiResult = await multiAiService.generateJsonContent(prompt, {
-      strategy: "weighted", // Load balance between Gemini and DeepSeek
-      maxRetries: 3,
-      maxProviderRetries: 2,
+      strategy: "weighted", // Load balance between providers
+      maxRetries: 2, // ⚡ Reduce retries for speed
+      maxProviderRetries: 2, // ⚡ Reduce provider retries
+      timeout: 45000, // ⚡ 45s timeout instead of default
     });
 
     if (!aiResult.success) {
@@ -384,54 +420,63 @@ Yêu cầu:
       );
     }
 
-    // Tìm hoặc tạo Topic, Level, Skill với error handling
-    console.log("📋 Finding or creating Topic, Level, Skill...");
+    // ⚡ PERFORMANCE: Parallel find/create Topic, Level, Skill with caching
+    console.log("📋 Finding or creating Topic, Level, Skill (parallel)...");
 
-    let topicDoc = await Topic.findOne({ name: "Marxist Philosophy" });
-    if (!topicDoc) {
-      console.log("🔧 Creating Marxist Philosophy topic...");
-      topicDoc = await Topic.create({
-        name: "Marxist Philosophy",
-        description:
-          "Triết học Mác-Lê-Nin: duy vật biện chứng, nhận thức luận, quy luật triết học",
-        isActive: true,
-      });
-    }
+    const [topicDoc, levelDoc, skillDoc] = await Promise.all([
+      // Topic - cache this
+      cacheService.getOrSet('marxist_topic_doc', async () => {
+        let doc = await Topic.findOne({ name: "Marxist Philosophy" });
+        if (!doc) {
+          console.log("🔧 Creating Marxist Philosophy topic...");
+          doc = await Topic.create({
+            name: "Marxist Philosophy",
+            description: "Triết học Mác-Lê-Nin: duy vật biện chứng, nhận thức luận, quy luật triết học",
+            isActive: true,
+          });
+        }
+        return doc;
+      }, 300), // Cache 5 minutes
 
-    let levelDoc = await Level.findOne({ name: "marxist_intermediate" });
-    if (!levelDoc) {
-      console.log("🔧 Creating marxist_intermediate level...");
+      // Level - cache this  
+      cacheService.getOrSet('marxist_level_doc', async () => {
+        let doc = await Level.findOne({ name: "marxist_intermediate" });
+        if (!doc) {
+          console.log("🔧 Creating marxist_intermediate level...");
+          const lastLevel = await Level.findOne().sort({ order: -1 });
+          const nextOrder = lastLevel ? lastLevel.order + 1 : 1;
 
-      // Tìm order cao nhất hiện tại và +1
-      const lastLevel = await Level.findOne().sort({ order: -1 });
-      const nextOrder = lastLevel ? lastLevel.order + 1 : 1;
+          doc = await Level.create({
+            name: "marxist_intermediate",
+            description: "Trình độ trung cấp Marxist",
+            order: nextOrder,
+            minScoreRequired: 70,
+            minUserLevel: 1,
+            minLessonPassed: 0,
+            maxScore: 100,
+            timeLimit: 300,
+            isActive: true,
+          });
+          console.log(`✅ Created level with order: ${nextOrder}`);
+        }
+        return doc;
+      }, 300), // Cache 5 minutes
 
-      levelDoc = await Level.create({
-        name: "marxist_intermediate",
-        description: "Trình độ trung cấp Marxist",
-        order: nextOrder,
-        minScoreRequired: 70,
-        minUserLevel: 1,
-        minLessonPassed: 0,
-        maxScore: 100,
-        timeLimit: 300, // 30s * 10 câu
-        isActive: true,
-      });
-
-      console.log(`✅ Created level with order: ${nextOrder}`);
-    }
-
-    let skillDoc = await Skill.findOne({ name: "marxist_philosophy" });
-    if (!skillDoc) {
-      console.log("🔧 Creating marxist_philosophy skill...");
-      skillDoc = await Skill.create({
-        name: "marxist_philosophy",
-        description:
-          "Triết học Mác-Lê-Nin: phương pháp luận, nhận thức luận, quy luật biện chứng",
-        supportedTypes: ["multiple_choice"],
-        isActive: true,
-      });
-    }
+      // Skill - cache this
+      cacheService.getOrSet('marxist_skill_doc', async () => {
+        let doc = await Skill.findOne({ name: "marxist_philosophy" });
+        if (!doc) {
+          console.log("🔧 Creating marxist_philosophy skill...");
+          doc = await Skill.create({
+            name: "marxist_philosophy",
+            description: "Triết học Mác-Lê-Nin: phương pháp luận, nhận thức luận, quy luật biện chứng",
+            supportedTypes: ["multiple_choice"],
+            isActive: true,
+          });
+        }
+        return doc;
+      }, 300) // Cache 5 minutes
+    ]);
 
     // Validate tất cả đều tồn tại
     if (!topicDoc || !levelDoc || !skillDoc) {
@@ -581,65 +626,71 @@ Yêu cầu:
 
     console.log("✅ Lesson created:", lesson._id);
 
-    // Tạo questions
-    console.log(`🔄 Creating ${processedQuestions.length} questions...`);
-    const questionIds = [];
+    // ⚡ PERFORMANCE: Batch create questions instead of one-by-one
+    console.log(`🔄 Batch creating ${processedQuestions.length} questions...`);
 
-    for (let i = 0; i < processedQuestions.length; i++) {
-      const qData = processedQuestions[i];
-      try {
-        const question = await Question.create({
-          lessonId: lesson._id,
-          skill: qData.skill,
-          type: qData.type,
-          content: qData.content,
-          options: qData.options || [],
-          correctAnswer: qData.correctAnswer,
-          score: qData.score || 100,
-          timeLimit: qData.timeLimit || 30,
-        });
-        questionIds.push(question._id);
+    // Prepare all question data for batch insert
+    const questionsToInsert = processedQuestions.map(qData => ({
+      lessonId: lesson._id,
+      skill: qData.skill,
+      type: qData.type,
+      content: qData.content,
+      options: qData.options || [],
+      correctAnswer: qData.correctAnswer,
+      score: qData.score || 100,
+      timeLimit: qData.timeLimit || 30,
+    }));
 
-        if ((i + 1) % 10 === 0) {
-          console.log(
-            `✅ Created ${i + 1}/${processedQuestions.length} questions`
-          );
-        }
-      } catch (error) {
-        console.error(`❌ Failed to create question ${i + 1}:`, error.message);
-        throw error;
-      }
+    try {
+      // ⚡ Batch insert all questions at once
+      const questions = await Question.insertMany(questionsToInsert, {
+        ordered: true // Stop on first error
+      });
+
+      const questionIds = questions.map(q => q._id);
+      console.log(`✅ Batch created ${questions.length} questions`);
+
+      // ⚡ Update lesson with question IDs (single operation)
+      lesson.questions = questionIds;
+      await lesson.save();
+
+    } catch (error) {
+      console.error(`❌ Failed to batch create questions:`, error.message);
+      // Rollback: delete the lesson if questions failed
+      await Lesson.findByIdAndDelete(lesson._id);
+      throw new Error(`Question creation failed: ${error.message}`);
     }
 
-    // Cập nhật lesson với question IDs
-    lesson.questions = questionIds;
-    await lesson.save();
-
-    // Tạo MarxistLearningPath entry
+    // ⚡ PERFORMANCE: Parallel create learning path + update topic stats + send notification
     const pathOrder = await getNextMarxistOrder(userId);
-    const learningPath = await MarxistLearningPath.create({
-      userId: user._id,
-      lessonId: lesson._id,
-      source: "ai_generated_marxist",
-      marxistTopic: topicId,
-      difficultyLevel: difficulty,
-      previousScore: analysis.previousScore || 0,
-      recommendedReason: analysis.reason,
-      order: pathOrder,
-    });
+    const questionIds = lesson.questions; // From batch creation above
 
-    // Cập nhật thống kê cho topic
-    await MarxistTopic.findByIdAndUpdate(topicId, {
-      $inc: { totalLessonsGenerated: 1 },
-    });
+    const [learningPath] = await Promise.all([
+      // Create learning path
+      MarxistLearningPath.create({
+        userId: user._id,
+        lessonId: lesson._id,
+        source: "ai_generated_marxist",
+        marxistTopic: topicId,
+        difficultyLevel: difficulty,
+        previousScore: analysis.previousScore || 0,
+        recommendedReason: analysis.reason,
+        order: pathOrder,
+      }),
 
-    // Gửi notification
-    await NotificationService.createNotification(userId, {
-      title: "📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!",
-      message: `AI đã tạo bài học về "${topicInfo.title}" với 10 câu hỏi. Hãy vào học ngay!`,
-      type: "ai_generated",
-      link: "/philosophy",
-    });
+      // Update topic stats (don't wait for this)
+      MarxistTopic.findByIdAndUpdate(topicId, {
+        $inc: { totalLessonsGenerated: 1 },
+      }).catch(err => console.warn('Topic stats update failed:', err.message)),
+
+      // Send notification (don't wait for this)
+      NotificationService.createNotification(userId, {
+        title: "📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!",
+        message: `AI đã tạo bài học về "${topicInfo.title}" với ${questionIds.length} câu hỏi. Hãy vào học ngay!`,
+        type: "ai_generated",
+        link: "/philosophy",
+      }).catch(err => console.warn('Notification failed:', err.message))
+    ]);
 
     return {
       success: true,
@@ -1194,6 +1245,56 @@ const getMarxistStats = async (userId) => {
   }
 };
 
+/**
+ * ⚡ PERFORMANCE: Get generation performance stats
+ * @returns {Object} Performance statistics
+ */
+const getGenerationStats = async () => {
+  try {
+    const queueStats = aiGenerationQueue.getStats();
+    const cacheStats = {
+      memoryCacheSize: Object.keys(memoryCache).length,
+      backgroundGeneratingUsers: backgroundGeneratingUsers.size,
+      generatingUsers: generatingUsers.size,
+    };
+
+    // Get recent lesson creation stats
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentLessons = await Lesson.countDocuments({
+      createdAt: { $gte: last24Hours }
+    });
+
+    const recentPaths = await MarxistLearningPath.countDocuments({
+      generatedAt: { $gte: last24Hours }
+    });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Performance stats retrieved successfully",
+      stats: {
+        queue: queueStats,
+        cache: cacheStats,
+        recent24h: {
+          lessonsCreated: recentLessons,
+          pathsCreated: recentPaths
+        },
+        system: {
+          memoryUsage: process.memoryUsage(),
+          uptime: process.uptime()
+        }
+      }
+    };
+  } catch (error) {
+    console.error("Error getting generation stats:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Lỗi khi lấy thống kê: " + error.message,
+    };
+  }
+};
+
 export default {
   generateMarxistLesson,
   analyzeUserProgress,
@@ -1202,4 +1303,5 @@ export default {
   retryMarxistLesson,
   getMarxistStats,
   getAllMarxistTopics,
+  getGenerationStats, // ⚡ New performance monitoring endpoint
 }; 
