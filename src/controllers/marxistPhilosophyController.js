@@ -523,9 +523,63 @@ const getMultiAiStats = async (req, res, next) => {
 };
 
 /**
- * Lấy thống kê performance AI generation (Admin only)
- * GET /api/marxist-philosophy/generation-stats
+ * Test answer distribution concentration (Admin only)
+ * GET /api/marxist-philosophy/test-answer-distribution?topic=duy_vat_bien_chung&difficulty=2
  */
+const testAnswerDistribution = async (req, res, next) => {
+    try {
+        const { topic = "duy_vat_bien_chung", difficulty = 2 } = req.query;
+
+        console.log(`🎯 Admin testing answer distribution for topic: ${topic}, difficulty: ${difficulty}`);
+
+        const result = await marxistPhilosophyService.testAnswerDistribution(topic, parseInt(difficulty));
+
+        return res.status(result.success ? 200 : 400).json({
+            success: result.success,
+            message: result.success ? 'Answer distribution test completed' : result.message,
+            data: result.success ? {
+                ...result,
+                timestamp: new Date().toISOString(),
+                testParameters: { topic, difficulty: parseInt(difficulty) }
+            } : null,
+            error: result.success ? null : result.message
+        });
+    } catch (error) {
+        console.error('Test answer distribution error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi test answer distribution',
+            error: error.message
+        });
+    }
+};
+const testAiAccuracy = async (req, res, next) => {
+    try {
+        const { topic = "duy_vat_bien_chung", difficulty = 2 } = req.query;
+
+        console.log(`🧪 Admin testing AI accuracy for topic: ${topic}, difficulty: ${difficulty}`);
+
+        const result = await marxistPhilosophyService.testAiGenerationAccuracy(topic, parseInt(difficulty));
+
+        return res.status(result.success ? 200 : 400).json({
+            success: result.success,
+            message: result.success ? 'AI accuracy test completed' : result.message,
+            data: result.success ? {
+                ...result,
+                timestamp: new Date().toISOString(),
+                testParameters: { topic, difficulty: parseInt(difficulty) }
+            } : null,
+            error: result.success ? null : result.message
+        });
+    } catch (error) {
+        console.error('Test AI accuracy error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi test AI accuracy',
+            error: error.message
+        });
+    }
+};
 const getGenerationStats = async (req, res, next) => {
     try {
         const generationStats = await marxistPhilosophyService.getGenerationStats();
@@ -563,5 +617,7 @@ export default {
     getRateLimiterStats,
     testAllAiConnections,
     getMultiAiStats,
-    getGenerationStats
+    getGenerationStats,
+    testAnswerDistribution,
+    testAiAccuracy
 }; 

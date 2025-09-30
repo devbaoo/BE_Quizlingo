@@ -537,6 +537,18 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     marxistPhilosophyController.getGenerationStats
   );
+  router.get(
+    "/marxist-philosophy/test-ai-accuracy",
+    protect,
+    authorize("admin"),
+    marxistPhilosophyController.testAiAccuracy
+  );
+  router.get(
+    "/marxist-philosophy/test-answer-distribution",
+    protect,
+    authorize("admin"),
+    marxistPhilosophyController.testAnswerDistribution
+  );
 
   // Marxist Topics management routes
   router.post(

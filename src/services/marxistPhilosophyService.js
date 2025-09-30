@@ -328,12 +328,18 @@ Yêu cầu:
 - Câu hỏi về: quy luật, phương pháp luận, nhận thức, thực tiễn, ý thức
 - Thời gian làm mỗi câu: 30 giây
 
-🎯 YÊU CẦU ĐẶC BIỆT VỀ PHÂN BỐ ĐÁP ÁN:
-- Đáp án đúng PHẢI ĐƯỢC PHÂN BỐ ĐỀU giữa A, B, C, D
-- Khoảng 2-3 câu mỗi đáp án (A: 2-3 câu, B: 2-3 câu, C: 2-3 câu, D: 2-3 câu)
-- TUYỆT ĐỐI KHÔNG được có quá 4 câu cùng đáp án
-- Ví dụ phân bố tốt: A:3, B:2, C:3, D:2 hoặc A:2, B:3, C:2, D:3
-- Đáp án phải dựa trên KIẾN THỨC CHÍNH XÁC, không được thay đổi tùy tiện
+🚨 YÊU CẦU CỰC KỲ QUAN TRỌNG VỀ PHÂN BỐ ĐÁP ÁN:
+❌ TUYỆT ĐỐI KHÔNG được tạo tất cả câu hỏi có cùng đáp án đúng (ví dụ: tất cả đều A)
+❌ KHÔNG được có hơn 4 câu cùng đáp án đúng
+✅ BẮT BUỘC: Phân bố đáp án đúng đều giữa A, B, C, D
+✅ Ví dụ phân bố ĐÚNG: A:3 câu, B:2 câu, C:3 câu, D:2 câu
+✅ Hoặc: A:2 câu, B:3 câu, C:2 câu, D:3 câu
+✅ Đáp án dựa trên KIẾN THỨC CHÍNH XÁC của triết học Mác-Lê-Nin
+
+🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
+1. Đếm số câu có đáp án A, B, C, D
+2. Đảm bảo không có đáp án nào quá 4 câu
+3. Đảm bảo phân bố tương đối đều (sai lệch không quá 2 câu)
 
 ⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
 
@@ -498,68 +504,238 @@ Yêu cầu:
       skill: skillDoc.name,
     });
 
-    // Chuẩn hóa câu hỏi và correctAnswer do một số AI có thể trả về chỉ "A"/1 thay vì toàn bộ option
-    const normalizeCorrectAnswer = (question) => {
+    // ✅ IMPROVED: Better validation for correct answers
+    const normalizeCorrectAnswer = (question, questionIndex) => {
       try {
         const options = Array.isArray(question.options) ? question.options : [];
         let answer = question.correctAnswer;
 
-        if (!options.length) return question.correctAnswer;
+        console.log(`🔍 Question ${questionIndex + 1}: "${question.content?.substring(0, 50)}..."`);
+        console.log(`🎯 AI provided answer: "${answer}"`);
+        console.log(`📝 Available options:`, options);
+
+        if (!options.length) {
+          console.warn(`⚠️ Question ${questionIndex + 1}: No options available!`);
+          return question.correctAnswer;
+        }
 
         // Nếu answer là số (1-4)
         if (typeof answer === "number") {
           const idx = Math.max(0, Math.min(options.length - 1, answer - 1));
-          return options[idx];
+          const normalizedAnswer = options[idx];
+          console.log(`🔢 Normalized from number ${answer} to: "${normalizedAnswer}"`);
+          return normalizedAnswer;
         }
 
         if (typeof answer === "string") {
           const trimmed = answer.trim();
 
-          // Nếu là chữ cái A-D
+          // ✅ PRIORITY 1: Exact match first (most reliable)
+          const exactMatch = options.find((opt) => opt === trimmed);
+          if (exactMatch) {
+            console.log(`✅ Exact match found: "${exactMatch}"`);
+            return exactMatch;
+          }
+
+          // ✅ PRIORITY 2: Letter match (A, B, C, D)
           const letterMatch = trimmed.match(/^[A-Da-d]$/);
           if (letterMatch) {
             const idx = trimmed.toUpperCase().charCodeAt(0) - 65; // A->0
-            return options[idx] || options[0];
+            if (idx >= 0 && idx < options.length) {
+              const normalizedAnswer = options[idx];
+              console.log(`🔤 Letter match ${trimmed.toUpperCase()} -> "${normalizedAnswer}"`);
+              return normalizedAnswer;
+            }
           }
 
-          // Nếu là tiền tố "A." hoặc "A)"
-          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]?/);
+          // ✅ PRIORITY 3: Prefix match (A., A), etc.)
+          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]/);
           if (letterPrefix) {
             const idx = letterPrefix[1].toUpperCase().charCodeAt(0) - 65;
-            return options[idx] || options[0];
+            if (idx >= 0 && idx < options.length) {
+              const normalizedAnswer = options[idx];
+              console.log(`🏷️ Prefix match ${letterPrefix[1]} -> "${normalizedAnswer}"`);
+              return normalizedAnswer;
+            }
           }
 
-          // Khớp gần đúng: loại bỏ tiền tố "A. " khi so sánh
-          const normalizeText = (s) => String(s).replace(/^\s*[A-Da-d][\.)\-]\s*/, "").trim();
-          const normalizedAnswer = normalizeText(trimmed);
-          const found = options.find((opt) => normalizeText(opt) === normalizedAnswer);
-          if (found) return found;
+          // ✅ PRIORITY 4: Content matching (remove prefix and compare)
+          const normalizeText = (s) => String(s).replace(/^\s*[A-Da-d][\.)\-]\s*/, "").trim().toLowerCase();
+          const normalizedAnswerText = normalizeText(trimmed);
 
-          // Nếu đã khớp chính xác với một option
-          const exact = options.find((opt) => opt === trimmed);
-          if (exact) return exact;
+          const contentMatch = options.find((opt) => {
+            const normalizedOpt = normalizeText(opt);
+            return normalizedOpt === normalizedAnswerText;
+          });
+
+          if (contentMatch) {
+            console.log(`📄 Content match found: "${contentMatch}"`);
+            return contentMatch;
+          }
+
+          // ⚠️ WARNING: No match found
+          console.warn(`⚠️ Question ${questionIndex + 1}: No match found for answer "${trimmed}"`);
+          console.warn(`🤔 Available options:`, options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`));
         }
 
-        // Fallback: chọn option đầu tiên để không chặn tạo bài
+        // ❌ FALLBACK: Return first option but log warning
+        console.warn(`❌ Question ${questionIndex + 1}: Using fallback (first option)`);
         return options[0];
       } catch (e) {
+        console.error(`💥 Error normalizing answer for question ${questionIndex + 1}:`, e.message);
         return question.correctAnswer;
       }
     };
 
-    const processedQuestions = lessonData.questions.map((q) => {
+    const processedQuestions = lessonData.questions.map((q, index) => {
       const normalized = {
         ...q,
         type: "multiple_choice",
         timeLimit: 30,
         score: 100,
       };
+
+      const normalizedAnswer = normalizeCorrectAnswer(normalized, index);
+
       return {
         ...normalized,
         skill: skillDoc._id,
-        correctAnswer: normalizeCorrectAnswer(normalized),
+        correctAnswer: normalizedAnswer,
       };
     });
+
+    console.log("🔍 VALIDATION: Checking all processed questions for correctness...");
+
+    // ✅ ADD: Detailed validation for each question
+    const questionValidationIssues = [];
+    processedQuestions.forEach((q, index) => {
+      const options = q.options || [];
+      const correctAnswer = q.correctAnswer;
+
+      // Check if correctAnswer exists in options
+      const answerExists = options.includes(correctAnswer);
+
+      if (!answerExists) {
+        questionValidationIssues.push({
+          questionIndex: index + 1,
+          content: q.content?.substring(0, 50) + "...",
+          correctAnswer,
+          options,
+          issue: "Correct answer not found in options"
+        });
+      }
+
+      console.log(`Question ${index + 1}: ✅ Answer "${correctAnswer}" ${answerExists ? 'EXISTS' : '❌ NOT FOUND'} in options`);
+    });
+
+    // ⚠️ Log validation issues
+    if (questionValidationIssues.length > 0) {
+      console.warn(`⚠️ FOUND ${questionValidationIssues.length} VALIDATION ISSUES:`);
+      questionValidationIssues.forEach(issue => {
+        console.warn(`❌ Question ${issue.questionIndex}: ${issue.issue}`);
+        console.warn(`   Content: ${issue.content}`);
+        console.warn(`   Correct Answer: "${issue.correctAnswer}"`);
+        console.warn(`   Options:`, issue.options);
+      });
+
+      // ❌ STRICT MODE: Return error if any validation fails
+      return {
+        success: false,
+        statusCode: 400,
+        message: `AI generated invalid questions: ${questionValidationIssues.length} questions have incorrect answer mapping`,
+        validationIssues: questionValidationIssues,
+        retryable: true
+      };
+    }
+
+    // 🔥 NEW: Check for answer distribution concentration (main fix)
+    console.log("🎯 CHECKING ANSWER DISTRIBUTION for concentration...");
+
+    const validateAnswerConcentration = (questions) => {
+      const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
+
+      questions.forEach(q => {
+        const answer = q.correctAnswer || "";
+        const match = answer.match(/^([A-Da-d])/);
+        const letter = match ? match[1].toUpperCase() : "Unknown";
+
+        if (distribution[letter] !== undefined) {
+          distribution[letter]++;
+        } else {
+          distribution.Unknown++;
+        }
+      });
+
+      console.log(`📊 Answer Distribution: A=${distribution.A}, B=${distribution.B}, C=${distribution.C}, D=${distribution.D}, Unknown=${distribution.Unknown}`);
+
+      // 🚨 CRITICAL: Check for concentration issues
+      const totalQuestions = questions.length;
+      const maxCount = Math.max(distribution.A, distribution.B, distribution.C, distribution.D);
+      const minCount = Math.min(distribution.A, distribution.B, distribution.C, distribution.D);
+
+      // Issues to check:
+      const issues = [];
+
+      // 1. Too concentrated on one answer (e.g., all 10 questions are A)
+      if (maxCount >= 7) {
+        const dominantLetter = Object.keys(distribution).find(key => distribution[key] === maxCount);
+        issues.push(`Too concentrated: ${maxCount}/${totalQuestions} questions have answer ${dominantLetter}`);
+      }
+
+      // 2. All answers are the same (worst case)
+      if (maxCount === totalQuestions) {
+        const dominantLetter = Object.keys(distribution).find(key => distribution[key] === maxCount);
+        issues.push(`CRITICAL: All ${totalQuestions} questions have the same answer ${dominantLetter}!`);
+      }
+
+      // 3. Too uneven distribution
+      if (maxCount - minCount > 5) {
+        issues.push(`Too uneven: difference between max (${maxCount}) and min (${minCount}) is ${maxCount - minCount}`);
+      }
+
+      // 4. Unknown/invalid answers
+      if (distribution.Unknown > 0) {
+        issues.push(`${distribution.Unknown} questions have invalid answer format`);
+      }
+
+      const isValid = issues.length === 0;
+
+      return {
+        isValid,
+        distribution,
+        issues,
+        maxCount,
+        minCount,
+        totalQuestions
+      };
+    };
+
+    // Run concentration validation
+    const concentrationCheck = validateAnswerConcentration(processedQuestions);
+
+    if (!concentrationCheck.isValid) {
+      console.error(`🚨 ANSWER CONCENTRATION ISSUES DETECTED:`);
+      concentrationCheck.issues.forEach(issue => {
+        console.error(`   ❌ ${issue}`);
+      });
+
+      // 🔄 CRITICAL: Return error for concentration issues (AI needs retry)
+      return {
+        success: false,
+        statusCode: 400,
+        message: `AI generated poor answer distribution: ${concentrationCheck.issues.join(', ')}`,
+        concentrationIssues: {
+          distribution: concentrationCheck.distribution,
+          issues: concentrationCheck.issues,
+          severity: concentrationCheck.maxCount === concentrationCheck.totalQuestions ? 'CRITICAL' : 'HIGH'
+        },
+        retryable: true,
+        error: "ANSWER_CONCENTRATION_FAILED"
+      };
+    }
+
+    console.log("✅ Answer concentration validation passed!");
+    console.log("✅ All validations passed - proceeding with lesson creation");
 
     // ✅ IMPROVED: Validate answer distribution and retry if needed
     console.log("🔍 Validating AI-generated answer distribution...");
@@ -719,6 +895,384 @@ Yêu cầu:
   } catch (error) {
     console.error("Error in _generateMarxistLessonInternal:", error);
     throw error; // Re-throw để rate limiter xử lý
+  }
+};
+
+/**
+ * Test answer distribution concentration specifically
+ * @param {string} topicName - Topic name to test
+ * @param {number} difficulty - Difficulty level (1-5)
+ * @returns {Object} Test results focusing on answer distribution
+ */
+const testAnswerDistribution = async (topicName = "duy_vat_bien_chung", difficulty = 2) => {
+  try {
+    console.log(`🎯 Testing answer distribution for topic: ${topicName}, difficulty: ${difficulty}`);
+
+    // Find topic
+    const topicInfo = await MarxistTopic.findOne({ name: topicName, isActive: true });
+    if (!topicInfo) {
+      return {
+        success: false,
+        message: `Topic "${topicName}" not found`
+      };
+    }
+
+    // Test multiple runs to check consistency
+    const testRuns = [];
+    const providers = ['gemini', 'grok4'];
+
+    for (const provider of providers) {
+      console.log(`🤖 Testing ${provider} for answer distribution...`);
+
+      try {
+        // Create stricter prompt focused on distribution
+        const prompt = `
+Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Tạo 5 câu hỏi trắc nghiệm về "${topicInfo.title}".
+
+🚨 YÊU CẦU CỰC KỲ QUAN TRỌNG:
+❌ TUYỆT ĐỐI KHÔNG được tạo tất cả câu có cùng đáp án đúng
+✅ BẮT BUỘC: Phân bố đáp án A, B, C, D đều nhau
+✅ Ví dụ: Câu 1: A đúng, Câu 2: B đúng, Câu 3: C đúng, Câu 4: D đúng, Câu 5: A đúng
+
+{
+  "title": "${topicInfo.title}",
+  "questions": [
+    {
+      "content": "Câu hỏi...",
+      "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
+      "correctAnswer": "A. Đáp án A"
+    }
+  ]
+}`;
+
+        const result = await multiAiService.generateJsonContent(prompt, {
+          preferredProvider: provider,
+          maxRetries: 1
+        });
+
+        if (result.success && result.data?.questions) {
+          // Analyze distribution
+          const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
+
+          result.data.questions.forEach(q => {
+            const answer = q.correctAnswer || "";
+            const match = answer.match(/^([A-Da-d])/);
+            const letter = match ? match[1].toUpperCase() : "Unknown";
+
+            if (distribution[letter] !== undefined) {
+              distribution[letter]++;
+            } else {
+              distribution.Unknown++;
+            }
+          });
+
+          const totalQuestions = result.data.questions.length;
+          const maxCount = Math.max(distribution.A, distribution.B, distribution.C, distribution.D);
+          const isConcentrated = maxCount >= Math.ceil(totalQuestions * 0.7); // 70% threshold
+          const isAllSame = maxCount === totalQuestions;
+
+          testRuns.push({
+            provider,
+            success: true,
+            questionCount: totalQuestions,
+            distribution,
+            maxCount,
+            isConcentrated,
+            isAllSame,
+            concentrationPercentage: Math.round((maxCount / totalQuestions) * 100),
+            issues: [
+              isAllSame && `ALL ${totalQuestions} questions have same answer`,
+              isConcentrated && `${maxCount}/${totalQuestions} (${Math.round((maxCount / totalQuestions) * 100)}%) questions have same answer`,
+              distribution.Unknown > 0 && `${distribution.Unknown} questions have invalid answers`
+            ].filter(Boolean)
+          });
+
+          console.log(`${provider} result:`, {
+            distribution,
+            concentrated: isConcentrated,
+            allSame: isAllSame
+          });
+
+        } else {
+          testRuns.push({
+            provider,
+            success: false,
+            error: result.error || 'Generation failed'
+          });
+        }
+
+      } catch (error) {
+        testRuns.push({
+          provider,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    // Analyze results
+    const analysis = {
+      totalRuns: testRuns.length,
+      successfulRuns: testRuns.filter(r => r.success).length,
+      concentrationIssues: testRuns.filter(r => r.success && r.isConcentrated).length,
+      criticalIssues: testRuns.filter(r => r.success && r.isAllSame).length,
+      bestProvider: null,
+      worstProvider: null
+    };
+
+    // Find best and worst providers
+    const successfulRuns = testRuns.filter(r => r.success);
+    if (successfulRuns.length > 0) {
+      analysis.bestProvider = successfulRuns.reduce((best, current) =>
+        !best || current.maxCount < best.maxCount ? current : best
+      ).provider;
+
+      analysis.worstProvider = successfulRuns.reduce((worst, current) =>
+        !worst || current.maxCount > worst.maxCount ? current : worst
+      ).provider;
+    }
+
+    return {
+      success: true,
+      topic: {
+        name: topicInfo.name,
+        title: topicInfo.title
+      },
+      testRuns,
+      analysis,
+      recommendations: {
+        preferredProvider: analysis.bestProvider,
+        issues: analysis.concentrationIssues > 0 ?
+          `${analysis.concentrationIssues}/${analysis.totalRuns} runs had concentration issues` :
+          'No concentration issues detected',
+        criticalIssues: analysis.criticalIssues > 0 ?
+          `${analysis.criticalIssues}/${analysis.totalRuns} runs had ALL SAME ANSWER issue` :
+          'No critical issues detected'
+      }
+    };
+
+  } catch (error) {
+    console.error("Error testing answer distribution:", error);
+    return {
+      success: false,
+      message: "Test failed: " + error.message
+    };
+  }
+};
+
+/**
+ * Test AI generation accuracy and validate answers
+ * @param {string} topicName - Topic name to test
+ * @param {number} difficulty - Difficulty level (1-5)
+ * @returns {Object} Test results
+ */
+const testAiGenerationAccuracy = async (topicName = "duy_vat_bien_chung", difficulty = 2) => {
+  try {
+    console.log(`🧪 Testing AI generation accuracy for topic: ${topicName}, difficulty: ${difficulty}`);
+
+    // Find topic
+    const topicInfo = await MarxistTopic.findOne({ name: topicName, isActive: true });
+    if (!topicInfo) {
+      return {
+        success: false,
+        message: `Topic "${topicName}" not found`
+      };
+    }
+
+    // Create test prompt
+    const prompt = `
+Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Hãy tạo 3 câu hỏi trắc nghiệm về chủ đề "${topicInfo.title}" với độ khó cấp độ ${difficulty}/5.
+
+⚠️ QUAN TRỌNG: CHỈ TẬP TRUNG VÀO TRIẾT HỌC MÁC-LÊ-NIN, KHÔNG PHẢI KINH TẾ CHÍNH TRỊ!
+
+Chủ đề: ${topicInfo.title}
+Mô tả: ${topicInfo.description}
+Từ khóa quan trọng: ${topicInfo.keywords.join(", ")}
+
+Yêu cầu:
+- Đúng 3 câu hỏi trắc nghiệm (multiple choice) 
+- Mỗi câu có 4 đáp án (A, B, C, D)
+- Nội dung CHỈ VỀ TRIẾT HỌC Mác-Lê-Nin (duy vật biện chứng, nhận thức luận, quy luật triết học)
+- KHÔNG hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
+- Độ khó phù hợp với cấp độ ${difficulty}
+- Đáp án đúng phải DỰA VÀO KIẾN THỨC CHÍNH XÁC của triết học Mác-Lê-Nin
+
+⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
+
+{
+  "title": "${topicInfo.title}",
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "content": "Nội dung câu hỏi...", 
+      "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
+      "correctAnswer": "A. Đáp án A",
+      "explanation": "Giải thích chi tiết tại sao đáp án này đúng..."
+    }
+  ]
+}`;
+
+    // Test with multiple AI providers
+    const results = {};
+
+    // Test Gemini
+    try {
+      console.log("🤖 Testing with Gemini...");
+      const geminiResult = await multiAiService.generateJsonContent(prompt, {
+        preferredProvider: "gemini"
+      });
+      results.gemini = geminiResult;
+    } catch (error) {
+      results.gemini = { success: false, error: error.message };
+    }
+
+    // Test Grok4 
+    try {
+      console.log("🤖 Testing with Grok4...");
+      const grokResult = await multiAiService.generateJsonContent(prompt, {
+        preferredProvider: "grok4"
+      });
+      results.grok4 = grokResult;
+    } catch (error) {
+      results.grok4 = { success: false, error: error.message };
+    }
+
+    // Analyze results
+    const analysis = {
+      totalProviders: Object.keys(results).length,
+      successfulProviders: 0,
+      questionAnalysis: {},
+      validationIssues: []
+    };
+
+    Object.entries(results).forEach(([provider, result]) => {
+      if (result.success && result.data?.questions) {
+        analysis.successfulProviders++;
+
+        console.log(`\n🔍 Analyzing ${provider} results:`);
+
+        result.data.questions.forEach((q, index) => {
+          const questionKey = `question_${index + 1}`;
+          if (!analysis.questionAnalysis[questionKey]) {
+            analysis.questionAnalysis[questionKey] = {
+              content: q.content?.substring(0, 100) + "...",
+              providerAnswers: {},
+              options: q.options
+            };
+          }
+
+          // Store this provider's answer
+          analysis.questionAnalysis[questionKey].providerAnswers[provider] = {
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation
+          };
+
+          // Validate answer exists in options
+          const answerExists = q.options?.includes(q.correctAnswer);
+          if (!answerExists) {
+            analysis.validationIssues.push({
+              provider,
+              questionIndex: index + 1,
+              issue: "Correct answer not found in options",
+              correctAnswer: q.correctAnswer,
+              options: q.options
+            });
+          }
+
+          console.log(`  Question ${index + 1}: "${q.content?.substring(0, 50)}..."`);
+          console.log(`  Correct Answer: "${q.correctAnswer}" ${answerExists ? '✅' : '❌'}`);
+          console.log(`  Options:`, q.options);
+          if (q.explanation) {
+            console.log(`  Explanation: ${q.explanation.substring(0, 100)}...`);
+          }
+        });
+      }
+    });
+
+    return {
+      success: true,
+      topic: {
+        name: topicInfo.name,
+        title: topicInfo.title
+      },
+      difficulty,
+      results,
+      analysis,
+      summary: {
+        totalProviders: analysis.totalProviders,
+        successfulProviders: analysis.successfulProviders,
+        totalValidationIssues: analysis.validationIssues.length,
+        recommendedProvider: analysis.successfulProviders > 0 ?
+          Object.keys(results).find(p => results[p].success && analysis.validationIssues.filter(v => v.provider === p).length === 0) ||
+          Object.keys(results).find(p => results[p].success) : null
+      }
+    };
+
+  } catch (error) {
+    console.error("Error testing AI generation accuracy:", error);
+    return {
+      success: false,
+      message: "Test failed: " + error.message
+    };
+  }
+};
+
+/**
+ * Get generation performance statistics
+ * @returns {Object} Performance stats
+ */
+const getGenerationStats = async () => {
+  try {
+    // Get queue stats
+    const queueStats = aiGenerationQueue.getStats();
+
+    // Get multi-AI stats
+    const multiAiStats = multiAiService.getStats();
+
+    // Get cache stats
+    const cacheStats = cacheService.getStats();
+
+    // Get recent generation performance from database
+    const recentLessons = await Lesson.find({
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+    }).select('createdAt title').sort({ createdAt: -1 }).limit(50);
+
+    const recentPaths = await MarxistLearningPath.find({
+      generatedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours  
+    }).select('generatedAt userId difficultyLevel').sort({ generatedAt: -1 }).limit(100);
+
+    return {
+      success: true,
+      queue: {
+        ...queueStats,
+        description: "AI Generation Queue Performance"
+      },
+      multiAi: {
+        ...multiAiStats,
+        description: "Multi-AI Load Balancer Stats"
+      },
+      cache: {
+        ...cacheStats,
+        description: "Cache Performance Stats"
+      },
+      database: {
+        recentLessons: recentLessons.length,
+        recentPaths: recentPaths.length,
+        description: "Database Activity (24h)"
+      },
+      performance: {
+        averageGeneration: queueStats.averageProcessingTime || 0,
+        queueWaitTime: queueStats.averageWaitTime || 0,
+        cacheHitRate: cacheStats.hitRate || 0,
+        description: "Overall Performance Metrics"
+      }
+    };
+  } catch (error) {
+    console.error("Error getting generation stats:", error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };
 
@@ -1245,56 +1799,6 @@ const getMarxistStats = async (userId) => {
   }
 };
 
-/**
- * ⚡ PERFORMANCE: Get generation performance stats
- * @returns {Object} Performance statistics
- */
-const getGenerationStats = async () => {
-  try {
-    const queueStats = aiGenerationQueue.getStats();
-    const cacheStats = {
-      memoryCacheSize: Object.keys(memoryCache).length,
-      backgroundGeneratingUsers: backgroundGeneratingUsers.size,
-      generatingUsers: generatingUsers.size,
-    };
-
-    // Get recent lesson creation stats
-    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentLessons = await Lesson.countDocuments({
-      createdAt: { $gte: last24Hours }
-    });
-
-    const recentPaths = await MarxistLearningPath.countDocuments({
-      generatedAt: { $gte: last24Hours }
-    });
-
-    return {
-      success: true,
-      statusCode: 200,
-      message: "Performance stats retrieved successfully",
-      stats: {
-        queue: queueStats,
-        cache: cacheStats,
-        recent24h: {
-          lessonsCreated: recentLessons,
-          pathsCreated: recentPaths
-        },
-        system: {
-          memoryUsage: process.memoryUsage(),
-          uptime: process.uptime()
-        }
-      }
-    };
-  } catch (error) {
-    console.error("Error getting generation stats:", error);
-    return {
-      success: false,
-      statusCode: 500,
-      message: "Lỗi khi lấy thống kê: " + error.message,
-    };
-  }
-};
-
 export default {
   generateMarxistLesson,
   analyzeUserProgress,
@@ -1303,5 +1807,7 @@ export default {
   retryMarxistLesson,
   getMarxistStats,
   getAllMarxistTopics,
-  getGenerationStats, // ⚡ New performance monitoring endpoint
+  getGenerationStats, // ⚡ Performance monitoring endpoint
+  testAnswerDistribution, // 🎯 Test answer concentration
+  testAiGenerationAccuracy, // 🧪 Test AI accuracy endpoint
 }; 
