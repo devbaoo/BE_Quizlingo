@@ -46,7 +46,7 @@ const MARXIST_TOPICS = {
 };
 
 /**
- * Tạo bài học triết học Mác-Lê-Nin với chủ đề tùy chọn
+ * Tạo bài học triết học Mác-LêNin với chủ đề tùy chọn
  * POST /api/marxist-philosophy/generate-custom-lesson
  */
 const generateCustomLesson = async (req, res, next) => {
@@ -114,7 +114,7 @@ const generateCustomLesson = async (req, res, next) => {
 };
 
 /**
- * Tạo bài học triết học Mác-Lê-Nin mới
+ * Tạo bài học triết học Mác-LêNin mới
  * POST /api/marxist-philosophy/generate-lesson
  */
 const generateLesson = async (req, res, next) => {
@@ -148,7 +148,7 @@ const generateLesson = async (req, res, next) => {
 };
 
 /**
- * Lấy lộ trình học triết học Mác-Lê-Nin
+ * Lấy lộ trình học triết học Mác-LêNin
  * GET /api/marxist-philosophy/learning-path
  */
 const getLearningPath = async (req, res, next) => {
@@ -182,7 +182,7 @@ const getLearningPath = async (req, res, next) => {
 };
 
 /**
- * Hoàn thành bài học triết học Mác-Lê-Nin
+ * Hoàn thành bài học triết học Mác-LêNin
  * POST /api/marxist-philosophy/complete-lesson
  */
 const completeLesson = async (req, res, next) => {
@@ -234,7 +234,7 @@ const completeLesson = async (req, res, next) => {
 };
 
 /**
- * Lấy thống kê học tập triết học Mác-Lê-Nin
+ * Lấy thống kê học tập triết học Mác-LêNin
  * GET /api/marxist-philosophy/stats
  */
 const getStats = async (req, res, next) => {
@@ -260,7 +260,7 @@ const getStats = async (req, res, next) => {
 };
 
 /**
- * Lấy danh sách chủ đề triết học Mác-Lê-Nin
+ * Lấy danh sách chủ đề triết học Mác-LêNin
  * GET /api/marxist-philosophy/topics
  */
 const getTopics = async (req, res, next) => {
@@ -457,7 +457,7 @@ const testGeminiConnection = async (req, res, next) => {
 };
 
 /**
- * Làm lại bài học triết học Mác-Lê-Nin
+ * Làm lại bài học triết học Mác-LêNin
  * POST /api/marxist-philosophy/retry-lesson
  */
 const retryMarxistLesson = async (req, res, next) => {
@@ -511,14 +511,14 @@ const testGemini = async (req, res) => {
     }
 
     // Test generating actual Marxist question
-    const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về TRIẾT HỌC Mác-Lê-Nin:
+    const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về TRIẾT HỌC Mác-LêNin:
 
 ⚠️ QUAN TRỌNG: CHỈ VỀ TRIẾT HỌC, KHÔNG PHẢI KINH TẺ!
 
 Chủ đề: Duy vật biện chứng - Quy luật mâu thuận
 Yêu cầu: 
 - 1 câu hỏi multiple choice với 4 đáp án A,B,C,D
-- Nội dung CHỈ VỀ triết học Mác-Lê-Nin (quy luật, phương pháp luận, nhận thức)
+- Nội dung CHỈ VỀ triết học Mác-LêNin (quy luật, phương pháp luận, nhận thức)
 - KHÔNG hỏi về kinh tế, giá trị, tư bản, bóc lột
 - Format JSON
 
@@ -728,80 +728,96 @@ const getChapterByTopicKey = (topicKey) => {
  * GET /api/marxist-philosophy/test-answer-distribution?topic=duy_vat_bien_chung&difficulty=2
  */
 const testAnswerDistribution = async (req, res, next) => {
-    try {
-        const { topic = "duy_vat_bien_chung", difficulty = 2 } = req.query;
+  try {
+    const { topic = "duy_vat_bien_chung", difficulty = 2 } = req.query;
 
-        console.log(`🎯 Admin testing answer distribution for topic: ${topic}, difficulty: ${difficulty}`);
+    console.log(
+      `🎯 Admin testing answer distribution for topic: ${topic}, difficulty: ${difficulty}`
+    );
 
-        const result = await marxistPhilosophyService.testAnswerDistribution(topic, parseInt(difficulty));
+    const result = await marxistPhilosophyService.testAnswerDistribution(
+      topic,
+      parseInt(difficulty)
+    );
 
-        return res.status(result.success ? 200 : 400).json({
-            success: result.success,
-            message: result.success ? 'Answer distribution test completed' : result.message,
-            data: result.success ? {
-                ...result,
-                timestamp: new Date().toISOString(),
-                testParameters: { topic, difficulty: parseInt(difficulty) }
-            } : null,
-            error: result.success ? null : result.message
-        });
-    } catch (error) {
-        console.error('Test answer distribution error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Lỗi server khi test answer distribution',
-            error: error.message
-        });
-    }
+    return res.status(result.success ? 200 : 400).json({
+      success: result.success,
+      message: result.success
+        ? "Answer distribution test completed"
+        : result.message,
+      data: result.success
+        ? {
+            ...result,
+            timestamp: new Date().toISOString(),
+            testParameters: { topic, difficulty: parseInt(difficulty) },
+          }
+        : null,
+      error: result.success ? null : result.message,
+    });
+  } catch (error) {
+    console.error("Test answer distribution error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi test answer distribution",
+      error: error.message,
+    });
+  }
 };
 const testAiAccuracy = async (req, res, next) => {
-    try {
-        const { topic = "duy_vat_bien_chung", difficulty = 2 } = req.query;
+  try {
+    const { topic = "duy_vat_bien_chung", difficulty = 2 } = req.query;
 
-        console.log(`🧪 Admin testing AI accuracy for topic: ${topic}, difficulty: ${difficulty}`);
+    console.log(
+      `🧪 Admin testing AI accuracy for topic: ${topic}, difficulty: ${difficulty}`
+    );
 
-        const result = await marxistPhilosophyService.testAiGenerationAccuracy(topic, parseInt(difficulty));
+    const result = await marxistPhilosophyService.testAiGenerationAccuracy(
+      topic,
+      parseInt(difficulty)
+    );
 
-        return res.status(result.success ? 200 : 400).json({
-            success: result.success,
-            message: result.success ? 'AI accuracy test completed' : result.message,
-            data: result.success ? {
-                ...result,
-                timestamp: new Date().toISOString(),
-                testParameters: { topic, difficulty: parseInt(difficulty) }
-            } : null,
-            error: result.success ? null : result.message
-        });
-    } catch (error) {
-        console.error('Test AI accuracy error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Lỗi server khi test AI accuracy',
-            error: error.message
-        });
-    }
+    return res.status(result.success ? 200 : 400).json({
+      success: result.success,
+      message: result.success ? "AI accuracy test completed" : result.message,
+      data: result.success
+        ? {
+            ...result,
+            timestamp: new Date().toISOString(),
+            testParameters: { topic, difficulty: parseInt(difficulty) },
+          }
+        : null,
+      error: result.success ? null : result.message,
+    });
+  } catch (error) {
+    console.error("Test AI accuracy error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi test AI accuracy",
+      error: error.message,
+    });
+  }
 };
 const getGenerationStats = async (req, res, next) => {
-    try {
-        const generationStats = await marxistPhilosophyService.getGenerationStats();
+  try {
+    const generationStats = await marxistPhilosophyService.getGenerationStats();
 
-        return res.status(200).json({
-            success: true,
-            message: 'Thống kê performance AI generation',
-            data: {
-                ...generationStats,
-                timestamp: new Date().toISOString(),
-                description: 'AI Generation Queue Performance & Optimization Stats'
-            }
-        });
-    } catch (error) {
-        console.error('Get generation stats error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Lỗi server khi lấy thống kê generation',
-            error: error.message
-        });
-    }
+    return res.status(200).json({
+      success: true,
+      message: "Thống kê performance AI generation",
+      data: {
+        ...generationStats,
+        timestamp: new Date().toISOString(),
+        description: "AI Generation Queue Performance & Optimization Stats",
+      },
+    });
+  } catch (error) {
+    console.error("Get generation stats error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy thống kê generation",
+      error: error.message,
+    });
+  }
 };
 
 export default {

@@ -20,7 +20,7 @@ const marxistLearningPathSchema = new mongoose.Schema({
     enum: ["ai_generated_marxist", "ai_generated_custom_marxist"],
     default: "ai_generated_marxist",
   },
-  // Chủ đề cụ thể trong kinh tế chính trị Mác-Lê-Nin (reference to MarxistTopic)
+  // Chủ đề cụ thể trong kinh tế chính trị Mác-LêNin (reference to MarxistTopic)
   // Cho custom lessons, có thể là null
   marxistTopic: {
     type: mongoose.Schema.Types.ObjectId,
