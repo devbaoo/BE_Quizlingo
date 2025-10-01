@@ -20,7 +20,7 @@ Hệ thống thông báo tự động để nhắc nhở users học tập đề
 ### 💬 Nội Dung Thông Báo Theo Ngày
 
 - **1 ngày**: "📚 Bạn đã quên học hôm nay rồi!"
-- **2-3 ngày**: "⏰ Nhớ học tiếng Anh đều đặn nhé!"
+- **2-3 ngày**: "⏰ Nhớ học Triết học đều đặn nhé!"
 - **4-7 ngày**: "🎯 Hãy quay lại học tập!"
 - **8-14 ngày**: "💔 Quizlingo nhớ bạn!"
 - **14+ ngày**: "🌟 Chúng mình đang chờ bạn!"
