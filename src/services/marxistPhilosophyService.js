@@ -89,7 +89,7 @@ const analyzeUserProgress = async (userId) => {
       return {
         recommendedTopic: firstTopic,
         difficultyLevel: allTopics[0].suggestedDifficulty || 1,
-        reason: "Người học mới bắt đầu với triết học Mác-Lê-Nin",
+        reason: "Người học mới bắt đầu với triết học Mác-LêNin",
       };
     }
 
@@ -164,7 +164,7 @@ const analyzeUserProgress = async (userId) => {
 };
 
 /**
- * Generate câu hỏi về triết học Mác-Lê-Nin với Rate Limiting
+ * Generate câu hỏi về triết học Mác-LêNin với Rate Limiting
  * @param {string} userId - User ID
  * @param {Object} options - Generation options
  * @returns {Object} Generated lesson
@@ -286,7 +286,7 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
     const finalDescription = contentHints?.summary || topicInfo.description;
 
     const prompt = `
-Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lê-Nin với nhiều năm kinh nghiệm giảng dạy. Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
+Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-LêNin với nhiều năm kinh nghiệm giảng dạy. Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
 
 🎯 THÔNG TIN CHỦ ĐỀ:
 - Tiêu đề: ${finalTitle}
@@ -295,7 +295,7 @@ Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lê-Nin với nhiều n�
 - Độ khó: ${difficulty}/5
 
 ⚠️ YÊU CẦU TUYỆT ĐỐI:
-1. CHỈ VỀ TRIẾT HỌC MÁC-LÊ-NIN (duy vật biện chứng, nhận thức luận, quy luật triết học)
+1. CHỈ VỀ TRIẾT HỌC MÁC-LêNin (duy vật biện chứng, nhận thức luận, quy luật triết học)
 2. KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột
 3. ĐÚNG 10 câu hỏi trắc nghiệm (multiple choice)
 4. Mỗi câu có đúng 4 đáp án (A, B, C, D)
@@ -311,7 +311,7 @@ Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lê-Nin với nhiều n�
 - Đáp án sai hợp lý nhưng không đúng
 - Độ khó phù hợp với cấp độ ${difficulty}
 - Thời gian làm mỗi câu: 30 giây
-- Nội dung chính xác theo lý thuyết Mác-Lê-Nin
+- Nội dung chính xác theo lý thuyết Mác-LêNin
 
 🔍 KIỂM TRA CUỐI:
 Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đảm bảo phân bố đều!
@@ -323,7 +323,7 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
   "questions": [
     {
       "type": "multiple_choice",
-      "content": "Nội dung câu hỏi về triết học Mác-Lê-Nin...",
+      "content": "Nội dung câu hỏi về triết học Mác-LêNin...",
       "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
       "correctAnswer": "A. Đáp án A",
       "score": 100,
@@ -609,7 +609,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       topicDoc = await Topic.create({
         name: "Marxist Philosophy",
         description:
-          "Triết học Mác-Lê-Nin: duy vật biện chứng, nhận thức luận, quy luật triết học",
+          "Triết học Mác-LêNin: duy vật biện chứng, nhận thức luận, quy luật triết học",
         isActive: true,
       });
     }
@@ -643,7 +643,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       skillDoc = await Skill.create({
         name: "marxist_philosophy",
         description:
-          "Triết học Mác-Lê-Nin: phương pháp luận, nhận thức luận, quy luật biện chứng",
+          "Triết học Mác-LêNin: phương pháp luận, nhận thức luận, quy luật biện chứng",
         supportedTypes: ["multiple_choice"],
         isActive: true,
       });
@@ -894,7 +894,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
 
     // Gửi notification
     await NotificationService.createNotification(userId, {
-      title: "📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!",
+      title: "📚 Bài học Mác-LêNin mới đã sẵn sàng!",
       message: `AI đã tạo bài học về "${topicInfo.title}" với 10 câu hỏi. Hãy vào học ngay!`,
       type: "ai_generated",
       link: "/philosophy",
@@ -903,7 +903,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
     return {
       success: true,
       statusCode: 201,
-      message: "Tạo bài học triết học Mác-Lê-Nin thành công",
+      message: "Tạo bài học triết học Mác-LêNin thành công",
       lesson: {
         lessonId: lesson._id,
         title: lesson.title,
@@ -1048,7 +1048,7 @@ const getMarxistLearningPath = async (userId, options = {}) => {
 };
 
 /**
- * Hoàn thành bài học triết học Mác-Lê-Nin với lives system
+ * Hoàn thành bài học triết học Mác-LêNin với lives system
  * @param {string} userId - User ID
  * @param {string} lessonId - Lesson ID
  * @param {number} score - Điểm số (0-100)
@@ -1386,7 +1386,7 @@ const completeMarxistLesson = async (
 };
 
 /**
- * Làm lại bài học triết học Mác-Lê-Nin
+ * Làm lại bài học triết học Mác-LêNin
  * @param {string} userId - User ID
  * @param {string} lessonId - Lesson ID
  * @param {string} pathId - Learning Path ID (optional)
@@ -1649,7 +1649,7 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
       "triết",
       "triết học",
       "mác",
-      "lê-nin",
+      "LêNin",
       "marx",
       "lenin",
       "duy vật",
@@ -1682,19 +1682,19 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
     // Nếu không có keyword triết học, thêm context
     const finalTopic = hasPhilosophyKeyword
       ? sanitizedTopic
-      : `Triết học Mác-Lê-Nin về ${sanitizedTopic}`;
+      : `Triết học Mác-LêNin về ${sanitizedTopic}`;
 
     console.log(`🎯 Final topic: "${finalTopic}"`);
 
     // Enhanced prompt với custom topic
     const prompt = `
-Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lê-Nin với nhiều năm kinh nghiệm giảng dạy. Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTopic}" với độ khó cấp độ ${difficulty}/5.
+Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-LêNin với nhiều năm kinh nghiệm giảng dạy. Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTopic}" với độ khó cấp độ ${difficulty}/5.
 
 🎯 CHỦ ĐỀ TÙY CHỌN: ${finalTopic}
 📊 ĐỘ KHÓ: ${difficulty}/5
 
 ⚠️ YÊU CẦU TUYỆT ĐỐI:
-1. CHỈ VỀ TRIẾT HỌC MÁC-LÊ-NIN (duy vật biện chứng, nhận thức luận, quy luật triết học)
+1. CHỈ VỀ TRIẾT HỌC MÁC-LêNin (duy vật biện chứng, nhận thức luận, quy luật triết học)
 2. TÁCH BIỆT với kinh tế chính trị - KHÔNG hỏi về giá trị thặng dư, tư bản, bóc lột
 3. ĐÚNG 10 câu hỏi trắc nghiệm (multiple choice)
 4. Mỗi câu có đúng 4 đáp án (A, B, C, D)
@@ -1708,7 +1708,7 @@ Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lê-Nin với nhiều n�
 
 📝 TIÊU CHUẨN CHẤT LƯỢNG:
 - Câu hỏi liên quan chặt chẽ với "${finalTopic}"
-- Nội dung chính xác theo lý thuyết Mác-Lê-Nin
+- Nội dung chính xác theo lý thuyết Mác-LêNin
 - Đáp án sai hợp lý nhưng không đúng
 - Độ khó phù hợp với cấp độ ${difficulty}
 - Thời gian làm mỗi câu: 30 giây
@@ -1723,7 +1723,7 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
   "questions": [
     {
       "type": "multiple_choice",
-      "content": "Nội dung câu hỏi về '${finalTopic}' trong triết học Mác-Lê-Nin...",
+      "content": "Nội dung câu hỏi về '${finalTopic}' trong triết học Mác-LêNin...",
       "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
       "correctAnswer": "A. Đáp án A",
       "score": 100,
@@ -2015,7 +2015,7 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
       console.log("🔧 Creating Custom Marxist Philosophy topic...");
       topicDoc = await Topic.create({
         name: "Custom Marxist Philosophy",
-        description: "Triết học Mác-Lê-Nin với chủ đề tùy chọn của người dùng",
+        description: "Triết học Mác-LêNin với chủ đề tùy chọn của người dùng",
         isActive: true,
       });
     }
@@ -2048,7 +2048,7 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
       console.log("🔧 Creating custom_marxist_philosophy skill...");
       skillDoc = await Skill.create({
         name: "custom_marxist_philosophy",
-        description: "Triết học Mác-Lê-Nin với chủ đề tùy chọn của người dùng",
+        description: "Triết học Mác-LêNin với chủ đề tùy chọn của người dùng",
         supportedTypes: ["multiple_choice"],
         isActive: true,
       });
@@ -2214,7 +2214,7 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
     return {
       success: true,
       statusCode: 201,
-      message: "Tạo bài học triết học Mác-Lê-Nin tùy chọn thành công",
+      message: "Tạo bài học triết học Mác-LêNin tùy chọn thành công",
       lesson: {
         lessonId: lesson._id,
         title: lesson.title,

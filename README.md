@@ -4,7 +4,7 @@
 
 Marx-Edu is a backend service for a Marxist philosophy learning application that provides AI-generated quiz and learning features.
 
-Marx-Edu là một dịch vụ backend cho ứng dụng học triết học Mác-Lê-Nin cung cấp các tính năng học tập và kiểm tra được tạo bởi AI.
+Marx-Edu là một dịch vụ backend cho ứng dụng học triết học Mác-LêNin cung cấp các tính năng học tập và kiểm tra được tạo bởi AI.
 
 ## Project Structure | Cấu trúc dự án
 

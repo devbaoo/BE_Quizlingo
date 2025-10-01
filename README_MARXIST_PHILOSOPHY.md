@@ -1,8 +1,8 @@
-# Hệ Thống Triết Học Mác-Lê-Nin
+# Hệ Thống Triết Học Mác-LêNin
 
 ## Tổng Quan
 
-Hệ thống này được tích hợp vào Marx-Edu để tạo và quản lý bộ câu hỏi về triết học Mác-Lê-Nin sử dụng Grok4 và Google Gemini AI. Hệ thống tự động tạo ra 10 câu hỏi trắc nghiệm cho mỗi bài học và điều chỉnh độ khó dựa trên kết quả học tập của người dùng.
+Hệ thống này được tích hợp vào Marx-Edu để tạo và quản lý bộ câu hỏi về triết học Mác-LêNin sử dụng Grok4 và Google Gemini AI. Hệ thống tự động tạo ra 10 câu hỏi trắc nghiệm cho mỗi bài học và điều chỉnh độ khó dựa trên kết quả học tập của người dùng.
 
 ## Tính Năng Chính
 
@@ -12,7 +12,7 @@ Hệ thống này được tích hợp vào Marx-Edu để tạo và quản lý 
 - Sử dụng Google Gemini API
 - Điều chỉnh độ khó dựa trên kết quả trước đó (1-5 cấp độ)
 
-### 📚 10 Chủ Đề Triết Học Mác-Lê-Nin
+### 📚 10 Chủ Đề Triết Học Mác-LêNin
 
 1. **Duy vật biện chứng** - Phương pháp luận triết học Mác-xít
 2. **Duy vật lịch sử** - Quan niệm duy vật về lịch sử xã hội
@@ -181,7 +181,7 @@ Content-Type: application/json
 ### Prompt Engineering
 
 - 10 câu hỏi trắc nghiệm chính xác
-- Nội dung CHỈ VỀ triết học Mác-Lê-Nin (KHÔNG phải kinh tế chính trị)
+- Nội dung CHỈ VỀ triết học Mác-LêNin (KHÔNG phải kinh tế chính trị)
 - Tập trung vào: duy vật biện chứng, nhận thức luận, quy luật triết học
 - Loại trừ: câu hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
 - Độ khó phù hợp với cấp độ
