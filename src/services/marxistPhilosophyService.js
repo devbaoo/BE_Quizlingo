@@ -1580,12 +1580,16 @@ const getMarxistStats = async (userId) => {
  * @returns {Object} Generated lesson
  */
 const generateCustomMarxistLesson = async (userId, options = {}) => {
-  console.log(`🚀 Request to generate custom Marxist lesson for user ${userId}`);
+  console.log(
+    `🚀 Request to generate custom Marxist lesson for user ${userId}`
+  );
   console.log(`📋 Custom topic: "${options.customTopic}"`);
 
   // Kiểm tra xem có đang trong background generation không
   if (backgroundGeneratingUsers.has(userId)) {
-    console.log(`⏳ User ${userId} is in background generation, skipping manual generation...`);
+    console.log(
+      `⏳ User ${userId} is in background generation, skipping manual generation...`
+    );
     return {
       success: false,
       statusCode: 429,
@@ -1615,7 +1619,9 @@ const generateCustomMarxistLesson = async (userId, options = {}) => {
  */
 const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
   try {
-    console.log(`🔄 Generating custom lesson for user ${userId} (within rate limit)`);
+    console.log(
+      `🔄 Generating custom lesson for user ${userId} (within rate limit)`
+    );
 
     const user = await User.findById(userId);
     if (!user) {
@@ -1629,7 +1635,7 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
     const { customTopic, topicKey, difficulty = 2 } = options;
 
     // Validate custom topic
-    if (!customTopic || typeof customTopic !== 'string') {
+    if (!customTopic || typeof customTopic !== "string") {
       return {
         success: false,
         statusCode: 400,
@@ -1640,20 +1646,43 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
     // Sanitize và validate topic content để đảm bảo liên quan đến triết học
     const sanitizedTopic = customTopic.trim();
     const philosophyKeywords = [
-      'triết', 'triết học', 'mác', 'lê-nin', 'marx', 'lenin', 'duy vật', 'biện chứng', 
-      'nhận thức', 'thực tiễn', 'ý thức', 'quy luật', 'mâu thuẫn', 'phủ định', 
-      'lượng chất', 'bản chất', 'hiện tượng', 'nguyên nhân', 'kết quả', 'cần thiết',
-      'ngẫu nhiên', 'khả năng', 'hiện thực', 'nội dung', 'hình thức', 'chân lý'
+      "triết",
+      "triết học",
+      "mác",
+      "lê-nin",
+      "marx",
+      "lenin",
+      "duy vật",
+      "biện chứng",
+      "nhận thức",
+      "thực tiễn",
+      "ý thức",
+      "quy luật",
+      "mâu thuẫn",
+      "phủ định",
+      "lượng chất",
+      "bản chất",
+      "hiện tượng",
+      "nguyên nhân",
+      "kết quả",
+      "cần thiết",
+      "ngẫu nhiên",
+      "khả năng",
+      "hiện thực",
+      "nội dung",
+      "hình thức",
+      "chân lý",
     ];
 
     const topicLower = sanitizedTopic.toLowerCase();
-    const hasPhilosophyKeyword = philosophyKeywords.some(keyword => 
+    const hasPhilosophyKeyword = philosophyKeywords.some((keyword) =>
       topicLower.includes(keyword.toLowerCase())
     );
 
     // Nếu không có keyword triết học, thêm context
-    const finalTopic = hasPhilosophyKeyword ? sanitizedTopic : 
-      `Triết học Mác-Lê-Nin về ${sanitizedTopic}`;
+    const finalTopic = hasPhilosophyKeyword
+      ? sanitizedTopic
+      : `Triết học Mác-Lê-Nin về ${sanitizedTopic}`;
 
     console.log(`🎯 Final topic: "${finalTopic}"`);
 
@@ -1711,7 +1740,7 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
           errors: ["Không có câu hỏi nào"],
           distribution: {},
           severity: "CRITICAL",
-          score: 0
+          score: 0,
         };
       }
 
@@ -1724,7 +1753,7 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
         const match = answer.match(/^([A-Da-d])/);
         const letter = match ? match[1].toUpperCase() : "Unknown";
         distribution[letter]++;
-        
+
         // Validate question structure
         if (!q.content || !Array.isArray(q.options) || q.options.length !== 4) {
           issues.push(`Question ${index + 1}: Invalid structure`);
@@ -1733,15 +1762,21 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
       });
 
       const totalQuestions = questions.length;
-      const validAnswers = Object.entries(distribution).filter(([key]) => key !== 'Unknown');
+      const validAnswers = Object.entries(distribution).filter(
+        ([key]) => key !== "Unknown"
+      );
       const counts = validAnswers.map(([, count]) => count);
       const maxCount = Math.max(...counts);
-      const minCount = Math.min(...counts.filter(c => c > 0));
+      const minCount = Math.min(...counts.filter((c) => c > 0));
 
       // Critical: Tất cả câu cùng đáp án
-      const dominantAnswer = validAnswers.find(([letter, count]) => count === totalQuestions);
+      const dominantAnswer = validAnswers.find(
+        ([letter, count]) => count === totalQuestions
+      );
       if (dominantAnswer) {
-        issues.push(`CRITICAL: All ${totalQuestions} questions have answer ${dominantAnswer[0]}!`);
+        issues.push(
+          `CRITICAL: All ${totalQuestions} questions have answer ${dominantAnswer[0]}!`
+        );
         score = 0; // Fail completely
       }
 
@@ -1749,26 +1784,42 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
       const concentrationThreshold = Math.ceil(totalQuestions * 0.6);
       validAnswers.forEach(([letter, count]) => {
         if (count >= concentrationThreshold && !dominantAnswer) {
-          issues.push(`Too concentrated: ${count}/${totalQuestions} questions have answer ${letter}`);
+          issues.push(
+            `Too concentrated: ${count}/${totalQuestions} questions have answer ${letter}`
+          );
           score -= 30;
         }
       });
 
       // Medium: Phân bố không đều
-      if (counts.length > 1 && (maxCount - minCount) > Math.ceil(totalQuestions / 2)) {
-        issues.push(`Uneven distribution: max(${maxCount}) - min(${minCount}) = ${maxCount - minCount}`);
+      if (
+        counts.length > 1 &&
+        maxCount - minCount > Math.ceil(totalQuestions / 2)
+      ) {
+        issues.push(
+          `Uneven distribution: max(${maxCount}) - min(${minCount}) = ${
+            maxCount - minCount
+          }`
+        );
         score -= 20;
       }
 
       // Low: Unknown answers
       if (distribution.Unknown > 0) {
-        issues.push(`Invalid format: ${distribution.Unknown} unrecognizable correct answers`);
+        issues.push(
+          `Invalid format: ${distribution.Unknown} unrecognizable correct answers`
+        );
         score -= 10 * distribution.Unknown;
       }
 
-      const severity = score === 0 ? 'CRITICAL' :
-                      score < 50 ? 'HIGH' :
-                      score < 80 ? 'MEDIUM' : 'LOW';
+      const severity =
+        score === 0
+          ? "CRITICAL"
+          : score < 50
+          ? "HIGH"
+          : score < 80
+          ? "MEDIUM"
+          : "LOW";
 
       return {
         isValid: score >= 70, // Accept if score >= 70
@@ -1776,20 +1827,22 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
         distribution,
         severity,
         score: Math.max(0, score),
-        shouldRetry: score < 70
+        shouldRetry: score < 70,
       };
     };
 
     // Robust AI generation với multiple strategies cho custom topic
-    console.log("🔄 Starting ROBUST AI-only custom lesson generation (NO DEMO FALLBACK)...");
-    
+    console.log(
+      "🔄 Starting ROBUST AI-only custom lesson generation (NO DEMO FALLBACK)..."
+    );
+
     let lessonData = null;
     const maxRetries = 5; // Tăng số lần retry
     const strategies = ["weighted", "failover", "round_robin", "least_loaded"];
-    
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const strategy = strategies[attempt % strategies.length];
-      
+
       // Create enhanced prompt inline để tránh scope issues
       let enhancedPrompt = prompt;
       if (attempt > 0) {
@@ -1808,84 +1861,119 @@ Câu 3: correctAnswer: "C. [Nội dung liên quan ${finalTopic}]"
 Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
 ... (tiếp tục xen kẽ A,B,C,D)`;
       }
-      
-      console.log(`🚀 AI Generation Attempt ${attempt + 1}/${maxRetries} (Strategy: ${strategy})`);
-      
+
+      console.log(
+        `🚀 AI Generation Attempt ${
+          attempt + 1
+        }/${maxRetries} (Strategy: ${strategy})`
+      );
+
       try {
-        const aiResult = await multiAiService.generateJsonContent(enhancedPrompt, {
-          strategy: strategy,
-          maxRetries: 4, // Retry trong mỗi provider
-          maxProviderRetries: 3,
-          baseDelay: 1000 + (attempt * 500), // Tăng delay mỗi attempt
-        });
+        const aiResult = await multiAiService.generateJsonContent(
+          enhancedPrompt,
+          {
+            strategy: strategy,
+            maxRetries: 4, // Retry trong mỗi provider
+            maxProviderRetries: 3,
+            baseDelay: 1000 + attempt * 500, // Tăng delay mỗi attempt
+          }
+        );
 
         if (!aiResult.success) {
-          console.warn(`⚠️ AI Strategy '${strategy}' failed:`, aiResult.message);
-          
+          console.warn(
+            `⚠️ AI Strategy '${strategy}' failed:`,
+            aiResult.message
+          );
+
           // Exponential backoff trước khi thử strategy tiếp theo
           const backoffDelay = Math.min(5000, 1000 * Math.pow(2, attempt));
           console.log(`⏳ Waiting ${backoffDelay}ms before next attempt...`);
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
           continue;
         }
 
         // Validate data structure trước khi check distribution
-        if (!aiResult.data || !aiResult.data.questions || !Array.isArray(aiResult.data.questions)) {
-          console.warn(`❌ Invalid data structure from ${aiResult.provider}:`, aiResult.data);
+        if (
+          !aiResult.data ||
+          !aiResult.data.questions ||
+          !Array.isArray(aiResult.data.questions)
+        ) {
+          console.warn(
+            `❌ Invalid data structure from ${aiResult.provider}:`,
+            aiResult.data
+          );
           continue;
         }
 
         if (aiResult.data.questions.length !== 10) {
-          console.warn(`❌ Wrong question count: ${aiResult.data.questions.length}/10 from ${aiResult.provider}`);
+          console.warn(
+            `❌ Wrong question count: ${aiResult.data.questions.length}/10 from ${aiResult.provider}`
+          );
           continue;
         }
 
         // Validate answer distribution
         const validation = validateAnswerDistribution(aiResult.data.questions);
-        
+
         if (validation.isValid) {
           lessonData = aiResult.data;
-          console.log(`✅ SUCCESS! Generated valid custom lesson from ${aiResult.provider} on attempt ${attempt + 1}`);
+          console.log(
+            `✅ SUCCESS! Generated valid custom lesson from ${
+              aiResult.provider
+            } on attempt ${attempt + 1}`
+          );
           console.log("📊 Final answer distribution:", validation.distribution);
           console.log(`🎯 Custom topic: "${finalTopic}"`);
           break;
         } else {
-          console.warn(`❌ Poor answer distribution from ${aiResult.provider} (attempt ${attempt + 1}):`, {
-            distribution: validation.distribution,
-            issues: validation.errors,
-            severity: validation.severity
-          });
-          
+          console.warn(
+            `❌ Poor answer distribution from ${aiResult.provider} (attempt ${
+              attempt + 1
+            }):`,
+            {
+              distribution: validation.distribution,
+              issues: validation.errors,
+              severity: validation.severity,
+            }
+          );
+
           // Nếu chỉ là LOW severity và đã thử nhiều lần, có thể chấp nhận
-          if (validation.severity === 'LOW' && attempt >= 3) {
-            console.log("⚠️ Accepting LOW severity distribution due to multiple retries...");
+          if (validation.severity === "LOW" && attempt >= 3) {
+            console.log(
+              "⚠️ Accepting LOW severity distribution due to multiple retries..."
+            );
             lessonData = aiResult.data;
             break;
           }
         }
-        
       } catch (error) {
-        console.error(`❌ AI Generation attempt ${attempt + 1} error:`, error.message);
+        console.error(
+          `❌ AI Generation attempt ${attempt + 1} error:`,
+          error.message
+        );
       }
-      
+
       // Short delay giữa các attempts
       if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 800));
       }
     }
 
     // STRICT: Không có fallback, phải có lesson từ AI
     if (!lessonData) {
-      console.error("❌ CRITICAL: All AI generation attempts failed for custom topic - NO DEMO FALLBACK");
+      console.error(
+        "❌ CRITICAL: All AI generation attempts failed for custom topic - NO DEMO FALLBACK"
+      );
       return {
         success: false,
         statusCode: 503,
-        message: "Hệ thống AI tạm thời không khả dụng. Vui lòng thử lại sau ít phút.",
+        message:
+          "Hệ thống AI tạm thời không khả dụng. Vui lòng thử lại sau ít phút.",
         error: "AI_GENERATION_FAILED",
         details: "All AI providers failed after multiple retry strategies",
         retryable: true,
         customTopic: finalTopic,
-        suggestedDelay: 300000 // 5 phút
+        suggestedDelay: 300000, // 5 phút
       };
     }
 
@@ -1896,25 +1984,31 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
         success: false,
         statusCode: 500,
         message: "Dữ liệu bài học từ AI không hợp lệ",
-        error: "INVALID_AI_DATA"
+        error: "INVALID_AI_DATA",
       };
     }
 
-    console.log(`📊 AI Custom Lesson data: ${lessonData.questions.length} questions`);
+    console.log(
+      `📊 AI Custom Lesson data: ${lessonData.questions.length} questions`
+    );
 
     // Strict validation cho AI-generated lessons
     if (lessonData.questions.length !== 10) {
-      console.error(`❌ Wrong question count: ${lessonData.questions.length}/10`);
+      console.error(
+        `❌ Wrong question count: ${lessonData.questions.length}/10`
+      );
       return {
         success: false,
         statusCode: 500,
         message: `AI tạo ${lessonData.questions.length} câu hỏi thay vì 10 câu yêu cầu`,
-        error: "INVALID_QUESTION_COUNT"
+        error: "INVALID_QUESTION_COUNT",
       };
     }
 
     // Tìm hoặc tạo Topic, Level, Skill với error handling cho custom topic
-    console.log("📋 Finding or creating Topic, Level, Skill for custom topic...");
+    console.log(
+      "📋 Finding or creating Topic, Level, Skill for custom topic..."
+    );
 
     let topicDoc = await Topic.findOne({ name: "Custom Marxist Philosophy" });
     if (!topicDoc) {
@@ -2012,9 +2106,14 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
           }
 
           // Khớp gần đúng: loại bỏ tiền tố "A. " khi so sánh
-          const normalizeText = (s) => String(s).replace(/^\s*[A-Da-d][\.)\-]\s*/, "").trim();
+          const normalizeText = (s) =>
+            String(s)
+              .replace(/^\s*[A-Da-d][\.)\-]\s*/, "")
+              .trim();
           const normalizedAnswer = normalizeText(trimmed);
-          const found = options.find((opt) => normalizeText(opt) === normalizedAnswer);
+          const found = options.find(
+            (opt) => normalizeText(opt) === normalizedAnswer
+          );
           if (found) return found;
 
           // Nếu đã khớp chính xác với một option
