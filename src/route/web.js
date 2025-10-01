@@ -138,6 +138,12 @@ const initWebRoutes = (app) => {
     authorize("admin"),
     adDashboardController.getTotalUserBySkill
   );
+  router.get(
+    "/total-revenue",
+    protect,
+    authorize("admin"),
+    adDashboardController.totalRevenue
+  );
   router.delete(
     "/users/:id",
     protect,
