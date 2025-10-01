@@ -445,6 +445,15 @@ const initWebRoutes = (app) => {
     protect,
     marxistPhilosophyController.generateLesson
   );
+  router.post(
+    "/marxist-philosophy/generate-custom-lesson",
+    protect,
+    marxistPhilosophyController.generateCustomLesson
+  );
+  router.get(
+    "/marxist-philosophy/available-topics",
+    marxistPhilosophyController.getAvailableTopics
+  );
   router.get(
     "/marxist-philosophy/learning-path",
     protect,
