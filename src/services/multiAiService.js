@@ -1,4 +1,3 @@
-import geminiService from "./geminiService.js";
 import grokService from "./grokService.js";
 
 // Multi-AI Load Balancer Configuration - Enhanced for robustness
@@ -14,18 +13,6 @@ const AI_PROVIDERS = [
       paid: { requestsPerMinute: 150, requestsPerSecond: 8 },
     },
     reliability: 0.75, // Reliability score for weighted selection
-  },
-  {
-    name: "gemini",
-    service: geminiService,
-    priority: 2,
-    weight: 40, // Increased weight for Gemini due to stability
-    maxConcurrent: 8, // More concurrent requests for Gemini
-    rateLimit: {
-      free: { requestsPerMinute: 15, requestsPerSecond: 1 },
-      paid: { requestsPerMinute: 300, requestsPerSecond: 20 },
-    },
-    reliability: 0.85, // Higher reliability score
   },
 ];
 

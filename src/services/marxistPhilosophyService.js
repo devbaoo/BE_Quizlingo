@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import geminiService from "./geminiService.js";
 import multiAiService from "./multiAiService.js";
 import Lesson from "../models/lesson.js";
 import Question from "../models/question.js";
