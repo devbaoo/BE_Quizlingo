@@ -295,25 +295,33 @@ Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-LêNin với nhiều nă
 
 ⚠️ YÊU CẦU TUYỆT ĐỐI:
 1. CHỈ VỀ TRIẾT HỌC MÁC-LêNin (duy vật biện chứng, nhận thức luận, quy luật triết học)
-2. KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột
+2. KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lót
 3. ĐÚNG 10 câu hỏi trắc nghiệm (multiple choice)
 4. Mỗi câu có đúng 4 đáp án (A, B, C, D)
 
-🚨 PHÂN BỐ ĐÁP ÁN - QUAN TRỌNG NHẤT:
+🚨 FORMAT CHÍNH XÁC - QUAN TRỌNG NHẤT:
+- Mỗi options array phải có đúng 4 phần tử
+- Format: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]
+- correctAnswer phải khớp CHÍNH XÁC với một trong 4 options
+- VÍ DỤ ĐÚNG: correctAnswer: "A. Quy luật thống nhất và đấu tranh của các mặt đối lập"
+
+🚨 PHÂN BỐ ĐÁP ÁN - KIỂM TRA KỸ:
 - Đáp án đúng PHẢI được phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu)
 - TUYỆT ĐỐI KHÔNG được tất cả câu cùng đáp án
 - Ví dụ tốt: Câu 1→A, Câu 2→C, Câu 3→B, Câu 4→D, Câu 5→A, v.v.
-- KIỂM TRA KỸ từng câu trước khi trả về
 
 📝 TIÊU CHUẨN CHẤT LƯỢNG:
-- Câu hỏi rõ ràng, không mơ hồ
-- Đáp án sai hợp lý nhưng không đúng
+- Câu hỏi rõ ràng, không mơ hồ, liên quan trực tiếp đến "${finalTitle}"
+- Đáp án sai hợp lý nhưng không đúng (distractors)
 - Độ khó phù hợp với cấp độ ${difficulty}
 - Thời gian làm mỗi câu: 30 giây
 - Nội dung chính xác theo lý thuyết Mác-LêNin
 
-🔍 KIỂM TRA CUỐI:
-Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đảm bảo phân bố đều!
+🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
+1. Đếm số câu có đáp án A, B, C, D để đảm bảo phân bố đều
+2. Kiểm tra correctAnswer khớp chính xác với options
+3. Đảm bảo nội dung chất lượng và liên quan đến chủ đề
+4. Mỗi câu hỏi phải có 4 đáp án khác nhau và có ý nghĩa
 
 ⚠️ CHỈ trả về kết quả ở định dạng JSON CHÍNH XÁC. KHÔNG thêm text giải thích.
 
@@ -322,9 +330,9 @@ Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đ
   "questions": [
     {
       "type": "multiple_choice",
-      "content": "Nội dung câu hỏi về triết học Mác-LêNin...",
-      "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
-      "correctAnswer": "A. Đáp án A",
+      "content": "Nội dung câu hỏi về triết học Mác-LêNin liên quan đến ${finalTitle}...",
+      "options": ["A. Đáp án A chính xác", "B. Đáp án B sai nhưng hợp lý", "C. Đáp án C sai nhưng hợp lý", "D. Đáp án D sai nhưng hợp lý"],
+      "correctAnswer": "A. Đáp án A chính xác",
       "score": 100,
       "timeLimit": 30
     }
@@ -668,56 +676,113 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       skill: skillDoc.name,
     });
 
-    // Chuẩn hóa câu hỏi và correctAnswer do một số AI có thể trả về chỉ "A"/1 thay vì toàn bộ option
+    // Chuẩn hóa câu hỏi và correctAnswer với enhanced error handling và logging
     const normalizeCorrectAnswer = (question) => {
       try {
         const options = Array.isArray(question.options) ? question.options : [];
         let answer = question.correctAnswer;
 
-        if (!options.length) return question.correctAnswer;
+        if (!options.length) {
+          console.warn("❌ normalizeCorrectAnswer: No options provided");
+          return question.correctAnswer;
+        }
+
+        if (!answer) {
+          console.warn("❌ normalizeCorrectAnswer: No correct answer provided");
+          return options[0]; // Fallback to first option
+        }
+
+        // Log original values for debugging
+        console.log(
+          `🔍 Normalizing: "${answer}" with options:`,
+          options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`)
+        );
 
         // Nếu answer là số (1-4)
         if (typeof answer === "number") {
           const idx = Math.max(0, Math.min(options.length - 1, answer - 1));
-          return options[idx];
+          const result = options[idx];
+          console.log(
+            `✅ Number answer ${answer} -> Option ${idx}: "${result}"`
+          );
+          return result;
         }
 
         if (typeof answer === "string") {
           const trimmed = answer.trim();
 
-          // Nếu là chữ cái A-D
+          // Pattern 1: Nếu là chữ cái A-D
           const letterMatch = trimmed.match(/^[A-Da-d]$/);
           if (letterMatch) {
             const idx = trimmed.toUpperCase().charCodeAt(0) - 65; // A->0
-            return options[idx] || options[0];
+            if (idx >= 0 && idx < options.length) {
+              const result = options[idx];
+              console.log(
+                `✅ Letter answer ${trimmed} -> Option ${idx}: "${result}"`
+              );
+              return result;
+            }
           }
 
-          // Nếu là tiền tố "A." hoặc "A)"
-          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]?/);
+          // Pattern 2: Nếu là tiền tố "A." hoặc "A)"
+          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]/);
           if (letterPrefix) {
             const idx = letterPrefix[1].toUpperCase().charCodeAt(0) - 65;
-            return options[idx] || options[0];
+            if (idx >= 0 && idx < options.length) {
+              const result = options[idx];
+              console.log(
+                `✅ Letter prefix ${letterPrefix[1]} -> Option ${idx}: "${result}"`
+              );
+              return result;
+            }
           }
 
-          // Khớp gần đúng: loại bỏ tiền tố "A. " khi so sánh
+          // Pattern 3: Khớp gần đúng: loại bỏ tiền tố "A. " khi so sánh
           const normalizeText = (s) =>
             String(s)
               .replace(/^\s*[A-Da-d][\.)\-]\s*/, "")
-              .trim();
+              .trim()
+              .toLowerCase();
+
           const normalizedAnswer = normalizeText(trimmed);
           const found = options.find(
             (opt) => normalizeText(opt) === normalizedAnswer
           );
-          if (found) return found;
+          if (found) {
+            console.log(`✅ Text match: "${normalizedAnswer}" -> "${found}"`);
+            return found;
+          }
 
-          // Nếu đã khớp chính xác với một option
+          // Pattern 4: Nếu đã khớp chính xác với một option
           const exact = options.find((opt) => opt === trimmed);
-          if (exact) return exact;
+          if (exact) {
+            console.log(`✅ Exact match: "${exact}"`);
+            return exact;
+          }
+
+          // Pattern 5: Partial match (tìm option chứa answer text)
+          const partial = options.find(
+            (opt) =>
+              opt &&
+              typeof opt === "string" &&
+              (opt.toLowerCase().includes(normalizedAnswer) ||
+                normalizedAnswer.includes(opt.toLowerCase()))
+          );
+          if (partial) {
+            console.log(
+              `✅ Partial match: "${normalizedAnswer}" -> "${partial}"`
+            );
+            return partial;
+          }
         }
 
-        // Fallback: chọn option đầu tiên để không chặn tạo bài
+        // Fallback: chọn option đầu tiên và log warning
+        console.warn(
+          `⚠️ No match found for "${answer}". Falling back to first option: "${options[0]}"`
+        );
         return options[0];
       } catch (e) {
+        console.error("❌ normalizeCorrectAnswer error:", e.message);
         return question.correctAnswer;
       }
     };
