@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import geminiService from "./geminiService.js";
 import multiAiService from "./multiAiService.js";
-import aiGenerationQueue from "./aiGenerationQueue.js";
 import Lesson from "../models/lesson.js";
 import Question from "../models/question.js";
 import MarxistLearningPath from "../models/marxistLearningPath.js";
@@ -12,6 +11,7 @@ import Level from "../models/level.js";
 import Topic from "../models/topic.js";
 import Skill from "../models/skill.js";
 import NotificationService from "./notificationService.js";
+import contentService from "./contentService.js";
 import UserPackage from "../models/userPackage.js";
 import moment from "moment-timezone";
 import generationRateLimiter from "../middleware/rateLimiter.js";
@@ -34,29 +34,6 @@ const getRequiredXpForLevel = (level) => {
 const generatingUsers = new Set();
 // Flag để tránh tạo bài học khi đang trong background generation
 const backgroundGeneratingUsers = new Set();
-
-// ⚡ PERFORMANCE: In-memory cache for frequently accessed data
-const memoryCache = {
-  userProgress: new Map(), // Cache user progress analysis
-  topicSelections: new Map(), // Cache recent topic selections
-
-  // Cache with TTL
-  set(key, value, ttlSeconds = 300) {
-    this[key] = {
-      data: value,
-      expires: Date.now() + (ttlSeconds * 1000)
-    };
-  },
-
-  get(key) {
-    const cached = this[key];
-    if (cached && cached.expires > Date.now()) {
-      return cached.data;
-    }
-    delete this[key];
-    return null;
-  }
-};
 
 // Hàm lấy tất cả chủ đề Marxist từ database (với caching)
 const getAllMarxistTopics = async () => {
@@ -155,10 +132,10 @@ const analyzeUserProgress = async (userId) => {
       const weakestTopic =
         completedPaths.length > 0
           ? completedPaths.reduce((weakest, current) =>
-            !weakest || current.achievedScore < weakest.achievedScore
-              ? current
-              : weakest
-          )
+              !weakest || current.achievedScore < weakest.achievedScore
+                ? current
+                : weakest
+            )
           : null;
       recommendedTopic = weakestTopic
         ? weakestTopic.marxistTopic
@@ -169,8 +146,9 @@ const analyzeUserProgress = async (userId) => {
       recommendedTopic,
       difficultyLevel: newDifficulty,
       previousScore: Math.round(averageScore),
-      reason: `Dựa trên kết quả ${completedPaths.length
-        } bài học gần nhất (điểm TB: ${Math.round(averageScore)})`,
+      reason: `Dựa trên kết quả ${
+        completedPaths.length
+      } bài học gần nhất (điểm TB: ${Math.round(averageScore)})`,
     };
   } catch (error) {
     console.error("Error analyzing user progress:", error);
@@ -196,7 +174,9 @@ const generateMarxistLesson = async (userId, options = {}) => {
 
   // Kiểm tra xem có đang trong background generation không
   if (backgroundGeneratingUsers.has(userId)) {
-    console.log(`⏳ User ${userId} is in background generation, skipping manual generation...`);
+    console.log(
+      `⏳ User ${userId} is in background generation, skipping manual generation...`
+    );
     return {
       success: false,
       statusCode: 429,
@@ -204,13 +184,11 @@ const generateMarxistLesson = async (userId, options = {}) => {
     };
   }
 
-  // ⚡ PERFORMANCE: Use queue system to manage concurrent AI generations
+  // Sử dụng Rate Limiter thay vì simple mutex
   try {
-    return await aiGenerationQueue.add(async () => {
-      return await generationRateLimiter.requestGeneration(userId, async () => {
-        return await _generateMarxistLessonInternal(userId, options);
-      });
-    }, userId);
+    return await generationRateLimiter.requestGeneration(userId, async () => {
+      return await _generateMarxistLessonInternal(userId, options);
+    });
   } catch (rateLimitError) {
     console.warn(
       `⚠️ Rate limit error for user ${userId}:`,
@@ -239,22 +217,13 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       };
     }
 
-    // ⚡ PERFORMANCE: Cache user progress analysis với caching thông minh
-    const progressCacheKey = `user_progress_${userId}`;
-    let analysis = memoryCache.get(progressCacheKey);
-
-    if (!analysis) {
-      analysis = await cacheService.getOrSetUserProgress(
-        userId,
-        async (userId) => {
-          return await analyzeUserProgress(userId);
-        }
-      );
-      // Cache trong memory cho 2 phút để tránh re-calculate quá nhiều
-      memoryCache.set(progressCacheKey, analysis, 120);
-    } else {
-      console.log(`⚡ Using cached progress analysis for user ${userId}`);
-    }
+    // Phân tích tiến độ học tập (với caching)
+    const analysis = await cacheService.getOrSetUserProgress(
+      userId,
+      async (userId) => {
+        return await analyzeUserProgress(userId);
+      }
+    );
 
     let topicId = options.topic;
     let difficulty = options.difficulty;
@@ -263,9 +232,12 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
     if (!topicId) {
       const allTopics = await getAllMarxistTopics();
       if (allTopics.length > 0) {
-        const randomTopic = allTopics[Math.floor(Math.random() * allTopics.length)];
+        const randomTopic =
+          allTopics[Math.floor(Math.random() * allTopics.length)];
         topicId = randomTopic._id;
-        console.log(`🎲 Random selected topic: ${randomTopic.title || randomTopic.name}`);
+        console.log(
+          `🎲 Random selected topic: ${randomTopic.title || randomTopic.name}`
+        );
       } else {
         topicId = analysis.recommendedTopic; // Fallback
       }
@@ -299,10 +271,14 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       }
     }
 
-    // Xây dựng prompt cho Multi-AI
+    // Xây dựng prompt cho Multi-AI, có thể thêm gợi ý từ ContentPack (summary, keyPoints)
     const contentHints = options.contentHints || null;
     const hintsText = contentHints
-      ? `\n\nCơ sở tạo câu hỏi (tóm tắt trước khi ôn):\n- Tiêu đề: ${contentHints.title || topicInfo.title}\n- Tóm tắt: ${contentHints.summary || ""}\n- Key points: ${(contentHints.keyPoints || []).join(", ")}`
+      ? `\n\nCơ sở tạo câu hỏi (tóm tắt trước khi ôn):\n- Tiêu đề: ${
+          contentHints.title || topicInfo.title
+        }\n- Tóm tắt: ${contentHints.summary || ""}\n- Key points: ${(
+          contentHints.keyPoints || []
+        ).join(", ")}`
       : "";
 
     // Sử dụng contentHints title nếu có, nếu không thì dùng topicInfo.title
@@ -310,179 +286,368 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
     const finalDescription = contentHints?.summary || topicInfo.description;
 
     const prompt = `
-Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Hãy tạo 10 câu hỏi trắc nghiệm về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
+Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lê-Nin với nhiều năm kinh nghiệm giảng dạy. Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
 
-⚠️ QUAN TRỌNG: CHỈ TẬP TRUNG VÀO TRIẾT HỌC MÁC-LÊ-NIN, KHÔNG PHẢI KINH TẾ CHÍNH TRỊ!
-🎯 TITLE PHẢI LÀ: "${finalTitle}" - KHÔNG ĐƯỢC THAY ĐỔI!
+🎯 THÔNG TIN CHỦ ĐỀ:
+- Tiêu đề: ${finalTitle}
+- Mô tả: ${finalDescription}
+- Từ khóa quan trọng: ${topicInfo.keywords.join(", ")}
+- Độ khó: ${difficulty}/5
 
-Chủ đề: ${finalTitle}
-Mô tả: ${finalDescription}
-Từ khóa quan trọng: ${topicInfo.keywords.join(", ")}
+⚠️ YÊU CẦU TUYỆT ĐỐI:
+1. CHỈ VỀ TRIẾT HỌC MÁC-LÊ-NIN (duy vật biện chứng, nhận thức luận, quy luật triết học)
+2. KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột
+3. ĐÚNG 10 câu hỏi trắc nghiệm (multiple choice)
+4. Mỗi câu có đúng 4 đáp án (A, B, C, D)
 
-Yêu cầu:
-- Đúng 10 câu hỏi trắc nghiệm (multiple choice)
-- Mỗi câu có 4 đáp án (A, B, C, D)
-- Nội dung CHỈ VỀ TRIẾT HỌC Mác-Lê-Nin (duy vật biện chứng, nhận thức luận, quy luật triết học)
-- KHÔNG hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
+🚨 PHÂN BỐ ĐÁP ÁN - QUAN TRỌNG NHẤT:
+- Đáp án đúng PHẢI được phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu)
+- TUYỆT ĐỐI KHÔNG được tất cả câu cùng đáp án
+- Ví dụ tốt: Câu 1→A, Câu 2→C, Câu 3→B, Câu 4→D, Câu 5→A, v.v.
+- KIỂM TRA KỸ từng câu trước khi trả về
+
+📝 TIÊU CHUẨN CHẤT LƯỢNG:
+- Câu hỏi rõ ràng, không mơ hồ
+- Đáp án sai hợp lý nhưng không đúng
 - Độ khó phù hợp với cấp độ ${difficulty}
-- Câu hỏi về: quy luật, phương pháp luận, nhận thức, thực tiễn, ý thức
 - Thời gian làm mỗi câu: 30 giây
+- Nội dung chính xác theo lý thuyết Mác-Lê-Nin
 
-🚨 YÊU CẦU CỰC KỲ QUAN TRỌNG VỀ PHÂN BỐ ĐÁP ÁN:
-❌ TUYỆT ĐỐI KHÔNG được tạo tất cả câu hỏi có cùng đáp án đúng (ví dụ: tất cả đều A)
-❌ KHÔNG được có hơn 4 câu cùng đáp án đúng
-✅ BẮT BUỘC: Phân bố đáp án đúng đều giữa A, B, C, D
-✅ Ví dụ phân bố ĐÚNG: A:3 câu, B:2 câu, C:3 câu, D:2 câu
-✅ Hoặc: A:2 câu, B:3 câu, C:2 câu, D:3 câu
-✅ Đáp án dựa trên KIẾN THỨC CHÍNH XÁC của triết học Mác-Lê-Nin
+🔍 KIỂM TRA CUỐI:
+Trước khi trả về, hãy đếm số câu có đáp án A, B, C, D để đảm bảo phân bố đều!
 
-🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
-1. Đếm số câu có đáp án A, B, C, D
-2. Đảm bảo không có đáp án nào quá 4 câu
-3. Đảm bảo phân bố tương đối đều (sai lệch không quá 2 câu)
-
-⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
+⚠️ CHỈ trả về kết quả ở định dạng JSON CHÍNH XÁC. KHÔNG thêm text giải thích.
 
 {
   "title": "${finalTitle}",
   "questions": [
     {
       "type": "multiple_choice",
-      "content": "Nội dung câu hỏi...",
+      "content": "Nội dung câu hỏi về triết học Mác-Lê-Nin...",
       "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
       "correctAnswer": "A. Đáp án A",
-      "score": 10,
+      "score": 100,
       "timeLimit": 30
     }
   ]
 }`;
 
-    // Khai báo lessonData variable
-    let lessonData;
+    // Enhanced answer distribution validation với scoring system
+    const validateAnswerDistribution = (questions) => {
+      if (!Array.isArray(questions) || questions.length === 0) {
+        return {
+          isValid: false,
+          errors: ["Không có câu hỏi nào"],
+          distribution: {},
+          severity: "CRITICAL",
+          score: 0,
+        };
+      }
 
+      const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
+      const issues = [];
+      let score = 100; // Start with perfect score
+
+      questions.forEach((q, index) => {
+        const answer = q.correctAnswer || "";
+        const match = answer.match(/^([A-Da-d])/);
+        const letter = match ? match[1].toUpperCase() : "Unknown";
+        distribution[letter]++;
+
+        // Validate question structure
+        if (!q.content || !Array.isArray(q.options) || q.options.length !== 4) {
+          issues.push(`Question ${index + 1}: Invalid structure`);
+          score -= 15;
+        }
+      });
+
+      const totalQuestions = questions.length;
+      const validAnswers = Object.entries(distribution).filter(
+        ([key]) => key !== "Unknown"
+      );
+      const counts = validAnswers.map(([, count]) => count);
+      const maxCount = Math.max(...counts);
+      const minCount = Math.min(...counts.filter((c) => c > 0));
+
+      // Critical: Tất cả câu cùng đáp án
+      const dominantAnswer = validAnswers.find(
+        ([letter, count]) => count === totalQuestions
+      );
+      if (dominantAnswer) {
+        issues.push(
+          `CRITICAL: All ${totalQuestions} questions have answer ${dominantAnswer[0]}!`
+        );
+        score = 0; // Fail completely
+      }
+
+      // High: Quá tập trung (>60%)
+      const concentrationThreshold = Math.ceil(totalQuestions * 0.6);
+      validAnswers.forEach(([letter, count]) => {
+        if (count >= concentrationThreshold && !dominantAnswer) {
+          issues.push(
+            `Too concentrated: ${count}/${totalQuestions} questions have answer ${letter}`
+          );
+          score -= 30;
+        }
+      });
+
+      // Medium: Phân bố không đều
+      if (
+        counts.length > 1 &&
+        maxCount - minCount > Math.ceil(totalQuestions / 2)
+      ) {
+        issues.push(
+          `Uneven distribution: max(${maxCount}) - min(${minCount}) = ${
+            maxCount - minCount
+          }`
+        );
+        score -= 20;
+      }
+
+      // Low: Unknown answers
+      if (distribution.Unknown > 0) {
+        issues.push(
+          `Invalid format: ${distribution.Unknown} unrecognizable correct answers`
+        );
+        score -= 10 * distribution.Unknown;
+      }
+
+      const severity =
+        score === 0
+          ? "CRITICAL"
+          : score < 50
+          ? "HIGH"
+          : score < 80
+          ? "MEDIUM"
+          : "LOW";
+
+      return {
+        isValid: score >= 70, // Accept if score >= 70
+        errors: issues,
+        distribution,
+        severity,
+        score: Math.max(0, score),
+        shouldRetry: score < 70,
+      };
+    };
+
+    // Robust AI generation với multiple strategies
     console.log(
-      "🔄 Generating Marxist lesson with Multi-AI (optimized for speed)..."
+      "🔄 Starting ROBUST AI-only lesson generation (NO DEMO FALLBACK)..."
     );
-    const aiResult = await multiAiService.generateJsonContent(prompt, {
-      strategy: "weighted", // Load balance between providers
-      maxRetries: 2, // ⚡ Reduce retries for speed
-      maxProviderRetries: 2, // ⚡ Reduce provider retries
-      timeout: 45000, // ⚡ 45s timeout instead of default
-    });
 
-    if (!aiResult.success) {
-      // Nếu tất cả AI APIs thất bại, return error để FE có thể retry
-      console.error("❌ All AI APIs failed!");
-      console.log("AI failure details:", aiResult.loadBalancer);
+    let lessonData = null;
+    const maxRetries = 5; // Tăng số lần retry
+    const strategies = ["weighted", "failover", "round_robin", "least_loaded"];
 
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const strategy = strategies[attempt % strategies.length];
+
+      // Create enhanced prompt inline để tránh scope issues
+      let enhancedPrompt = prompt;
+      if (attempt > 0) {
+        enhancedPrompt += `\n\n🚨 CRITICAL REQUIREMENTS (Retry ${attempt}) - PLEASE READ CAREFULLY:
+1. Đáp án đúng PHẢI được phân bố đều giữa A, B, C, D
+2. TUYỆT ĐỐI KHÔNG được có tất cả câu cùng đáp án (ví dụ: tất cả đều B)
+3. Phân bố lý tưởng: 2-3 câu A, 2-3 câu B, 2-3 câu C, 2-3 câu D
+4. KIỂM TRA KỸ từng câu trước khi trả về
+5. Đảm bảo mỗi câu hỏi có format đúng: "A. nội dung", "B. nội dung", etc.
+
+📝 EXAMPLE GOOD DISTRIBUTION:
+Câu 1: correctAnswer: "A. Quy luật thống nhất và đấu tranh của các mặt đối lập"
+Câu 2: correctAnswer: "B. Quy luật lượng chất"  
+Câu 3: correctAnswer: "C. Quy luật phủ định của phủ định"
+Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
+... (tiếp tục xen kẽ A,B,C,D)`;
+      }
+
+      console.log(
+        `🚀 AI Generation Attempt ${
+          attempt + 1
+        }/${maxRetries} (Strategy: ${strategy})`
+      );
+
+      try {
+        const aiResult = await multiAiService.generateJsonContent(
+          enhancedPrompt,
+          {
+            strategy: strategy,
+            maxRetries: 4, // Retry trong mỗi provider
+            maxProviderRetries: 3,
+            baseDelay: 1000 + attempt * 500, // Tăng delay mỗi attempt
+          }
+        );
+
+        if (!aiResult.success) {
+          console.warn(
+            `⚠️ AI Strategy '${strategy}' failed:`,
+            aiResult.message
+          );
+
+          // Exponential backoff trước khi thử strategy tiếp theo
+          const backoffDelay = Math.min(5000, 1000 * Math.pow(2, attempt));
+          console.log(`⏳ Waiting ${backoffDelay}ms before next attempt...`);
+          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+          continue;
+        }
+
+        // Validate data structure trước khi check distribution
+        if (
+          !aiResult.data ||
+          !aiResult.data.questions ||
+          !Array.isArray(aiResult.data.questions)
+        ) {
+          console.warn(
+            `❌ Invalid data structure from ${aiResult.provider}:`,
+            aiResult.data
+          );
+          continue;
+        }
+
+        if (aiResult.data.questions.length !== 10) {
+          console.warn(
+            `❌ Wrong question count: ${aiResult.data.questions.length}/10 from ${aiResult.provider}`
+          );
+          continue;
+        }
+
+        // Validate answer distribution
+        const validation = validateAnswerDistribution(aiResult.data.questions);
+
+        if (validation.isValid) {
+          lessonData = aiResult.data;
+          console.log(
+            `✅ SUCCESS! Generated valid lesson from ${
+              aiResult.provider
+            } on attempt ${attempt + 1}`
+          );
+          console.log("📊 Final answer distribution:", validation.distribution);
+          break;
+        } else {
+          console.warn(
+            `❌ Poor answer distribution from ${aiResult.provider} (attempt ${
+              attempt + 1
+            }):`,
+            {
+              distribution: validation.distribution,
+              issues: validation.errors,
+              severity: validation.severity,
+            }
+          );
+
+          // Nếu chỉ là LOW severity và đã thử nhiều lần, có thể chấp nhận
+          if (validation.severity === "LOW" && attempt >= 3) {
+            console.log(
+              "⚠️ Accepting LOW severity distribution due to multiple retries..."
+            );
+            lessonData = aiResult.data;
+            break;
+          }
+        }
+      } catch (error) {
+        console.error(
+          `❌ AI Generation attempt ${attempt + 1} error:`,
+          error.message
+        );
+      }
+
+      // Short delay giữa các attempts
+      if (attempt < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    // STRICT: Không có fallback, phải có lesson từ AI
+    if (!lessonData) {
+      console.error(
+        "❌ CRITICAL: All AI generation attempts failed - NO DEMO FALLBACK"
+      );
       return {
         success: false,
         statusCode: 503,
-        message: "Tất cả AI APIs đều thất bại. Vui lòng thử lại sau hoặc nhấn nút tạo bài học mới.",
+        message:
+          "Hệ thống AI tạm thời không khả dụng. Vui lòng thử lại sau ít phút.",
         error: "AI_GENERATION_FAILED",
-        retryable: true
+        details: "All AI providers failed after multiple retry strategies",
+        retryable: true,
+        suggestedDelay: 300000, // 5 phút
       };
     }
 
-    lessonData = aiResult.data;
-    console.log(
-      `✅ Using AI-generated lesson data from ${aiResult.provider}`
-    );
-
-    // Log load balancer stats
-    if (aiResult.loadBalancer) {
-      console.log("📊 Load balancer stats:", {
-        provider: aiResult.provider,
-        strategy: aiResult.loadBalancer.strategy,
-        totalProviders: aiResult.loadBalancer.totalProviders,
-      });
-    }
-
-    // Validate lesson data
+    // Validate lesson data từ AI
     if (!lessonData || !lessonData.questions) {
       console.error("❌ Invalid lesson data:", lessonData);
       return {
         success: false,
         statusCode: 500,
-        message: "Lesson data không hợp lệ",
+        message: "Dữ liệu bài học từ AI không hợp lệ",
+        error: "INVALID_AI_DATA",
       };
     }
 
-    console.log(`📊 Lesson data: ${lessonData.questions.length} questions`);
+    console.log(`� AI Lesson data: ${lessonData.questions.length} questions`);
 
-    // Validate số lượng câu hỏi (flexible cho demo)
-    if (lessonData.questions.length === 0) {
+    // Strict validation cho AI-generated lessons
+    if (lessonData.questions.length !== 10) {
+      console.error(
+        `❌ Wrong question count: ${lessonData.questions.length}/10`
+      );
       return {
         success: false,
         statusCode: 500,
-        message: "Không có câu hỏi nào trong bài học",
+        message: `AI tạo ${lessonData.questions.length} câu hỏi thay vì 10 câu yêu cầu`,
+        error: "INVALID_QUESTION_COUNT",
       };
     }
 
-    // Warn nếu không phải 10 câu nhưng vẫn cho phép tạo
-    if (lessonData.questions.length !== 10) {
-      console.warn(
-        `⚠️ Expected 10 questions, got ${lessonData.questions.length}`
-      );
+    // Tìm hoặc tạo Topic, Level, Skill với error handling
+    console.log("📋 Finding or creating Topic, Level, Skill...");
+
+    let topicDoc = await Topic.findOne({ name: "Marxist Philosophy" });
+    if (!topicDoc) {
+      console.log("🔧 Creating Marxist Philosophy topic...");
+      topicDoc = await Topic.create({
+        name: "Marxist Philosophy",
+        description:
+          "Triết học Mác-Lê-Nin: duy vật biện chứng, nhận thức luận, quy luật triết học",
+        isActive: true,
+      });
     }
 
-    // ⚡ PERFORMANCE: Parallel find/create Topic, Level, Skill with caching
-    console.log("📋 Finding or creating Topic, Level, Skill (parallel)...");
+    let levelDoc = await Level.findOne({ name: "marxist_intermediate" });
+    if (!levelDoc) {
+      console.log("🔧 Creating marxist_intermediate level...");
 
-    const [topicDoc, levelDoc, skillDoc] = await Promise.all([
-      // Topic - cache this
-      cacheService.getOrSet('marxist_topic_doc', async () => {
-        let doc = await Topic.findOne({ name: "Marxist Philosophy" });
-        if (!doc) {
-          console.log("🔧 Creating Marxist Philosophy topic...");
-          doc = await Topic.create({
-            name: "Marxist Philosophy",
-            description: "Triết học Mác-Lê-Nin: duy vật biện chứng, nhận thức luận, quy luật triết học",
-            isActive: true,
-          });
-        }
-        return doc;
-      }, 300), // Cache 5 minutes
+      // Tìm order cao nhất hiện tại và +1
+      const lastLevel = await Level.findOne().sort({ order: -1 });
+      const nextOrder = lastLevel ? lastLevel.order + 1 : 1;
 
-      // Level - cache this  
-      cacheService.getOrSet('marxist_level_doc', async () => {
-        let doc = await Level.findOne({ name: "marxist_intermediate" });
-        if (!doc) {
-          console.log("🔧 Creating marxist_intermediate level...");
-          const lastLevel = await Level.findOne().sort({ order: -1 });
-          const nextOrder = lastLevel ? lastLevel.order + 1 : 1;
+      levelDoc = await Level.create({
+        name: "marxist_intermediate",
+        description: "Trình độ trung cấp Marxist",
+        order: nextOrder,
+        minScoreRequired: 70,
+        minUserLevel: 1,
+        minLessonPassed: 0,
+        maxScore: 3000,
+        timeLimit: 300, // 30s * 10 câu
+        isActive: true,
+      });
 
-          doc = await Level.create({
-            name: "marxist_intermediate",
-            description: "Trình độ trung cấp Marxist",
-            order: nextOrder,
-            minScoreRequired: 70,
-            minUserLevel: 1,
-            minLessonPassed: 0,
-            maxScore: 100,
-            timeLimit: 300,
-            isActive: true,
-          });
-          console.log(`✅ Created level with order: ${nextOrder}`);
-        }
-        return doc;
-      }, 300), // Cache 5 minutes
+      console.log(`✅ Created level with order: ${nextOrder}`);
+    }
 
-      // Skill - cache this
-      cacheService.getOrSet('marxist_skill_doc', async () => {
-        let doc = await Skill.findOne({ name: "marxist_philosophy" });
-        if (!doc) {
-          console.log("🔧 Creating marxist_philosophy skill...");
-          doc = await Skill.create({
-            name: "marxist_philosophy",
-            description: "Triết học Mác-Lê-Nin: phương pháp luận, nhận thức luận, quy luật biện chứng",
-            supportedTypes: ["multiple_choice"],
-            isActive: true,
-          });
-        }
-        return doc;
-      }, 300) // Cache 5 minutes
-    ]);
+    let skillDoc = await Skill.findOne({ name: "marxist_philosophy" });
+    if (!skillDoc) {
+      console.log("🔧 Creating marxist_philosophy skill...");
+      skillDoc = await Skill.create({
+        name: "marxist_philosophy",
+        description:
+          "Triết học Mác-Lê-Nin: phương pháp luận, nhận thức luận, quy luật biện chứng",
+        supportedTypes: ["multiple_choice"],
+        isActive: true,
+      });
+    }
 
     // Validate tất cả đều tồn tại
     if (!topicDoc || !levelDoc || !skillDoc) {
@@ -504,289 +669,162 @@ Yêu cầu:
       skill: skillDoc.name,
     });
 
-    // ✅ IMPROVED: Better validation for correct answers
-    const normalizeCorrectAnswer = (question, questionIndex) => {
+    // Chuẩn hóa câu hỏi và correctAnswer do một số AI có thể trả về chỉ "A"/1 thay vì toàn bộ option
+    const normalizeCorrectAnswer = (question) => {
       try {
         const options = Array.isArray(question.options) ? question.options : [];
         let answer = question.correctAnswer;
 
-        console.log(`🔍 Question ${questionIndex + 1}: "${question.content?.substring(0, 50)}..."`);
-        console.log(`🎯 AI provided answer: "${answer}"`);
-        console.log(`📝 Available options:`, options);
-
-        if (!options.length) {
-          console.warn(`⚠️ Question ${questionIndex + 1}: No options available!`);
-          return question.correctAnswer;
-        }
+        if (!options.length) return question.correctAnswer;
 
         // Nếu answer là số (1-4)
         if (typeof answer === "number") {
           const idx = Math.max(0, Math.min(options.length - 1, answer - 1));
-          const normalizedAnswer = options[idx];
-          console.log(`🔢 Normalized from number ${answer} to: "${normalizedAnswer}"`);
-          return normalizedAnswer;
+          return options[idx];
         }
 
         if (typeof answer === "string") {
           const trimmed = answer.trim();
 
-          // ✅ PRIORITY 1: Exact match first (most reliable)
-          const exactMatch = options.find((opt) => opt === trimmed);
-          if (exactMatch) {
-            console.log(`✅ Exact match found: "${exactMatch}"`);
-            return exactMatch;
-          }
-
-          // ✅ PRIORITY 2: Letter match (A, B, C, D)
+          // Nếu là chữ cái A-D
           const letterMatch = trimmed.match(/^[A-Da-d]$/);
           if (letterMatch) {
             const idx = trimmed.toUpperCase().charCodeAt(0) - 65; // A->0
-            if (idx >= 0 && idx < options.length) {
-              const normalizedAnswer = options[idx];
-              console.log(`🔤 Letter match ${trimmed.toUpperCase()} -> "${normalizedAnswer}"`);
-              return normalizedAnswer;
-            }
+            return options[idx] || options[0];
           }
 
-          // ✅ PRIORITY 3: Prefix match (A., A), etc.)
-          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]/);
+          // Nếu là tiền tố "A." hoặc "A)"
+          const letterPrefix = trimmed.match(/^([A-Da-d])[\.)\-\s]?/);
           if (letterPrefix) {
             const idx = letterPrefix[1].toUpperCase().charCodeAt(0) - 65;
-            if (idx >= 0 && idx < options.length) {
-              const normalizedAnswer = options[idx];
-              console.log(`🏷️ Prefix match ${letterPrefix[1]} -> "${normalizedAnswer}"`);
-              return normalizedAnswer;
-            }
+            return options[idx] || options[0];
           }
 
-          // ✅ PRIORITY 4: Content matching (remove prefix and compare)
-          const normalizeText = (s) => String(s).replace(/^\s*[A-Da-d][\.)\-]\s*/, "").trim().toLowerCase();
-          const normalizedAnswerText = normalizeText(trimmed);
+          // Khớp gần đúng: loại bỏ tiền tố "A. " khi so sánh
+          const normalizeText = (s) =>
+            String(s)
+              .replace(/^\s*[A-Da-d][\.)\-]\s*/, "")
+              .trim();
+          const normalizedAnswer = normalizeText(trimmed);
+          const found = options.find(
+            (opt) => normalizeText(opt) === normalizedAnswer
+          );
+          if (found) return found;
 
-          const contentMatch = options.find((opt) => {
-            const normalizedOpt = normalizeText(opt);
-            return normalizedOpt === normalizedAnswerText;
-          });
-
-          if (contentMatch) {
-            console.log(`📄 Content match found: "${contentMatch}"`);
-            return contentMatch;
-          }
-
-          // ⚠️ WARNING: No match found
-          console.warn(`⚠️ Question ${questionIndex + 1}: No match found for answer "${trimmed}"`);
-          console.warn(`🤔 Available options:`, options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`));
+          // Nếu đã khớp chính xác với một option
+          const exact = options.find((opt) => opt === trimmed);
+          if (exact) return exact;
         }
 
-        // ❌ FALLBACK: Return first option but log warning
-        console.warn(`❌ Question ${questionIndex + 1}: Using fallback (first option)`);
+        // Fallback: chọn option đầu tiên để không chặn tạo bài
         return options[0];
       } catch (e) {
-        console.error(`💥 Error normalizing answer for question ${questionIndex + 1}:`, e.message);
         return question.correctAnswer;
       }
     };
 
-    const processedQuestions = lessonData.questions.map((q, index) => {
+    // Force chia đều đáp án đúng giữa A, B, C, D
+    const balanceCorrectAnswers = (questions) => {
+      const answers = ["A", "B", "C", "D"];
+      const balancedAnswers = [];
+
+      // Chia đều: 10 câu = 2-3 câu mỗi đáp án
+      const questionsPerAnswer = Math.floor(questions.length / 4); // 2 câu mỗi đáp án
+      const remainder = questions.length % 4; // 2 câu dư
+
+      // Thêm câu hỏi cho mỗi đáp án
+      for (let i = 0; i < 4; i++) {
+        const count = questionsPerAnswer + (i < remainder ? 1 : 0);
+        for (let j = 0; j < count; j++) {
+          balancedAnswers.push(answers[i]);
+        }
+      }
+
+      // Shuffle để random vị trí
+      for (let i = balancedAnswers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [balancedAnswers[i], balancedAnswers[j]] = [
+          balancedAnswers[j],
+          balancedAnswers[i],
+        ];
+      }
+
+      console.log(
+        `🎯 Generated balanced answers: ${balancedAnswers.join(", ")}`
+      );
+      return balancedAnswers;
+    };
+
+    // Kiểm tra và cảnh báo nếu tất cả đáp án đúng đều là A
+    const checkAnswerDistribution = (questions) => {
+      const correctAnswers = questions.map((q) => {
+        const answer = q.correctAnswer || "";
+        const match = answer.match(/^([A-Da-d])/);
+        return match ? match[1].toUpperCase() : "A";
+      });
+
+      const aCount = correctAnswers.filter((a) => a === "A").length;
+      if (aCount >= 8) {
+        // Nếu 8/10 câu đều là A
+        console.warn(
+          `⚠️ Warning: ${aCount}/10 questions have answer A. Balancing answers...`
+        );
+        return true; // Cần balance
+      }
+
+      return false; // Không cần balance
+    };
+
+    const processedQuestions = lessonData.questions.map((q) => {
       const normalized = {
         ...q,
         type: "multiple_choice",
         timeLimit: 30,
         score: 100,
       };
-
-      const normalizedAnswer = normalizeCorrectAnswer(normalized, index);
-
       return {
         ...normalized,
         skill: skillDoc._id,
-        correctAnswer: normalizedAnswer,
+        correctAnswer: normalizeCorrectAnswer(normalized),
       };
     });
 
-    console.log("🔍 VALIDATION: Checking all processed questions for correctness...");
+    // LUÔN balance đáp án đúng để đảm bảo random đều
+    console.log("🔄 Balancing correct answers distribution...");
+    const balancedAnswers = balanceCorrectAnswers(processedQuestions);
 
-    // ✅ ADD: Detailed validation for each question
-    const questionValidationIssues = [];
-    processedQuestions.forEach((q, index) => {
-      const options = q.options || [];
-      const correctAnswer = q.correctAnswer;
+    // Cập nhật đáp án đúng cho từng câu hỏi
+    processedQuestions.forEach((question, index) => {
+      const balancedAnswer = balancedAnswers[index];
+      const options = question.options || [];
 
-      // Check if correctAnswer exists in options
-      const answerExists = options.includes(correctAnswer);
+      if (options.length >= 4) {
+        // Tìm option tương ứng với balanced answer
+        const targetOption = options.find((opt) =>
+          opt.trim().toUpperCase().startsWith(balancedAnswer)
+        );
 
-      if (!answerExists) {
-        questionValidationIssues.push({
-          questionIndex: index + 1,
-          content: q.content?.substring(0, 50) + "...",
-          correctAnswer,
-          options,
-          issue: "Correct answer not found in options"
-        });
+        if (targetOption) {
+          question.correctAnswer = targetOption;
+          console.log(
+            `✅ Question ${index + 1}: Set correct answer to ${balancedAnswer}`
+          );
+        } else {
+          // Fallback: tạo đáp án đúng theo format chuẩn
+          question.correctAnswer = `${balancedAnswer}. ${
+            question.options[balancedAnswer.charCodeAt(0) - 65]?.replace(
+              /^[A-D]\.\s*/,
+              ""
+            ) || "Đáp án đúng"
+          }`;
+          console.log(
+            `⚠️ Question ${
+              index + 1
+            }: Created fallback answer ${balancedAnswer}`
+          );
+        }
       }
-
-      console.log(`Question ${index + 1}: ✅ Answer "${correctAnswer}" ${answerExists ? 'EXISTS' : '❌ NOT FOUND'} in options`);
     });
-
-    // ⚠️ Log validation issues
-    if (questionValidationIssues.length > 0) {
-      console.warn(`⚠️ FOUND ${questionValidationIssues.length} VALIDATION ISSUES:`);
-      questionValidationIssues.forEach(issue => {
-        console.warn(`❌ Question ${issue.questionIndex}: ${issue.issue}`);
-        console.warn(`   Content: ${issue.content}`);
-        console.warn(`   Correct Answer: "${issue.correctAnswer}"`);
-        console.warn(`   Options:`, issue.options);
-      });
-
-      // ❌ STRICT MODE: Return error if any validation fails
-      return {
-        success: false,
-        statusCode: 400,
-        message: `AI generated invalid questions: ${questionValidationIssues.length} questions have incorrect answer mapping`,
-        validationIssues: questionValidationIssues,
-        retryable: true
-      };
-    }
-
-    // 🔥 NEW: Check for answer distribution concentration (main fix)
-    console.log("🎯 CHECKING ANSWER DISTRIBUTION for concentration...");
-
-    const validateAnswerConcentration = (questions) => {
-      const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
-
-      questions.forEach(q => {
-        const answer = q.correctAnswer || "";
-        const match = answer.match(/^([A-Da-d])/);
-        const letter = match ? match[1].toUpperCase() : "Unknown";
-
-        if (distribution[letter] !== undefined) {
-          distribution[letter]++;
-        } else {
-          distribution.Unknown++;
-        }
-      });
-
-      console.log(`📊 Answer Distribution: A=${distribution.A}, B=${distribution.B}, C=${distribution.C}, D=${distribution.D}, Unknown=${distribution.Unknown}`);
-
-      // 🚨 CRITICAL: Check for concentration issues
-      const totalQuestions = questions.length;
-      const maxCount = Math.max(distribution.A, distribution.B, distribution.C, distribution.D);
-      const minCount = Math.min(distribution.A, distribution.B, distribution.C, distribution.D);
-
-      // Issues to check:
-      const issues = [];
-
-      // 1. Too concentrated on one answer (e.g., all 10 questions are A)
-      if (maxCount >= 7) {
-        const dominantLetter = Object.keys(distribution).find(key => distribution[key] === maxCount);
-        issues.push(`Too concentrated: ${maxCount}/${totalQuestions} questions have answer ${dominantLetter}`);
-      }
-
-      // 2. All answers are the same (worst case)
-      if (maxCount === totalQuestions) {
-        const dominantLetter = Object.keys(distribution).find(key => distribution[key] === maxCount);
-        issues.push(`CRITICAL: All ${totalQuestions} questions have the same answer ${dominantLetter}!`);
-      }
-
-      // 3. Too uneven distribution
-      if (maxCount - minCount > 5) {
-        issues.push(`Too uneven: difference between max (${maxCount}) and min (${minCount}) is ${maxCount - minCount}`);
-      }
-
-      // 4. Unknown/invalid answers
-      if (distribution.Unknown > 0) {
-        issues.push(`${distribution.Unknown} questions have invalid answer format`);
-      }
-
-      const isValid = issues.length === 0;
-
-      return {
-        isValid,
-        distribution,
-        issues,
-        maxCount,
-        minCount,
-        totalQuestions
-      };
-    };
-
-    // Run concentration validation
-    const concentrationCheck = validateAnswerConcentration(processedQuestions);
-
-    if (!concentrationCheck.isValid) {
-      console.error(`🚨 ANSWER CONCENTRATION ISSUES DETECTED:`);
-      concentrationCheck.issues.forEach(issue => {
-        console.error(`   ❌ ${issue}`);
-      });
-
-      // 🔄 CRITICAL: Return error for concentration issues (AI needs retry)
-      return {
-        success: false,
-        statusCode: 400,
-        message: `AI generated poor answer distribution: ${concentrationCheck.issues.join(', ')}`,
-        concentrationIssues: {
-          distribution: concentrationCheck.distribution,
-          issues: concentrationCheck.issues,
-          severity: concentrationCheck.maxCount === concentrationCheck.totalQuestions ? 'CRITICAL' : 'HIGH'
-        },
-        retryable: true,
-        error: "ANSWER_CONCENTRATION_FAILED"
-      };
-    }
-
-    console.log("✅ Answer concentration validation passed!");
-    console.log("✅ All validations passed - proceeding with lesson creation");
-
-    // ✅ IMPROVED: Validate answer distribution and retry if needed
-    console.log("🔍 Validating AI-generated answer distribution...");
-
-    // Function to check if answer distribution is balanced
-    const validateAnswerDistribution = (questions) => {
-      const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
-
-      questions.forEach(q => {
-        const answer = q.correctAnswer || "";
-        const match = answer.match(/^([A-Da-d])/);
-        const letter = match ? match[1].toUpperCase() : "Unknown";
-
-        if (distribution[letter] !== undefined) {
-          distribution[letter]++;
-        } else {
-          distribution.Unknown++;
-        }
-      });
-
-      // Check validation criteria
-      const maxCount = Math.max(distribution.A, distribution.B, distribution.C, distribution.D);
-      const minCount = Math.min(distribution.A, distribution.B, distribution.C, distribution.D);
-      const hasUnknown = distribution.Unknown > 0;
-      const tooConcentrated = maxCount > 4; // Không được quá 4 câu cùng đáp án
-      const tooUneven = maxCount - minCount > 3; // Chênh lệch không quá 3
-
-      console.log(`📊 Distribution: A=${distribution.A}, B=${distribution.B}, C=${distribution.C}, D=${distribution.D}, Unknown=${distribution.Unknown}`);
-
-      const isValid = !hasUnknown && !tooConcentrated && !tooUneven;
-
-      return {
-        isValid,
-        distribution,
-        issues: [
-          hasUnknown && "Some answers have invalid format",
-          tooConcentrated && `Too concentrated: ${maxCount} questions have same answer`,
-          tooUneven && `Too uneven: max-min difference is ${maxCount - minCount}`
-        ].filter(Boolean)
-      };
-    };
-
-    // Validate and log distribution
-    const validation = validateAnswerDistribution(processedQuestions);
-
-    if (validation.isValid) {
-      console.log("✅ Answer distribution is well-balanced");
-    } else {
-      console.log("⚠️ Answer distribution issues:", validation.issues);
-      console.log("📝 Proceeding anyway - may improve with more AI training");
-    }
 
     // Tạo lesson
     console.log("📝 Creating lesson document...");
@@ -802,71 +840,65 @@ Yêu cầu:
 
     console.log("✅ Lesson created:", lesson._id);
 
-    // ⚡ PERFORMANCE: Batch create questions instead of one-by-one
-    console.log(`🔄 Batch creating ${processedQuestions.length} questions...`);
+    // Tạo questions
+    console.log(`🔄 Creating ${processedQuestions.length} questions...`);
+    const questionIds = [];
 
-    // Prepare all question data for batch insert
-    const questionsToInsert = processedQuestions.map(qData => ({
-      lessonId: lesson._id,
-      skill: qData.skill,
-      type: qData.type,
-      content: qData.content,
-      options: qData.options || [],
-      correctAnswer: qData.correctAnswer,
-      score: qData.score || 100,
-      timeLimit: qData.timeLimit || 30,
-    }));
+    for (let i = 0; i < processedQuestions.length; i++) {
+      const qData = processedQuestions[i];
+      try {
+        const question = await Question.create({
+          lessonId: lesson._id,
+          skill: qData.skill,
+          type: qData.type,
+          content: qData.content,
+          options: qData.options || [],
+          correctAnswer: qData.correctAnswer,
+          score: qData.score || 100,
+          timeLimit: qData.timeLimit || 30,
+        });
+        questionIds.push(question._id);
 
-    try {
-      // ⚡ Batch insert all questions at once
-      const questions = await Question.insertMany(questionsToInsert, {
-        ordered: true // Stop on first error
-      });
-
-      const questionIds = questions.map(q => q._id);
-      console.log(`✅ Batch created ${questions.length} questions`);
-
-      // ⚡ Update lesson with question IDs (single operation)
-      lesson.questions = questionIds;
-      await lesson.save();
-
-    } catch (error) {
-      console.error(`❌ Failed to batch create questions:`, error.message);
-      // Rollback: delete the lesson if questions failed
-      await Lesson.findByIdAndDelete(lesson._id);
-      throw new Error(`Question creation failed: ${error.message}`);
+        if ((i + 1) % 10 === 0) {
+          console.log(
+            `✅ Created ${i + 1}/${processedQuestions.length} questions`
+          );
+        }
+      } catch (error) {
+        console.error(`❌ Failed to create question ${i + 1}:`, error.message);
+        throw error;
+      }
     }
 
-    // ⚡ PERFORMANCE: Parallel create learning path + update topic stats + send notification
+    // Cập nhật lesson với question IDs
+    lesson.questions = questionIds;
+    await lesson.save();
+
+    // Tạo MarxistLearningPath entry
     const pathOrder = await getNextMarxistOrder(userId);
-    const questionIds = lesson.questions; // From batch creation above
+    const learningPath = await MarxistLearningPath.create({
+      userId: user._id,
+      lessonId: lesson._id,
+      source: "ai_generated_marxist",
+      marxistTopic: topicId,
+      difficultyLevel: difficulty,
+      previousScore: analysis.previousScore || 0,
+      recommendedReason: analysis.reason,
+      order: pathOrder,
+    });
 
-    const [learningPath] = await Promise.all([
-      // Create learning path
-      MarxistLearningPath.create({
-        userId: user._id,
-        lessonId: lesson._id,
-        source: "ai_generated_marxist",
-        marxistTopic: topicId,
-        difficultyLevel: difficulty,
-        previousScore: analysis.previousScore || 0,
-        recommendedReason: analysis.reason,
-        order: pathOrder,
-      }),
+    // Cập nhật thống kê cho topic
+    await MarxistTopic.findByIdAndUpdate(topicId, {
+      $inc: { totalLessonsGenerated: 1 },
+    });
 
-      // Update topic stats (don't wait for this)
-      MarxistTopic.findByIdAndUpdate(topicId, {
-        $inc: { totalLessonsGenerated: 1 },
-      }).catch(err => console.warn('Topic stats update failed:', err.message)),
-
-      // Send notification (don't wait for this)
-      NotificationService.createNotification(userId, {
-        title: "📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!",
-        message: `AI đã tạo bài học về "${topicInfo.title}" với ${questionIds.length} câu hỏi. Hãy vào học ngay!`,
-        type: "ai_generated",
-        link: "/philosophy",
-      }).catch(err => console.warn('Notification failed:', err.message))
-    ]);
+    // Gửi notification
+    await NotificationService.createNotification(userId, {
+      title: "📚 Bài học Mác-Lê-Nin mới đã sẵn sàng!",
+      message: `AI đã tạo bài học về "${topicInfo.title}" với 10 câu hỏi. Hãy vào học ngay!`,
+      type: "ai_generated",
+      link: "/philosophy",
+    });
 
     return {
       success: true,
@@ -895,384 +927,6 @@ Yêu cầu:
   } catch (error) {
     console.error("Error in _generateMarxistLessonInternal:", error);
     throw error; // Re-throw để rate limiter xử lý
-  }
-};
-
-/**
- * Test answer distribution concentration specifically
- * @param {string} topicName - Topic name to test
- * @param {number} difficulty - Difficulty level (1-5)
- * @returns {Object} Test results focusing on answer distribution
- */
-const testAnswerDistribution = async (topicName = "duy_vat_bien_chung", difficulty = 2) => {
-  try {
-    console.log(`🎯 Testing answer distribution for topic: ${topicName}, difficulty: ${difficulty}`);
-
-    // Find topic
-    const topicInfo = await MarxistTopic.findOne({ name: topicName, isActive: true });
-    if (!topicInfo) {
-      return {
-        success: false,
-        message: `Topic "${topicName}" not found`
-      };
-    }
-
-    // Test multiple runs to check consistency
-    const testRuns = [];
-    const providers = ['gemini', 'grok4'];
-
-    for (const provider of providers) {
-      console.log(`🤖 Testing ${provider} for answer distribution...`);
-
-      try {
-        // Create stricter prompt focused on distribution
-        const prompt = `
-Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Tạo 5 câu hỏi trắc nghiệm về "${topicInfo.title}".
-
-🚨 YÊU CẦU CỰC KỲ QUAN TRỌNG:
-❌ TUYỆT ĐỐI KHÔNG được tạo tất cả câu có cùng đáp án đúng
-✅ BẮT BUỘC: Phân bố đáp án A, B, C, D đều nhau
-✅ Ví dụ: Câu 1: A đúng, Câu 2: B đúng, Câu 3: C đúng, Câu 4: D đúng, Câu 5: A đúng
-
-{
-  "title": "${topicInfo.title}",
-  "questions": [
-    {
-      "content": "Câu hỏi...",
-      "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
-      "correctAnswer": "A. Đáp án A"
-    }
-  ]
-}`;
-
-        const result = await multiAiService.generateJsonContent(prompt, {
-          preferredProvider: provider,
-          maxRetries: 1
-        });
-
-        if (result.success && result.data?.questions) {
-          // Analyze distribution
-          const distribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
-
-          result.data.questions.forEach(q => {
-            const answer = q.correctAnswer || "";
-            const match = answer.match(/^([A-Da-d])/);
-            const letter = match ? match[1].toUpperCase() : "Unknown";
-
-            if (distribution[letter] !== undefined) {
-              distribution[letter]++;
-            } else {
-              distribution.Unknown++;
-            }
-          });
-
-          const totalQuestions = result.data.questions.length;
-          const maxCount = Math.max(distribution.A, distribution.B, distribution.C, distribution.D);
-          const isConcentrated = maxCount >= Math.ceil(totalQuestions * 0.7); // 70% threshold
-          const isAllSame = maxCount === totalQuestions;
-
-          testRuns.push({
-            provider,
-            success: true,
-            questionCount: totalQuestions,
-            distribution,
-            maxCount,
-            isConcentrated,
-            isAllSame,
-            concentrationPercentage: Math.round((maxCount / totalQuestions) * 100),
-            issues: [
-              isAllSame && `ALL ${totalQuestions} questions have same answer`,
-              isConcentrated && `${maxCount}/${totalQuestions} (${Math.round((maxCount / totalQuestions) * 100)}%) questions have same answer`,
-              distribution.Unknown > 0 && `${distribution.Unknown} questions have invalid answers`
-            ].filter(Boolean)
-          });
-
-          console.log(`${provider} result:`, {
-            distribution,
-            concentrated: isConcentrated,
-            allSame: isAllSame
-          });
-
-        } else {
-          testRuns.push({
-            provider,
-            success: false,
-            error: result.error || 'Generation failed'
-          });
-        }
-
-      } catch (error) {
-        testRuns.push({
-          provider,
-          success: false,
-          error: error.message
-        });
-      }
-    }
-
-    // Analyze results
-    const analysis = {
-      totalRuns: testRuns.length,
-      successfulRuns: testRuns.filter(r => r.success).length,
-      concentrationIssues: testRuns.filter(r => r.success && r.isConcentrated).length,
-      criticalIssues: testRuns.filter(r => r.success && r.isAllSame).length,
-      bestProvider: null,
-      worstProvider: null
-    };
-
-    // Find best and worst providers
-    const successfulRuns = testRuns.filter(r => r.success);
-    if (successfulRuns.length > 0) {
-      analysis.bestProvider = successfulRuns.reduce((best, current) =>
-        !best || current.maxCount < best.maxCount ? current : best
-      ).provider;
-
-      analysis.worstProvider = successfulRuns.reduce((worst, current) =>
-        !worst || current.maxCount > worst.maxCount ? current : worst
-      ).provider;
-    }
-
-    return {
-      success: true,
-      topic: {
-        name: topicInfo.name,
-        title: topicInfo.title
-      },
-      testRuns,
-      analysis,
-      recommendations: {
-        preferredProvider: analysis.bestProvider,
-        issues: analysis.concentrationIssues > 0 ?
-          `${analysis.concentrationIssues}/${analysis.totalRuns} runs had concentration issues` :
-          'No concentration issues detected',
-        criticalIssues: analysis.criticalIssues > 0 ?
-          `${analysis.criticalIssues}/${analysis.totalRuns} runs had ALL SAME ANSWER issue` :
-          'No critical issues detected'
-      }
-    };
-
-  } catch (error) {
-    console.error("Error testing answer distribution:", error);
-    return {
-      success: false,
-      message: "Test failed: " + error.message
-    };
-  }
-};
-
-/**
- * Test AI generation accuracy and validate answers
- * @param {string} topicName - Topic name to test
- * @param {number} difficulty - Difficulty level (1-5)
- * @returns {Object} Test results
- */
-const testAiGenerationAccuracy = async (topicName = "duy_vat_bien_chung", difficulty = 2) => {
-  try {
-    console.log(`🧪 Testing AI generation accuracy for topic: ${topicName}, difficulty: ${difficulty}`);
-
-    // Find topic
-    const topicInfo = await MarxistTopic.findOne({ name: topicName, isActive: true });
-    if (!topicInfo) {
-      return {
-        success: false,
-        message: `Topic "${topicName}" not found`
-      };
-    }
-
-    // Create test prompt
-    const prompt = `
-Bạn là chuyên gia về TRIẾT HỌC Mác-Lê-Nin. Hãy tạo 3 câu hỏi trắc nghiệm về chủ đề "${topicInfo.title}" với độ khó cấp độ ${difficulty}/5.
-
-⚠️ QUAN TRỌNG: CHỈ TẬP TRUNG VÀO TRIẾT HỌC MÁC-LÊ-NIN, KHÔNG PHẢI KINH TẾ CHÍNH TRỊ!
-
-Chủ đề: ${topicInfo.title}
-Mô tả: ${topicInfo.description}
-Từ khóa quan trọng: ${topicInfo.keywords.join(", ")}
-
-Yêu cầu:
-- Đúng 3 câu hỏi trắc nghiệm (multiple choice) 
-- Mỗi câu có 4 đáp án (A, B, C, D)
-- Nội dung CHỈ VỀ TRIẾT HỌC Mác-Lê-Nin (duy vật biện chứng, nhận thức luận, quy luật triết học)
-- KHÔNG hỏi về kinh tế, giá trị thặng dư, tư bản, bóc lột
-- Độ khó phù hợp với cấp độ ${difficulty}
-- Đáp án đúng phải DỰA VÀO KIẾN THỨC CHÍNH XÁC của triết học Mác-Lê-Nin
-
-⚠️ CHỈ trả về kết quả ở định dạng JSON. KHÔNG thêm bất kỳ dòng chữ nào trước/sau.
-
-{
-  "title": "${topicInfo.title}",
-  "questions": [
-    {
-      "type": "multiple_choice",
-      "content": "Nội dung câu hỏi...", 
-      "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
-      "correctAnswer": "A. Đáp án A",
-      "explanation": "Giải thích chi tiết tại sao đáp án này đúng..."
-    }
-  ]
-}`;
-
-    // Test with multiple AI providers
-    const results = {};
-
-    // Test Gemini
-    try {
-      console.log("🤖 Testing with Gemini...");
-      const geminiResult = await multiAiService.generateJsonContent(prompt, {
-        preferredProvider: "gemini"
-      });
-      results.gemini = geminiResult;
-    } catch (error) {
-      results.gemini = { success: false, error: error.message };
-    }
-
-    // Test Grok4 
-    try {
-      console.log("🤖 Testing with Grok4...");
-      const grokResult = await multiAiService.generateJsonContent(prompt, {
-        preferredProvider: "grok4"
-      });
-      results.grok4 = grokResult;
-    } catch (error) {
-      results.grok4 = { success: false, error: error.message };
-    }
-
-    // Analyze results
-    const analysis = {
-      totalProviders: Object.keys(results).length,
-      successfulProviders: 0,
-      questionAnalysis: {},
-      validationIssues: []
-    };
-
-    Object.entries(results).forEach(([provider, result]) => {
-      if (result.success && result.data?.questions) {
-        analysis.successfulProviders++;
-
-        console.log(`\n🔍 Analyzing ${provider} results:`);
-
-        result.data.questions.forEach((q, index) => {
-          const questionKey = `question_${index + 1}`;
-          if (!analysis.questionAnalysis[questionKey]) {
-            analysis.questionAnalysis[questionKey] = {
-              content: q.content?.substring(0, 100) + "...",
-              providerAnswers: {},
-              options: q.options
-            };
-          }
-
-          // Store this provider's answer
-          analysis.questionAnalysis[questionKey].providerAnswers[provider] = {
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation
-          };
-
-          // Validate answer exists in options
-          const answerExists = q.options?.includes(q.correctAnswer);
-          if (!answerExists) {
-            analysis.validationIssues.push({
-              provider,
-              questionIndex: index + 1,
-              issue: "Correct answer not found in options",
-              correctAnswer: q.correctAnswer,
-              options: q.options
-            });
-          }
-
-          console.log(`  Question ${index + 1}: "${q.content?.substring(0, 50)}..."`);
-          console.log(`  Correct Answer: "${q.correctAnswer}" ${answerExists ? '✅' : '❌'}`);
-          console.log(`  Options:`, q.options);
-          if (q.explanation) {
-            console.log(`  Explanation: ${q.explanation.substring(0, 100)}...`);
-          }
-        });
-      }
-    });
-
-    return {
-      success: true,
-      topic: {
-        name: topicInfo.name,
-        title: topicInfo.title
-      },
-      difficulty,
-      results,
-      analysis,
-      summary: {
-        totalProviders: analysis.totalProviders,
-        successfulProviders: analysis.successfulProviders,
-        totalValidationIssues: analysis.validationIssues.length,
-        recommendedProvider: analysis.successfulProviders > 0 ?
-          Object.keys(results).find(p => results[p].success && analysis.validationIssues.filter(v => v.provider === p).length === 0) ||
-          Object.keys(results).find(p => results[p].success) : null
-      }
-    };
-
-  } catch (error) {
-    console.error("Error testing AI generation accuracy:", error);
-    return {
-      success: false,
-      message: "Test failed: " + error.message
-    };
-  }
-};
-
-/**
- * Get generation performance statistics
- * @returns {Object} Performance stats
- */
-const getGenerationStats = async () => {
-  try {
-    // Get queue stats
-    const queueStats = aiGenerationQueue.getStats();
-
-    // Get multi-AI stats
-    const multiAiStats = multiAiService.getStats();
-
-    // Get cache stats
-    const cacheStats = cacheService.getStats();
-
-    // Get recent generation performance from database
-    const recentLessons = await Lesson.find({
-      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
-    }).select('createdAt title').sort({ createdAt: -1 }).limit(50);
-
-    const recentPaths = await MarxistLearningPath.find({
-      generatedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours  
-    }).select('generatedAt userId difficultyLevel').sort({ generatedAt: -1 }).limit(100);
-
-    return {
-      success: true,
-      queue: {
-        ...queueStats,
-        description: "AI Generation Queue Performance"
-      },
-      multiAi: {
-        ...multiAiStats,
-        description: "Multi-AI Load Balancer Stats"
-      },
-      cache: {
-        ...cacheStats,
-        description: "Cache Performance Stats"
-      },
-      database: {
-        recentLessons: recentLessons.length,
-        recentPaths: recentPaths.length,
-        description: "Database Activity (24h)"
-      },
-      performance: {
-        averageGeneration: queueStats.averageProcessingTime || 0,
-        queueWaitTime: queueStats.averageWaitTime || 0,
-        cacheHitRate: cacheStats.hitRate || 0,
-        description: "Overall Performance Metrics"
-      }
-    };
-  } catch (error) {
-    console.error("Error getting generation stats:", error);
-    return {
-      success: false,
-      error: error.message
-    };
   }
 };
 
@@ -1395,7 +1049,7 @@ const getMarxistLearningPath = async (userId, options = {}) => {
 
 /**
  * Hoàn thành bài học triết học Mác-Lê-Nin với lives system
- * @param {string} userId - User ID  
+ * @param {string} userId - User ID
  * @param {string} lessonId - Lesson ID
  * @param {number} score - Điểm số (0-100)
  * @param {Array} questionResults - Kết quả từng câu hỏi (optional)
@@ -1482,26 +1136,27 @@ const completeMarxistLesson = async (
     // 🔍 VALIDATE và FILTER questionResults để đảm bảo schema compliance
     const validQuestionResults = Array.isArray(questionResults)
       ? questionResults
-        .filter((result) => {
-          // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
-          return result && result.questionId;
-        })
-        .map((result) => ({
-          questionId: result.questionId,
-          answer: result.answer || "", // Cho phép answer rỗng nếu user không chọn
-          isCorrect: result.isCorrect || false, // Default false nếu không có
-          score: typeof result.score === "number" ? result.score : 0, // Default 0 nếu không có
-          isTimeout: result.isTimeout || false,
-          transcription: result.transcription || null,
-          feedback: result.feedback || null,
-        }))
+          .filter((result) => {
+            // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
+            return result && result.questionId;
+          })
+          .map((result) => ({
+            questionId: result.questionId,
+            answer: result.answer || "", // Cho phép answer rỗng nếu user không chọn
+            isCorrect: result.isCorrect || false, // Default false nếu không có
+            score: typeof result.score === "number" ? result.score : 0, // Default 0 nếu không có
+            isTimeout: result.isTimeout || false,
+            transcription: result.transcription || null,
+            feedback: result.feedback || null,
+          }))
       : [];
 
     console.log(
       `📝 Creating Progress record: userId=${userId}, lessonId=${lessonId}, score=${score}, status=${lessonStatus}`
     );
     console.log(
-      `📊 Valid questionResults: ${validQuestionResults.length}/${questionResults?.length || 0
+      `📊 Valid questionResults: ${validQuestionResults.length}/${
+        questionResults?.length || 0
       }`
     );
 
@@ -1565,9 +1220,126 @@ const completeMarxistLesson = async (
       await user.save();
     }
 
-    // Sau khi PASS: chỉ log (bỏ logic tạo contentPack)
+    // Sau khi PASS: tạo học liệu ngắn gọn + bài ôn tập 10 câu dựa trên học liệu (background, không chặn response)
+    let nextLessonGenerated = false;
     if (score >= 70) {
-      console.log(`🎯 User ${userId} passed lesson (${score}%). No background generation needed.`);
+      console.log(
+        `🎯 User ${userId} passed lesson (${score}%), starting background generation...`
+      );
+
+      // Đánh dấu user đang trong background generation để tránh tạo bài học thủ công
+      backgroundGeneratingUsers.add(userId);
+
+      Promise.resolve().then(async () => {
+        try {
+          // Random topic mới cho ContentPack và bài ôn tập
+          const allTopics = await getAllMarxistTopics();
+          let randomTopic = null;
+          if (allTopics.length > 0) {
+            randomTopic =
+              allTopics[Math.floor(Math.random() * allTopics.length)];
+            console.log(
+              `🎲 Random NEW topic for review: ${
+                randomTopic.title || randomTopic.name
+              }`
+            );
+          }
+
+          const newTopicTitle = randomTopic
+            ? `Bài tập ${randomTopic.title || randomTopic.name} - Cấp độ ${
+                pathDoc.difficultyLevel || 3
+              }`
+            : `Bài tập Marxist Philosophy - Cấp độ ${
+                pathDoc.difficultyLevel || 3
+              }`;
+
+          console.log(
+            `📚 Creating ContentPack for user ${userId}, with NEW random topic: ${newTopicTitle}`
+          );
+          const contentPack = await contentService.getOrGenerateContentPack(
+            userId,
+            {
+              topicId: randomTopic?._id || pathDoc.marxistTopic, // Random topic mới
+              topicName: newTopicTitle, // Title với topic mới
+              level: "intermediate",
+              goal: `Ôn tập chủ đề mới: ${
+                randomTopic?.title || randomTopic?.name || "Marxist Philosophy"
+              }`,
+              include: {
+                summary: true,
+                keyPoints: true,
+                mindmap: true,
+                slideOutline: true,
+                flashcards: true,
+              },
+              forceNew: true, // Force tạo mới ContentPack sau khi pass lesson
+            }
+          );
+          console.log(`✅ ContentPack created: ${contentPack.title}`);
+
+          try {
+            await NotificationService.createNotification(userId, {
+              title: "📘 Học liệu ôn tập đã sẵn sàng",
+              message: `Đã tạo gói học liệu ngắn gọn cho chủ đề "${contentPack.title}". Vào xem nhanh trước khi ôn tập!`,
+              type: "study_pack",
+              link: "/philosophy",
+            });
+          } catch (e) {
+            console.warn("Notify study pack failed:", e.message);
+          }
+
+          // 2) Tạo bài ôn tập 10 câu dựa trên học liệu (contentHints) - gọi trực tiếp internal function
+          console.log(
+            `📝 Creating review lesson for user ${userId} based on ContentPack`
+          );
+
+          // Tạm thời xóa user khỏi background generation để tạo bài ôn tập
+          backgroundGeneratingUsers.delete(userId);
+
+          const reviewRes = await _generateMarxistLessonInternal(userId, {
+            questionCount: 10,
+            // Không random topic, sử dụng contentHints để match với ContentPack
+            contentHints: {
+              title: contentPack.title,
+              summary: contentPack.summary,
+              keyPoints: (contentPack.keyPoints || []).slice(0, 8),
+            },
+          });
+
+          // Thêm lại user vào background generation
+          backgroundGeneratingUsers.add(userId);
+
+          console.log(
+            `✅ Review lesson created: ${
+              reviewRes?.success ? "SUCCESS" : "FAILED"
+            }`
+          );
+
+          if (reviewRes?.success) {
+            nextLessonGenerated = true;
+            try {
+              await NotificationService.createNotification(userId, {
+                title: "📝 Bài ôn tập 10 câu đã tạo",
+                message: `AI đã tạo bài ôn tập dựa trên học liệu "${contentPack.title}". Vào làm ngay để củng cố kiến thức!`,
+                type: "ai_generated",
+                link: "/philosophy",
+              });
+            } catch (e) {
+              console.warn("Notify review quiz failed:", e.message);
+            }
+          }
+        } catch (err) {
+          console.error(
+            "❌ Post-pass content/review generation failed:",
+            err.message
+          );
+          console.error("Error details:", err);
+        } finally {
+          // Xóa flag background generation
+          backgroundGeneratingUsers.delete(userId);
+          console.log(`🏁 Background generation completed for user ${userId}`);
+        }
+      });
     }
 
     return {
@@ -1578,10 +1350,12 @@ const completeMarxistLesson = async (
           ? leveledUp
             ? `🎉 Hoàn thành xuất sắc! Nhận ${earnedXP} XP và lên Level ${newLevel}!`
             : `✅ Hoàn thành xuất sắc! Nhận ${earnedXP} XP. Bài học đã completed.`
-          : `Điểm số: ${score}%. Bài học chưa completed. ${livesDeducted ? "Đã trừ 1 life." : ""
-          } Hãy cố gắng hơn!`,
+          : `Điểm số: ${score}%. Bài học chưa completed. ${
+              livesDeducted ? "Đã trừ 1 life." : ""
+            } Hãy cố gắng hơn!`,
       pathUpdated: true,
       completed: score >= 70,
+      nextLessonGenerated,
       // Lives info
       livesDeducted,
       currentLives: user.lives,
@@ -1614,7 +1388,7 @@ const completeMarxistLesson = async (
 /**
  * Làm lại bài học triết học Mác-Lê-Nin
  * @param {string} userId - User ID
- * @param {string} lessonId - Lesson ID  
+ * @param {string} lessonId - Lesson ID
  * @param {string} pathId - Learning Path ID (optional)
  * @returns {Object} Retry result
  */
@@ -1807,7 +1581,4 @@ export default {
   retryMarxistLesson,
   getMarxistStats,
   getAllMarxistTopics,
-  getGenerationStats, // ⚡ Performance monitoring endpoint
-  testAnswerDistribution, // 🎯 Test answer concentration
-  testAiGenerationAccuracy, // 🧪 Test AI accuracy endpoint
-}; 
+};
