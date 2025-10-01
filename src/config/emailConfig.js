@@ -97,7 +97,7 @@ const verificationEmailTemplate = (name, verificationLink) => {
                   <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
                       <strong>💫 MarxEdu Team</strong><br>
-                      Cùng bạn chinh phục tiếng Anh mỗi ngày!
+                      Cùng bạn chinh phục Triết học mỗi ngày!
                     </p>
                     
                     <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
@@ -188,7 +188,7 @@ const resetPasswordEmailTemplate = (name, resetLink) => {
                   <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <p style="color: #64748b; font-size: 14px; margin: 10px 0;">
                       <strong>💫 MarxEdu Team</strong><br>
-                      Cùng bạn chinh phục tiếng Anh mỗi ngày!
+                      Cùng bạn chinh phục Triết học mỗi ngày!
                     </p>
                     
                     <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0; line-height: 1.5;">
