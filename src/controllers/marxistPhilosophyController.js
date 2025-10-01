@@ -820,5 +820,7 @@ export default {
   getRateLimiterStats,
   testAllAiConnections,
   getMultiAiStats,
+  getGenerationStats,
+  testAiAccuracy,
+  testAnswerDistribution,
 };
-
