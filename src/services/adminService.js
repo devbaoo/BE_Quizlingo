@@ -2,6 +2,7 @@ import User from "../models/user.js";
 import Lesson from "../models/lesson.js";
 import Level from "../models/level.js";
 import Skill from "../models/skill.js";
+import UserPackage from "../models/userPackage.js";
 
 const totalUser = async () => {
     try {
@@ -17,15 +18,22 @@ const totalUser = async () => {
     }
 }
 
-const totalUserByMonth = async () => {
+const totalUserByMonth = async (year) => {
     try {
         const currentYear = new Date().getFullYear();
-        const result = await User.aggregate([
+        const parsedYear = Number.parseInt(year, 10);
+        const targetYear = Number.isNaN(parsedYear) ? currentYear : parsedYear;
+
+        const startOfYear = new Date(Date.UTC(targetYear, 0, 1));
+        const startOfNextYear = new Date(Date.UTC(targetYear + 1, 0, 1));
+
+        const aggregation = await User.aggregate([
             {
                 $match: {
+                    isDeleted: false,
                     createdAt: {
-                        $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-                        $lt: new Date(`${currentYear + 1}-01-01T00:00:00.000Z`)
+                        $gte: startOfYear,
+                        $lt: startOfNextYear
                     }
                 }
             },
@@ -34,25 +42,27 @@ const totalUserByMonth = async () => {
                     _id: { month: { $month: "$createdAt" } },
                     value: { $sum: 1 }
                 }
-            },
-            {
-                $sort: { "_id.month": 1 }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    month: {
-                        $concat: ["Tháng ", { $toString: "$_id.month" }]
-                    },
-                    value: 1
-                }
             }
         ]);
+
+        const monthlyMap = aggregation.reduce((accumulator, current) => {
+            accumulator[current._id.month] = current.value;
+            return accumulator;
+        }, {});
+
+        const monthlyData = Array.from({ length: 12 }, (_, index) => ({
+            month: `Tháng ${index + 1}`,
+            value: monthlyMap[index + 1] ?? 0
+        }));
+
         return {
             success: true,
             statusCode: 200,
             message: "Lấy số lượng người dùng theo tháng thành công",
-            data: result
+            data: monthlyData,
+            meta: {
+                year: targetYear
+            }
         };
     } catch (error) {
         throw error;
@@ -62,6 +72,9 @@ const totalUserByMonth = async () => {
 const totalUserByYear = async () => {
     try {
         const result = await User.aggregate([
+            {
+                $match: { isDeleted: false }
+            },
             {
                 $group: {
                     _id: { year: { $year: "$createdAt" } },
@@ -126,6 +139,56 @@ const totalSkill = async () => {
             statusCode: 200,
             message: "Lấy số lượng kỹ năng thành công",
             total
+        };
+    } catch (error) {
+        throw error;
+    }
+}
+
+const totalRevenue = async ({ startDate, endDate } = {}) => {
+    try {
+        const matchConditions = {
+            paymentStatus: "completed"
+        };
+
+        if (startDate || endDate) {
+            matchConditions.createdAt = {};
+            if (startDate) {
+                const parsedStart = new Date(startDate);
+                if (!Number.isNaN(parsedStart.getTime())) {
+                    matchConditions.createdAt.$gte = parsedStart;
+                }
+            }
+            if (endDate) {
+                const parsedEnd = new Date(endDate);
+                if (!Number.isNaN(parsedEnd.getTime())) {
+                    matchConditions.createdAt.$lte = parsedEnd;
+                }
+            }
+            if (Object.keys(matchConditions.createdAt).length === 0) {
+                delete matchConditions.createdAt;
+            }
+        }
+
+        const aggregation = await UserPackage.aggregate([
+            { $match: matchConditions },
+            {
+                $group: {
+                    _id: null,
+                    value: { $sum: "$amount" },
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const result = aggregation[0] ?? { value: 0, count: 0 };
+
+        return {
+            success: true,
+            statusCode: 200,
+            message: "Lấy doanh thu thành công",
+            totalRevenue: result.value,
+            completedTransactions: result.count
         };
     } catch (error) {
         throw error;
@@ -241,5 +304,6 @@ export default {
     totalLesson,
     totalLevel,
     totalSkill,
-    getTotalUserByLevel
+    getTotalUserByLevel,
+    totalRevenue
 }

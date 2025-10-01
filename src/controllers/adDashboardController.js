@@ -14,7 +14,8 @@ const totalUser = async (req, res) => {
 };
 const totalUserByMonth = async (req, res) => {
   try {
-    const result = await adminService.totalUserByMonth();
+    const { year } = req.query;
+    const result = await adminService.totalUserByMonth(year);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({
@@ -76,6 +77,19 @@ const totalSkill = async (req, res) => {
     });
   }
 };
+const totalRevenue = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const result = await adminService.totalRevenue({ startDate, endDate });
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi lấy dữ liệu leaderboard",
+      error: error.message,
+    });
+  }
+};
 const getTotalUserByLevel = async (req, res) => {
   try {
     const result = await adminService.getTotalUserByLevel();
@@ -110,4 +124,5 @@ export default {
   totalLesson,
   totalLevel,
   totalSkill,
+  totalRevenue,
 };
