@@ -723,58 +723,6 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       }
     };
 
-    // Force chia đều đáp án đúng giữa A, B, C, D
-    const balanceCorrectAnswers = (questions) => {
-      const answers = ["A", "B", "C", "D"];
-      const balancedAnswers = [];
-
-      // Chia đều: 10 câu = 2-3 câu mỗi đáp án
-      const questionsPerAnswer = Math.floor(questions.length / 4); // 2 câu mỗi đáp án
-      const remainder = questions.length % 4; // 2 câu dư
-
-      // Thêm câu hỏi cho mỗi đáp án
-      for (let i = 0; i < 4; i++) {
-        const count = questionsPerAnswer + (i < remainder ? 1 : 0);
-        for (let j = 0; j < count; j++) {
-          balancedAnswers.push(answers[i]);
-        }
-      }
-
-      // Shuffle để random vị trí
-      for (let i = balancedAnswers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [balancedAnswers[i], balancedAnswers[j]] = [
-          balancedAnswers[j],
-          balancedAnswers[i],
-        ];
-      }
-
-      console.log(
-        `🎯 Generated balanced answers: ${balancedAnswers.join(", ")}`
-      );
-      return balancedAnswers;
-    };
-
-    // Kiểm tra và cảnh báo nếu tất cả đáp án đúng đều là A
-    const checkAnswerDistribution = (questions) => {
-      const correctAnswers = questions.map((q) => {
-        const answer = q.correctAnswer || "";
-        const match = answer.match(/^([A-Da-d])/);
-        return match ? match[1].toUpperCase() : "A";
-      });
-
-      const aCount = correctAnswers.filter((a) => a === "A").length;
-      if (aCount >= 8) {
-        // Nếu 8/10 câu đều là A
-        console.warn(
-          `⚠️ Warning: ${aCount}/10 questions have answer A. Balancing answers...`
-        );
-        return true; // Cần balance
-      }
-
-      return false; // Không cần balance
-    };
-
     const processedQuestions = lessonData.questions.map((q) => {
       const normalized = {
         ...q,
@@ -789,42 +737,29 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       };
     });
 
-    // LUÔN balance đáp án đúng để đảm bảo random đều
-    console.log("🔄 Balancing correct answers distribution...");
-    const balancedAnswers = balanceCorrectAnswers(processedQuestions);
+    // Ghi nhận lại phân bố đáp án sau khi chuẩn hóa để theo dõi
+    const answerDistribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
+    processedQuestions.forEach((question) => {
+      const options = Array.isArray(question.options) ? question.options : [];
+      const normalizeText = (value) =>
+        String(value || "")
+          .replace(/^\s*[A-Da-d][\.)\-\s]*/, "")
+          .trim()
+          .toLowerCase();
 
-    // Cập nhật đáp án đúng cho từng câu hỏi
-    processedQuestions.forEach((question, index) => {
-      const balancedAnswer = balancedAnswers[index];
-      const options = question.options || [];
+      const normalizedCorrect = normalizeText(question.correctAnswer);
+      const matchedIndex = options.findIndex(
+        (option) => normalizeText(option) === normalizedCorrect
+      );
 
-      if (options.length >= 4) {
-        // Tìm option tương ứng với balanced answer
-        const targetOption = options.find((opt) =>
-          opt.trim().toUpperCase().startsWith(balancedAnswer)
-        );
-
-        if (targetOption) {
-          question.correctAnswer = targetOption;
-          console.log(
-            `✅ Question ${index + 1}: Set correct answer to ${balancedAnswer}`
-          );
-        } else {
-          // Fallback: tạo đáp án đúng theo format chuẩn
-          question.correctAnswer = `${balancedAnswer}. ${
-            question.options[balancedAnswer.charCodeAt(0) - 65]?.replace(
-              /^[A-D]\.\s*/,
-              ""
-            ) || "Đáp án đúng"
-          }`;
-          console.log(
-            `⚠️ Question ${
-              index + 1
-            }: Created fallback answer ${balancedAnswer}`
-          );
-        }
+      if (matchedIndex >= 0 && matchedIndex < 4) {
+        const letter = String.fromCharCode(65 + matchedIndex);
+        answerDistribution[letter]++;
+      } else {
+        answerDistribution.Unknown++;
       }
     });
+    console.log("📊 Normalized answer distribution:", answerDistribution);
 
     // Tạo lesson
     console.log("📝 Creating lesson document...");
