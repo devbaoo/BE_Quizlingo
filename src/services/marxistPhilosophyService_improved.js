@@ -393,7 +393,8 @@ const generateEnhancedPrompt = ({
     : "";
 
   return `
-Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-LêNin với nhiều năm kinh nghiệm giảng dạy. Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
+Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lênin với nhiều năm kinh nghiệm giảng dạy.  
+Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
 
 🎯 THÔNG TIN CHỦ ĐỀ:
 - Tiêu đề: ${finalTitle}
@@ -402,34 +403,31 @@ Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-LêNin với nhiều nă
 - Độ khó: ${difficulty}/5
 
 ⚠️ YÊU CẦU TUYỆT ĐỐI:
-1. CHỈ VỀ TRIẾT HỌC MÁC-LêNin (duy vật biện chứng, nhận thức luận, quy luật triết học)
-2. KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lót
-3. ĐÚNG 10 câu hỏi trắc nghiệm (multiple choice)
-4. Mỗi câu có đúng 4 đáp án (A, B, C, D)
+1. Nội dung CHỈ về **triết học Mác-Lênin** (thế giới quan duy vật, phép biện chứng, nhận thức luận, quy luật cơ bản, vai trò trong đời sống xã hội).
+2. TUYỆT ĐỐI KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột (không thuộc phạm vi triết học).
+3. TUYỆT ĐỐI KHÔNG được đưa ra đáp án sai lệch, phản Mác-Lênin (ví dụ: ca ngợi duy tâm, cá nhân chủ nghĩa cực đoan, phủ nhận vai trò thực tiễn...).
+4. Đúng 10 câu hỏi, mỗi câu có 4 đáp án (A, B, C, D).
+5. Mỗi đáp án sai phải hợp lý nhưng KHÔNG trái với bản chất triết học Mác-Lênin.
+6. Đáp án đúng phải phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu).
 
 🚨 FORMAT CHÍNH XÁC - QUAN TRỌNG NHẤT:
 - Mỗi options array phải có đúng 4 phần tử
-- Format: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]
-- correctAnswer phải khớp CHÍNH XÁC với một trong 4 options
+- Format chính xác: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]
+- correctAnswer phải khớp CHÍNH XÁC với một trong 4 options (bao gồm cả ký tự A., B., C., D.)
 - VÍ DỤ ĐÚNG: correctAnswer: "A. Quy luật thống nhất và đấu tranh của các mặt đối lập"
 
-🚨 PHÂN BỐ ĐÁP ÁN - KIỂM TRA KỸ:
-- Đáp án đúng PHẢI được phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu)
-- TUYỆT ĐỐI KHÔNG được tất cả câu cùng đáp án
-- Ví dụ tốt: Câu 1→A, Câu 2→C, Câu 3→B, Câu 4→D, Câu 5→A, v.v.
-
-📝 TIÊU CHUẨN CHẤT LƯỢNG:
-- Câu hỏi rõ ràng, không mơ hồ, liên quan trực tiếp đến "${finalTitle}"
-- Đáp án sai hợp lý nhưng không đúng (distractors)
-- Độ khó phù hợp với cấp độ ${difficulty}
+📝 TIÊU CHUẨN CHẤT LƯỢNG CAO:
+- Câu hỏi rõ ràng, trực tiếp, liên quan chặt chẽ đến "${finalTitle}"
+- Đáp án sai hợp lý, có tính học thuật nhưng KHÔNG đúng và KHÔNG phản triết học
+- Độ khó phù hợp với cấp độ ${difficulty}/5
 - Thời gian làm mỗi câu: 30 giây
-- Nội dung chính xác theo lý thuyết Mác-LêNin
+- Nội dung chính xác, phù hợp với lý luận Mác-Lênin chính thống
 
 🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
-1. Đếm số câu có đáp án A, B, C, D để đảm bảo phân bố đều
-2. Kiểm tra correctAnswer khớp chính xác với options
-3. Đảm bảo nội dung chất lượng và liên quan đến chủ đề
-4. Mỗi câu hỏi phải có 4 đáp án khác nhau và có ý nghĩa
+1. Đếm số câu có đáp án A, B, C, D → đảm bảo phân bố đều.
+2. Kiểm tra \`correctAnswer\` khớp chính xác với một trong 4 options.
+3. Đảm bảo nội dung phù hợp lý luận Mác-Lênin, không phản triết học.
+4. Mỗi câu phải rõ ràng, logic, độ khó phù hợp ${difficulty}/5.
 
 ⚠️ CHỈ trả về kết quả ở định dạng JSON CHÍNH XÁC. KHÔNG thêm text giải thích.
 
@@ -438,9 +436,14 @@ Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-LêNin với nhiều nă
   "questions": [
     {
       "type": "multiple_choice",
-      "content": "Nội dung câu hỏi về triết học Mác-LêNin liên quan đến ${finalTitle}...",
-      "options": ["A. Đáp án A chính xác", "B. Đáp án B sai nhưng hợp lý", "C. Đáp án C sai nhưng hợp lý", "D. Đáp án D sai nhưng hợp lý"],
-      "correctAnswer": "A. Đáp án A chính xác",
+      "content": "Câu hỏi rõ ràng, trực tiếp, liên quan đến ${finalTitle}...",
+      "options": [
+        "A. Nội dung đáp án A",
+        "B. Nội dung đáp án B", 
+        "C. Nội dung đáp án C",
+        "D. Nội dung đáp án D"
+      ],
+      "correctAnswer": "B. Nội dung đáp án B",
       "score": 100,
       "timeLimit": 30
     }
