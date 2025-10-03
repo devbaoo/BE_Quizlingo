@@ -196,12 +196,18 @@ const generateMarxistLesson = async (userId, options = {}) => {
   try {
     // Timeout wrapper để ngăn chặn quá trình quá 45 giây
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Lesson generation timeout after 45 seconds')), 45000)
+      setTimeout(
+        () => reject(new Error("Lesson generation timeout after 45 seconds")),
+        45000
+      )
     );
 
-    const generationPromise = generationRateLimiter.requestGeneration(userId, async () => {
-      return await _generateMarxistLessonInternal(userId, options);
-    });
+    const generationPromise = generationRateLimiter.requestGeneration(
+      userId,
+      async () => {
+        return await _generateMarxistLessonInternal(userId, options);
+      }
+    );
 
     return await Promise.race([generationPromise, timeoutPromise]);
   } catch (rateLimitError) {
@@ -209,22 +215,23 @@ const generateMarxistLesson = async (userId, options = {}) => {
       `⚠️ Rate limit or timeout error for user ${userId}:`,
       rateLimitError.message
     );
-    
+
     // Cải thiện error response cho timeout
-    if (rateLimitError.message.includes('timeout')) {
+    if (rateLimitError.message.includes("timeout")) {
       return {
         success: false,
         statusCode: 408,
-        message: "Quá trình tạo bài học mất quá nhiều thời gian. Vui lòng thử lại với chủ đề đơn giản hơn.",
-        error: "GENERATION_TIMEOUT"
+        message:
+          "Quá trình tạo bài học mất quá nhiều thời gian. Vui lòng thử lại với chủ đề đơn giản hơn.",
+        error: "GENERATION_TIMEOUT",
       };
     }
-    
+
     return {
       success: false,
       statusCode: rateLimitError.statusCode || 500,
       message: rateLimitError.message || "Lỗi hệ thống khi tạo bài học",
-      error: "GENERATION_ERROR"
+      error: "GENERATION_ERROR",
     };
   }
 };
@@ -322,7 +329,7 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       console.log(`🔍 Searching textbook with keywords: ${searchKeywords}`);
       textbookContext = await marxistTextbookService.getContextForAI(
         searchKeywords,
-        1800  // Giảm từ 2500 xuống 1800 để tối ưu tốc độ
+        1800 // Giảm từ 2500 xuống 1800 để tối ưu tốc độ
       );
 
       if (textbookContext && textbookContext.length > 100) {
@@ -331,7 +338,7 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
         );
       } else {
         console.log(`⚠️ Limited textbook content found, using general context`);
-        textbookContext = await marxistTextbookService.getGeneralContext(1200);  // Giảm từ 1500 xuống 1200
+        textbookContext = await marxistTextbookService.getGeneralContext(1200); // Giảm từ 1500 xuống 1200
       }
     } catch (error) {
       console.warn(`⚠️ Error loading textbook content: ${error.message}`);
@@ -1666,12 +1673,18 @@ const generateCustomMarxistLesson = async (userId, options = {}) => {
   try {
     // Timeout wrapper để ngăn chặn quá trình quá 45 giây
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Lesson generation timeout after 45 seconds')), 45000)
+      setTimeout(
+        () => reject(new Error("Lesson generation timeout after 45 seconds")),
+        45000
+      )
     );
 
-    const generationPromise = generationRateLimiter.requestGeneration(userId, async () => {
-      return await _generateCustomMarxistLessonInternal(userId, options);
-    });
+    const generationPromise = generationRateLimiter.requestGeneration(
+      userId,
+      async () => {
+        return await _generateCustomMarxistLessonInternal(userId, options);
+      }
+    );
 
     return await Promise.race([generationPromise, timeoutPromise]);
   } catch (rateLimitError) {
@@ -1679,22 +1692,24 @@ const generateCustomMarxistLesson = async (userId, options = {}) => {
       `⚠️ Rate limit or timeout error for user ${userId}:`,
       rateLimitError.message
     );
-    
+
     // Cải thiện error response cho timeout trong custom generation
-    if (rateLimitError.message.includes('timeout')) {
+    if (rateLimitError.message.includes("timeout")) {
       return {
         success: false,
         statusCode: 408,
-        message: "Quá trình tạo bài học tùy chọn mất quá nhiều thời gian. Vui lòng thử lại với chủ đề ngắn gọn hơn.",
-        error: "CUSTOM_GENERATION_TIMEOUT"
+        message:
+          "Quá trình tạo bài học tùy chọn mất quá nhiều thời gian. Vui lòng thử lại với chủ đề ngắn gọn hơn.",
+        error: "CUSTOM_GENERATION_TIMEOUT",
       };
     }
-    
+
     return {
       success: false,
       statusCode: rateLimitError.statusCode || 500,
-      message: rateLimitError.message || "Lỗi hệ thống khi tạo bài học tùy chọn",
-      error: "CUSTOM_GENERATION_ERROR"
+      message:
+        rateLimitError.message || "Lỗi hệ thống khi tạo bài học tùy chọn",
+      error: "CUSTOM_GENERATION_ERROR",
     };
   }
 };
@@ -1795,7 +1810,7 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
       );
       textbookContext = await marxistTextbookService.getContextForAI(
         searchKeywords,
-        1800  // Giảm từ 2500 xuống 1800 để tối ưu tốc độ
+        1800 // Giảm từ 2500 xuống 1800 để tối ưu tốc độ
       );
 
       if (textbookContext && textbookContext.length > 100) {
@@ -1806,7 +1821,7 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
         console.log(
           `⚠️ Limited textbook content found for custom topic, using general context`
         );
-        textbookContext = await marxistTextbookService.getGeneralContext(1200);  // Giảm từ 1500 xuống 1200
+        textbookContext = await marxistTextbookService.getGeneralContext(1200); // Giảm từ 1500 xuống 1200
       }
     } catch (error) {
       console.warn(
