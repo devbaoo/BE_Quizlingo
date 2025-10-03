@@ -43,6 +43,25 @@ const generatingUsers = new Set();
 // Flag để tránh tạo bài học khi đang trong background generation
 const backgroundGeneratingUsers = new Set();
 
+// Track timestamp for background generation để có thể clear stuck ones
+const backgroundGenerationTimestamps = new Map();
+
+// Auto cleanup stuck background generations every 3 minutes
+setInterval(() => {
+  const now = Date.now();
+  const stuckTimeout = 3 * 60 * 1000; // 3 minutes
+
+  for (const [userId, timestamp] of backgroundGenerationTimestamps.entries()) {
+    if (now - timestamp > stuckTimeout) {
+      backgroundGeneratingUsers.delete(userId);
+      backgroundGenerationTimestamps.delete(userId);
+      console.log(
+        `🧹 Auto-cleared stuck background generation for user ${userId}`
+      );
+    }
+  }
+}, 3 * 60 * 1000); // Check every 3 minutes
+
 // Hàm lấy tất cả chủ đề Marxist từ database (với caching)
 const getAllMarxistTopics = async () => {
   try {
@@ -182,13 +201,21 @@ const generateMarxistLesson = async (userId, options = {}) => {
 
   // Kiểm tra xem có đang trong background generation không
   if (backgroundGeneratingUsers.has(userId)) {
+    const timestamp = backgroundGenerationTimestamps.get(userId);
+    const waitTime = timestamp
+      ? Math.max(0, 180 - Math.floor((Date.now() - timestamp) / 1000))
+      : 180;
+
     console.log(
       `⏳ User ${userId} is in background generation, skipping manual generation...`
     );
     return {
       success: false,
       statusCode: 429,
-      message: "Hệ thống đang tạo bài học tự động, vui lòng chờ...",
+      message:
+        "Hệ thống đang tạo bài học tự động sau khi bạn hoàn thành bài trước. Vui lòng chờ khoảng 1-3 phút.",
+      estimatedWaitTime: waitTime,
+      canRetryAfter: Date.now() + waitTime * 1000,
     };
   }
 
@@ -1301,6 +1328,7 @@ const completeMarxistLesson = async (
 
       // Đánh dấu user đang trong background generation để tránh tạo bài học thủ công
       backgroundGeneratingUsers.add(userId);
+      backgroundGenerationTimestamps.set(userId, Date.now());
 
       Promise.resolve().then(async () => {
         try {
@@ -1367,6 +1395,7 @@ const completeMarxistLesson = async (
 
           // Tạm thời xóa user khỏi background generation để tạo bài ôn tập
           backgroundGeneratingUsers.delete(userId);
+          backgroundGenerationTimestamps.delete(userId);
 
           const reviewRes = await _generateMarxistLessonInternal(userId, {
             questionCount: 10,
@@ -1380,6 +1409,7 @@ const completeMarxistLesson = async (
 
           // Thêm lại user vào background generation
           backgroundGeneratingUsers.add(userId);
+          backgroundGenerationTimestamps.set(userId, Date.now());
 
           console.log(
             `✅ Review lesson created: ${
@@ -1409,6 +1439,7 @@ const completeMarxistLesson = async (
         } finally {
           // Xóa flag background generation
           backgroundGeneratingUsers.delete(userId);
+          backgroundGenerationTimestamps.delete(userId);
           console.log(`🏁 Background generation completed for user ${userId}`);
         }
       });
@@ -1659,13 +1690,21 @@ const generateCustomMarxistLesson = async (userId, options = {}) => {
 
   // Kiểm tra xem có đang trong background generation không
   if (backgroundGeneratingUsers.has(userId)) {
+    const timestamp = backgroundGenerationTimestamps.get(userId);
+    const waitTime = timestamp
+      ? Math.max(0, 180 - Math.floor((Date.now() - timestamp) / 1000))
+      : 180;
+
     console.log(
       `⏳ User ${userId} is in background generation, skipping manual generation...`
     );
     return {
       success: false,
       statusCode: 429,
-      message: "Hệ thống đang tạo bài học tự động, vui lòng chờ...",
+      message:
+        "Hệ thống đang tạo bài học tự động sau khi bạn hoàn thành bài trước. Vui lòng chờ khoảng 1-3 phút.",
+      estimatedWaitTime: waitTime,
+      canRetryAfter: Date.now() + waitTime * 1000,
     };
   }
 
@@ -2411,6 +2450,46 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
   }
 };
 
+/**
+ * Utility function để clear stuck generations (for admin/debug)
+ * @param {string} userId - Optional user ID to clear specific user
+ * @returns {Object} Result
+ */
+const clearStuckGenerations = (userId = null) => {
+  try {
+    if (userId) {
+      // Clear specific user
+      const wasStuck = backgroundGeneratingUsers.has(userId);
+      backgroundGeneratingUsers.delete(userId);
+      backgroundGenerationTimestamps.delete(userId);
+
+      return {
+        success: true,
+        message: wasStuck
+          ? `Cleared stuck generation for user ${userId}`
+          : `User ${userId} was not stuck`,
+        cleared: wasStuck,
+      };
+    } else {
+      // Clear all stuck generations
+      const count = backgroundGeneratingUsers.size;
+      backgroundGeneratingUsers.clear();
+      backgroundGenerationTimestamps.clear();
+
+      return {
+        success: true,
+        message: `Cleared ${count} stuck background generations`,
+        clearedCount: count,
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: `Error clearing stuck generations: ${error.message}`,
+    };
+  }
+};
+
 export default {
   generateMarxistLesson,
   generateCustomMarxistLesson,
@@ -2420,4 +2499,5 @@ export default {
   retryMarxistLesson,
   getMarxistStats,
   getAllMarxistTopics,
+  clearStuckGenerations,
 };
