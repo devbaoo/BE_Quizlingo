@@ -1,6 +1,6 @@
-// Rate limiter cho AI lesson generation
-const MAX_CONCURRENT_GENERATIONS = 5;
-const MAX_QUEUE_SIZE = 20;
+// ULTRA FAST MODE: Tối ưu cho single user testing
+const MAX_CONCURRENT_GENERATIONS = 20; // Tăng từ 10 lên 20 cho single user
+const MAX_QUEUE_SIZE = 100; // Tăng từ 50 lên 100
 
 class GenerationRateLimiter {
   constructor() {
@@ -13,6 +13,12 @@ class GenerationRateLimiter {
 
   async requestGeneration(userId, generationFunction) {
     return new Promise((resolve, reject) => {
+      // FORCE CLEANUP: Xóa user cũ nếu bị stuck
+      if (this.activeUserRequests.has(userId)) {
+        console.warn(`⚠️ User ${userId} was stuck in activeUserRequests, force cleaning...`);
+        this.activeUserRequests.delete(userId);
+      }
+
       // KIỂM TRA NGAY LẬP TỨC - user đã có ANY request active không
       if (this.activeUserRequests.has(userId)) {
         reject({
@@ -21,7 +27,7 @@ class GenerationRateLimiter {
           message:
             "Bạn đang có yêu cầu tạo bài học đang xử lý. Vui lòng chờ hoàn thành.",
           reason: "USER_REQUEST_IN_PROGRESS",
-          suggestedWaitTime: 30000, // 30 seconds
+          suggestedWaitTime: 10000, // ULTRA FAST: Giảm từ 30s xuống 10s
         });
         return;
       }
@@ -189,11 +195,26 @@ class GenerationRateLimiter {
 
     if (this.queue.length !== originalLength) {
       console.log(
-        `🧹 Cleaned up ${
-          originalLength - this.queue.length
+        `🧹 Cleaned up ${originalLength - this.queue.length
         } expired queue items`
       );
     }
+  }
+
+  // Force clear stuck user
+  forceCleanupUser(userId) {
+    const wasStuck = this.activeUserRequests.has(userId);
+    this.activeUserRequests.delete(userId);
+    console.log(`🧹 Force cleanup user ${userId}: ${wasStuck ? 'was stuck' : 'was clean'}`);
+    return wasStuck;
+  }
+
+  // Clear all stuck users
+  forceCleanupAllUsers() {
+    const count = this.activeUserRequests.size;
+    this.activeUserRequests.clear();
+    console.log(`🧹 Force cleanup ${count} stuck users`);
+    return count;
   }
 }
 

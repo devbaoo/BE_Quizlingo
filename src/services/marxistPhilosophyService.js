@@ -28,6 +28,9 @@ import {
 // Import textbook service for reading PDF content
 import marxistTextbookService from "./marxistTextbookService.js";
 
+// Import extreme fast mode config
+import extremeFastMode from "../config/extremeFastMode.js";
+
 /**
  * Tính XP cần thiết để lên level
  * @param {number} level - Level hiện tại
@@ -159,10 +162,10 @@ const analyzeUserProgress = async (userId) => {
       const weakestTopic =
         completedPaths.length > 0
           ? completedPaths.reduce((weakest, current) =>
-              !weakest || current.achievedScore < weakest.achievedScore
-                ? current
-                : weakest
-            )
+            !weakest || current.achievedScore < weakest.achievedScore
+              ? current
+              : weakest
+          )
           : null;
       recommendedTopic = weakestTopic
         ? weakestTopic.marxistTopic
@@ -173,9 +176,8 @@ const analyzeUserProgress = async (userId) => {
       recommendedTopic,
       difficultyLevel: newDifficulty,
       previousScore: Math.round(averageScore),
-      reason: `Dựa trên kết quả ${
-        completedPaths.length
-      } bài học gần nhất (điểm TB: ${Math.round(averageScore)})`,
+      reason: `Dựa trên kết quả ${completedPaths.length
+        } bài học gần nhất (điểm TB: ${Math.round(averageScore)})`,
     };
   } catch (error) {
     console.error("Error analyzing user progress:", error);
@@ -221,11 +223,11 @@ const generateMarxistLesson = async (userId, options = {}) => {
 
   // Sử dụng Rate Limiter với timeout wrapper
   try {
-    // Timeout wrapper để ngăn chặn quá trình quá 45 giây
+    // EXTREME FAST: Target 10-15s response time
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
-        () => reject(new Error("Lesson generation timeout after 45 seconds")),
-        45000
+        () => reject(new Error("Lesson generation timeout after 20 seconds")),
+        20000 // Giảm từ 30s xuống 20s để đạt target
       )
     );
 
@@ -451,8 +453,7 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
         maxCount - minCount > Math.ceil(totalQuestions / 2)
       ) {
         issues.push(
-          `Uneven distribution: max(${maxCount}) - min(${minCount}) = ${
-            maxCount - minCount
+          `Uneven distribution: max(${maxCount}) - min(${minCount}) = ${maxCount - minCount
           }`
         );
         score -= 20;
@@ -470,10 +471,10 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
         score === 0
           ? "CRITICAL"
           : score < 50
-          ? "HIGH"
-          : score < 80
-          ? "MEDIUM"
-          : "LOW";
+            ? "HIGH"
+            : score < 80
+              ? "MEDIUM"
+              : "LOW";
 
       return {
         isValid: score >= 70, // Accept if score >= 70
@@ -491,8 +492,8 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
     );
 
     let lessonData = null;
-    const maxRetries = 5; // Tăng số lần retry
-    const strategies = ["weighted", "failover", "round_robin", "least_loaded"];
+    const maxRetries = 1; // ULTRA FAST: Chỉ 1 lần thử để test nhanh nhất
+    const strategies = ["weighted", "failover"]; // DEMO: Chỉ 2 strategies nhanh nhất
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const strategy = strategies[attempt % strategies.length];
@@ -518,8 +519,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       }
 
       console.log(
-        `🚀 AI Generation Attempt ${
-          attempt + 1
+        `🚀 AI Generation Attempt ${attempt + 1
         }/${maxRetries} (Strategy: ${strategy})`
       );
 
@@ -573,16 +573,14 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
         if (validation.isValid) {
           lessonData = aiResult.data;
           console.log(
-            `✅ SUCCESS! Generated valid lesson from ${
-              aiResult.provider
+            `✅ SUCCESS! Generated valid lesson from ${aiResult.provider
             } on attempt ${attempt + 1}`
           );
           console.log("📊 Final answer distribution:", validation.distribution);
           break;
         } else {
           console.warn(
-            `❌ Poor answer distribution from ${aiResult.provider} (attempt ${
-              attempt + 1
+            `❌ Poor answer distribution from ${aiResult.provider} (attempt ${attempt + 1
             }):`,
             {
               distribution: validation.distribution,
@@ -623,8 +621,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
                   questions: shuffleResult.questions,
                 };
                 console.log(
-                  `✅ POST-PROCESSING SUCCESS! Fixed distribution from ${
-                    aiResult.provider
+                  `✅ POST-PROCESSING SUCCESS! Fixed distribution from ${aiResult.provider
                   } on attempt ${attempt + 1}`
                 );
                 console.log(
@@ -1235,27 +1232,26 @@ const completeMarxistLesson = async (
     // 🔍 VALIDATE và FILTER questionResults để đảm bảo schema compliance
     const validQuestionResults = Array.isArray(questionResults)
       ? questionResults
-          .filter((result) => {
-            // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
-            return result && result.questionId;
-          })
-          .map((result) => ({
-            questionId: result.questionId,
-            answer: result.answer || "", // Cho phép answer rỗng nếu user không chọn
-            isCorrect: result.isCorrect || false, // Default false nếu không có
-            score: typeof result.score === "number" ? result.score : 0, // Default 0 nếu không có
-            isTimeout: result.isTimeout || false,
-            transcription: result.transcription || null,
-            feedback: result.feedback || null,
-          }))
+        .filter((result) => {
+          // Chỉ giữ lại results có questionId (answer có thể rỗng nếu user không chọn)
+          return result && result.questionId;
+        })
+        .map((result) => ({
+          questionId: result.questionId,
+          answer: result.answer || "", // Cho phép answer rỗng nếu user không chọn
+          isCorrect: result.isCorrect || false, // Default false nếu không có
+          score: typeof result.score === "number" ? result.score : 0, // Default 0 nếu không có
+          isTimeout: result.isTimeout || false,
+          transcription: result.transcription || null,
+          feedback: result.feedback || null,
+        }))
       : [];
 
     console.log(
       `📝 Creating Progress record: userId=${userId}, lessonId=${lessonId}, score=${score}, status=${lessonStatus}`
     );
     console.log(
-      `📊 Valid questionResults: ${validQuestionResults.length}/${
-        questionResults?.length || 0
+      `📊 Valid questionResults: ${validQuestionResults.length}/${questionResults?.length || 0
       }`
     );
 
@@ -1339,19 +1335,16 @@ const completeMarxistLesson = async (
             randomTopic =
               allTopics[Math.floor(Math.random() * allTopics.length)];
             console.log(
-              `🎲 Random NEW topic for review: ${
-                randomTopic.title || randomTopic.name
+              `🎲 Random NEW topic for review: ${randomTopic.title || randomTopic.name
               }`
             );
           }
 
           const newTopicTitle = randomTopic
-            ? `Bài tập ${randomTopic.title || randomTopic.name} - Cấp độ ${
-                pathDoc.difficultyLevel || 3
-              }`
-            : `Bài tập Marxist Philosophy - Cấp độ ${
-                pathDoc.difficultyLevel || 3
-              }`;
+            ? `Bài tập ${randomTopic.title || randomTopic.name} - Cấp độ ${pathDoc.difficultyLevel || 3
+            }`
+            : `Bài tập Marxist Philosophy - Cấp độ ${pathDoc.difficultyLevel || 3
+            }`;
 
           console.log(
             `📚 Creating ContentPack for user ${userId}, with NEW random topic: ${newTopicTitle}`
@@ -1362,9 +1355,8 @@ const completeMarxistLesson = async (
               topicId: randomTopic?._id || pathDoc.marxistTopic, // Random topic mới
               topicName: newTopicTitle, // Title với topic mới
               level: "intermediate",
-              goal: `Ôn tập chủ đề mới: ${
-                randomTopic?.title || randomTopic?.name || "Marxist Philosophy"
-              }`,
+              goal: `Ôn tập chủ đề mới: ${randomTopic?.title || randomTopic?.name || "Marxist Philosophy"
+                }`,
               include: {
                 summary: true,
                 keyPoints: true,
@@ -1412,8 +1404,7 @@ const completeMarxistLesson = async (
           backgroundGenerationTimestamps.set(userId, Date.now());
 
           console.log(
-            `✅ Review lesson created: ${
-              reviewRes?.success ? "SUCCESS" : "FAILED"
+            `✅ Review lesson created: ${reviewRes?.success ? "SUCCESS" : "FAILED"
             }`
           );
 
@@ -1453,9 +1444,8 @@ const completeMarxistLesson = async (
           ? leveledUp
             ? `🎉 Hoàn thành xuất sắc! Nhận ${earnedXP} XP và lên Level ${newLevel}!`
             : `✅ Hoàn thành xuất sắc! Nhận ${earnedXP} XP. Bài học đã completed.`
-          : `Điểm số: ${score}%. Bài học chưa completed. ${
-              livesDeducted ? "Đã trừ 1 life." : ""
-            } Hãy cố gắng hơn!`,
+          : `Điểm số: ${score}%. Bài học chưa completed. ${livesDeducted ? "Đã trừ 1 life." : ""
+          } Hãy cố gắng hơn!`,
       pathUpdated: true,
       completed: score >= 70,
       nextLessonGenerated,
@@ -1688,33 +1678,18 @@ const generateCustomMarxistLesson = async (userId, options = {}) => {
   );
   console.log(`📋 Custom topic: "${options.customTopic}"`);
 
-  // Kiểm tra xem có đang trong background generation không
-  if (backgroundGeneratingUsers.has(userId)) {
-    const timestamp = backgroundGenerationTimestamps.get(userId);
-    const waitTime = timestamp
-      ? Math.max(0, 180 - Math.floor((Date.now() - timestamp) / 1000))
-      : 180;
-
-    console.log(
-      `⏳ User ${userId} is in background generation, skipping manual generation...`
-    );
-    return {
-      success: false,
-      statusCode: 429,
-      message:
-        "Hệ thống đang tạo bài học tự động sau khi bạn hoàn thành bài trước. Vui lòng chờ khoảng 1-3 phút.",
-      estimatedWaitTime: waitTime,
-      canRetryAfter: Date.now() + waitTime * 1000,
-    };
-  }
+  // FIXED: Custom generation KHÔNG bị block bởi background generation
+  // User có quyền tạo custom lesson bất cứ lúc nào
+  console.log(`🎯 Custom lesson generation - independent from auto generation`);
 
   // Sử dụng Rate Limiter với timeout wrapper
   try {
-    // Timeout wrapper để ngăn chặn quá trình quá 45 giây
+    // ULTRA AGGRESSIVE: Use extreme fast mode timeout
+    const customTimeout = extremeFastMode.OVERALL_TIMEOUT || 45000; // Fallback 45s
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
-        () => reject(new Error("Lesson generation timeout after 45 seconds")),
-        45000
+        () => reject(new Error(`Lesson generation timeout after ${customTimeout / 1000} seconds`)),
+        customTimeout
       )
     );
 
@@ -1734,12 +1709,36 @@ const generateCustomMarxistLesson = async (userId, options = {}) => {
 
     // Cải thiện error response cho timeout trong custom generation
     if (rateLimitError.message.includes("timeout")) {
+      // FIXED: Continue generation in background after timeout
+      console.log(`⏰ Custom lesson timeout, continuing in background for user ${userId}`);
+
+      // Start background generation (fire and forget)
+      setImmediate(async () => {
+        try {
+          console.log(`🔄 Starting background custom lesson generation for user ${userId}`);
+          backgroundGeneratingUsers.add(userId);
+          backgroundGenerationTimestamps.set(userId, Date.now());
+
+          const backgroundResult = await _generateCustomMarxistLessonInternal(userId, options);
+          if (backgroundResult.success) {
+            console.log(`✅ Background custom lesson completed for user ${userId}`);
+          }
+        } catch (bgError) {
+          console.error(`❌ Background custom lesson failed for user ${userId}:`, bgError.message);
+        } finally {
+          backgroundGeneratingUsers.delete(userId);
+          backgroundGenerationTimestamps.delete(userId);
+        }
+      });
+
       return {
         success: false,
         statusCode: 408,
         message:
-          "Quá trình tạo bài học tùy chọn mất quá nhiều thời gian. Vui lòng thử lại với chủ đề ngắn gọn hơn.",
+          "Quá trình tạo bài học tùy chọn mất quá nhiều thời gian. Bài học sẽ tiếp tục được tạo trong nền - vui lòng refresh sau 1-2 phút.",
         error: "CUSTOM_GENERATION_TIMEOUT",
+        backgroundGeneration: true,
+        estimatedWaitTime: 120 // 2 minutes
       };
     }
 
@@ -1947,8 +1946,7 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
         maxCount - minCount > Math.ceil(totalQuestions / 2)
       ) {
         issues.push(
-          `Uneven distribution: max(${maxCount}) - min(${minCount}) = ${
-            maxCount - minCount
+          `Uneven distribution: max(${maxCount}) - min(${minCount}) = ${maxCount - minCount
           }`
         );
         score -= 20;
@@ -1966,10 +1964,10 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
         score === 0
           ? "CRITICAL"
           : score < 50
-          ? "HIGH"
-          : score < 80
-          ? "MEDIUM"
-          : "LOW";
+            ? "HIGH"
+            : score < 80
+              ? "MEDIUM"
+              : "LOW";
 
       return {
         isValid: score >= 70, // Accept if score >= 70
@@ -1987,15 +1985,15 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
     );
 
     let lessonData = null;
-    const maxRetries = 5; // Tăng số lần retry
-    const strategies = ["weighted", "failover", "round_robin", "least_loaded"];
+    const maxRetries = extremeFastMode.MAX_RETRIES || 1; // Use config or fallback to 1
+    const strategies = ["weighted", "failover", "round_robin"];
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const strategy = strategies[attempt % strategies.length];
 
       // Create enhanced prompt inline để tránh scope issues
       let enhancedPrompt = prompt;
-      if (attempt > 0) {
+      if (attempt > 0 && !extremeFastMode.SKIP_VALIDATION) {
         enhancedPrompt += `\n\n🚨 CRITICAL REQUIREMENTS (Retry ${attempt}) - PLEASE READ CAREFULLY:
 1. Đáp án đúng PHẢI được phân bố đều giữa A, B, C, D
 2. TUYỆT ĐỐI KHÔNG được có tất cả câu cùng đáp án (ví dụ: tất cả đều B)
@@ -2015,8 +2013,7 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
       }
 
       console.log(
-        `🚀 AI Generation Attempt ${
-          attempt + 1
+        `🚀 AI Generation Attempt ${attempt + 1
         }/${maxRetries} (Strategy: ${strategy})`
       );
 
@@ -2025,9 +2022,9 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
           enhancedPrompt,
           {
             strategy: strategy,
-            maxRetries: 4, // Retry trong mỗi provider
-            maxProviderRetries: 3,
-            baseDelay: 1000 + attempt * 500, // Tăng delay mỗi attempt
+            maxRetries: extremeFastMode.MAX_PROVIDER_RETRIES || 2, // Use config
+            maxProviderRetries: extremeFastMode.MAX_PROVIDER_RETRIES || 2,
+            baseDelay: extremeFastMode.BASE_DELAY || 500, // Use config delay
           }
         );
 
@@ -2064,14 +2061,23 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
           continue;
         }
 
-        // Validate answer distribution
+        // Skip validation in extreme fast mode
+        if (extremeFastMode.SKIP_DISTRIBUTION_CHECK) {
+          lessonData = aiResult.data;
+          console.log(
+            `🚀 FAST MODE: Skipping validation, accepting lesson from ${aiResult.provider} on attempt ${attempt + 1}`
+          );
+          console.log(`🎯 Custom topic: "${finalTopic}"`);
+          break;
+        }
+
+        // Validate answer distribution (only if not in fast mode)
         const validation = validateAnswerDistribution(aiResult.data.questions);
 
         if (validation.isValid) {
           lessonData = aiResult.data;
           console.log(
-            `✅ SUCCESS! Generated valid custom lesson from ${
-              aiResult.provider
+            `✅ SUCCESS! Generated valid custom lesson from ${aiResult.provider
             } on attempt ${attempt + 1}`
           );
           console.log("📊 Final answer distribution:", validation.distribution);
@@ -2079,8 +2085,7 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
           break;
         } else {
           console.warn(
-            `❌ Poor answer distribution from ${aiResult.provider} (attempt ${
-              attempt + 1
+            `❌ Poor answer distribution from ${aiResult.provider} (attempt ${attempt + 1
             }):`,
             {
               distribution: validation.distribution,
@@ -2123,8 +2128,7 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
                   questions: shuffleResult.questions,
                 };
                 console.log(
-                  `✅ CUSTOM LESSON POST-PROCESSING SUCCESS! Fixed distribution from ${
-                    aiResult.provider
+                  `✅ CUSTOM LESSON POST-PROCESSING SUCCESS! Fixed distribution from ${aiResult.provider
                   } on attempt ${attempt + 1}`
                 );
                 console.log(
@@ -2162,9 +2166,9 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
         );
       }
 
-      // Short delay giữa các attempts
-      if (attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+      // Short delay giữa các attempts (skip in fast mode)
+      if (attempt < maxRetries - 1 && !extremeFastMode.FAIL_FAST) {
+        await new Promise((resolve) => setTimeout(resolve, extremeFastMode.PROVIDER_DELAY || 200));
       }
     }
 
@@ -2185,6 +2189,8 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
         suggestedDelay: 300000, // 5 phút
       };
     }
+
+    console.log(`🎉 AI generation SUCCESS! lessonData found with ${lessonData.questions?.length} questions`);
 
     // Validate lesson data từ AI
     if (!lessonData || !lessonData.questions) {
@@ -2490,6 +2496,34 @@ const clearStuckGenerations = (userId = null) => {
   }
 };
 
+/**
+ * Get background generation status for user
+ * @param {string} userId - User ID to check
+ * @returns {Object} Background generation status
+ */
+const getBackgroundGenerationStatus = async (userId) => {
+  const isGenerating = backgroundGeneratingUsers.has(userId);
+  const timestamp = backgroundGenerationTimestamps.get(userId);
+
+  if (!isGenerating) {
+    return {
+      isGenerating: false,
+      message: "No background generation in progress"
+    };
+  }
+
+  const elapsedTime = timestamp ? Math.floor((Date.now() - timestamp) / 1000) : 0;
+  const estimatedRemaining = Math.max(0, 180 - elapsedTime); // 3 minutes max
+
+  return {
+    isGenerating: true,
+    elapsedTime,
+    estimatedRemaining,
+    startedAt: timestamp,
+    message: `Background generation in progress for ${elapsedTime}s`
+  };
+};
+
 export default {
   generateMarxistLesson,
   generateCustomMarxistLesson,
@@ -2500,4 +2534,5 @@ export default {
   getMarxistStats,
   getAllMarxistTopics,
   clearStuckGenerations,
+  getBackgroundGenerationStatus,
 };

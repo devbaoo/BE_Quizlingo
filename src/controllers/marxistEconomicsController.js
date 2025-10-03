@@ -312,31 +312,6 @@ const getLessonByPath = async (req, res, next) => {
  * Test Gemini API connection
  * GET /api/marxist-philosophy/test-gemini
  */
-const testGeminiConnection = async (req, res, next) => {
-  try {
-    const geminiService = await import("../services/geminiService.js");
-    const result = await geminiService.default.validateConnection();
-
-    const statusCode = result.success ? 200 : 400;
-
-    return res.status(statusCode).json({
-      success: result.success,
-      message: result.message,
-      connected: result.connected,
-      config: result.config,
-      response: result.response,
-      error: result.error,
-    });
-  } catch (error) {
-    console.error("Test Gemini connection error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi server khi test kết nối Gemini",
-      connected: false,
-      error: error.message,
-    });
-  }
-};
 
 /**
  * Làm lại bài học triết học Mác-LêNin
@@ -378,56 +353,6 @@ const retryMarxistLesson = async (req, res, next) => {
 };
 
 // Test Gemini connection with real Marxist question
-const testGemini = async (req, res) => {
-  try {
-    console.log("🧪 Testing Gemini connection...");
-
-    // Test simple connection first
-    const connectionTest = await geminiService.validateConnection();
-    if (!connectionTest.success) {
-      return res.status(500).json({
-        success: false,
-        message: "Gemini API connection failed",
-        error: connectionTest.message,
-      });
-    }
-
-    // Test generating actual Marxist question
-    const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về Triết học Mác-LêNin:
-
-Chủ đề: Lý thuyết nhận thức duy vật
-Yêu cầu: 
-- 1 câu hỏi multiple choice với 4 đáp án A,B,C,D
-- Nội dung chính xác theo triết học Marx
-- Format JSON
-
-Trả về JSON:
-{
-  "question": {
-    "content": "Câu hỏi...",
-    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-    "correctAnswer": "A. ...",
-    "explanation": "Giải thích..."
-  }
-}`;
-
-    const result = await geminiService.generateJsonContent(testPrompt);
-
-    res.json({
-      success: true,
-      message: "Gemini AI working correctly",
-      connectionModel: connectionTest.model,
-      testResult: result,
-    });
-  } catch (error) {
-    console.error("❌ Gemini test failed:", error);
-    res.status(500).json({
-      success: false,
-      message: "Gemini test failed",
-      error: error.message,
-    });
-  }
-};
 
 export default {
   generateLesson,
@@ -438,6 +363,5 @@ export default {
   getStats,
   getTopics,
   analyzeProgress,
-  testGeminiConnection,
-  testGemini,
-};
+  };
+
