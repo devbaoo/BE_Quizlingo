@@ -38,7 +38,8 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^4.0.7",
     "node-fetch": "^2.7.0",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "pdf-parse-new": "^1.4.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",

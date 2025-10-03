@@ -19,6 +19,15 @@ import cacheService from "./cacheService.js";
 // Import lives management từ lessonService
 import { checkAndRegenerateLives } from "./lessonService.js";
 
+// Import improved functions for post-processing
+import {
+  shuffleCorrectAnswers,
+  generateEnhancedPrompt,
+} from "./marxistPhilosophyService_improved.js";
+
+// Import textbook service for reading PDF content
+import marxistTextbookService from "./marxistTextbookService.js";
+
 /**
  * Tính XP cần thiết để lên level
  * @param {number} level - Level hiện tại
@@ -270,77 +279,53 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       }
     }
 
-    // Xây dựng prompt cho Multi-AI, có thể thêm gợi ý từ ContentPack (summary, keyPoints)
-    const contentHints = options.contentHints || null;
-    const hintsText = contentHints
-      ? `\n\nCơ sở tạo câu hỏi (tóm tắt trước khi ôn):\n- Tiêu đề: ${
-          contentHints.title || topicInfo.title
-        }\n- Tóm tắt: ${contentHints.summary || ""}\n- Key points: ${(
-          contentHints.keyPoints || []
-        ).join(", ")}`
-      : "";
+    // 📚 LẤY NỘI DUNG TỪ GIÁO TRÌNH PDF
+    console.log(`📚 Loading textbook content for topic: ${topicInfo.title}`);
+    let textbookContext = null;
 
-    // Sử dụng contentHints title nếu có, nếu không thì dùng topicInfo.title
+    try {
+      // Tìm keywords để search trong giáo trình
+      const searchKeywords = [
+        topicInfo.title,
+        topicInfo.name,
+        ...(topicInfo.keywords || []),
+        ...(contentHints?.keyPoints || []),
+      ]
+        .filter((k) => k && k.length > 2)
+        .join(", ");
+
+      console.log(`🔍 Searching textbook with keywords: ${searchKeywords}`);
+      textbookContext = await marxistTextbookService.getContextForAI(
+        searchKeywords,
+        2500
+      );
+
+      if (textbookContext && textbookContext.length > 100) {
+        console.log(
+          `✅ Found ${textbookContext.length} chars of textbook content`
+        );
+      } else {
+        console.log(`⚠️ Limited textbook content found, using general context`);
+        textbookContext = await marxistTextbookService.getGeneralContext(1500);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error loading textbook content: ${error.message}`);
+      textbookContext = null;
+    }
+
+    // Xây dựng prompt với enhanced function và textbook context
     const finalTitle = contentHints?.title || topicInfo.title;
     const finalDescription = contentHints?.summary || topicInfo.description;
 
-    const prompt = `
-Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lênin với nhiều năm kinh nghiệm giảng dạy.  
-Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
-
-🎯 THÔNG TIN CHỦ ĐỀ:
-- Tiêu đề: ${finalTitle}
-- Mô tả: ${finalDescription}
-- Từ khóa quan trọng: ${topicInfo.keywords.join(", ")}
-- Độ khó: ${difficulty}/5
-
-⚠️ YÊU CẦU TUYỆT ĐỐI:
-1. Nội dung CHỈ về **triết học Mác-Lênin** (thế giới quan duy vật, phép biện chứng, nhận thức luận, quy luật cơ bản, vai trò trong đời sống xã hội).
-2. TUYỆT ĐỐI KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột (không thuộc phạm vi triết học).
-3. TUYỆT ĐỐI KHÔNG được đưa ra đáp án sai lệch, phản Mác-Lênin (ví dụ: ca ngợi duy tâm, cá nhân chủ nghĩa cực đoan, phủ nhận vai trò thực tiễn...).
-4. Đúng 10 câu hỏi, mỗi câu có 4 đáp án (A, B, C, D).
-5. Mỗi đáp án sai phải hợp lý nhưng KHÔNG trái với bản chất triết học Mác-Lênin.
-6. Đáp án đúng phải phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu).
-
-🚨 FORMAT CHÍNH XÁC - QUAN TRỌNG NHẤT:
-- Mỗi options array phải có đúng 4 phần tử
-- Format chính xác: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]
-- correctAnswer phải khớp CHÍNH XÁC với một trong 4 options (bao gồm cả ký tự A., B., C., D.)
-- VÍ DỤ ĐÚNG: correctAnswer: "A. Quy luật thống nhất và đấu tranh của các mặt đối lập"
-
-📝 TIÊU CHUẨN CHẤT LƯỢNG CAO:
-- Câu hỏi rõ ràng, trực tiếp, liên quan chặt chẽ đến "${finalTitle}"
-- Đáp án sai hợp lý, có tính học thuật nhưng KHÔNG đúng và KHÔNG phản triết học
-- Độ khó phù hợp với cấp độ ${difficulty}/5
-- Thời gian làm mỗi câu: 30 giây
-- Nội dung chính xác, phù hợp với lý luận Mác-Lênin chính thống
-
-🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
-1. Đếm số câu có đáp án A, B, C, D → đảm bảo phân bố đều.
-2. Kiểm tra \`correctAnswer\` khớp chính xác với một trong 4 options.
-3. Đảm bảo nội dung phù hợp lý luận Mác-Lênin, không phản triết học.
-4. Mỗi câu phải rõ ràng, logic, độ khó phù hợp ${difficulty}/5.
-
-⚠️ CHỈ trả về kết quả ở định dạng JSON CHÍNH XÁC. KHÔNG thêm text giải thích.
-
-{
-  "title": "${finalTitle}",
-  "questions": [
-    {
-      "type": "multiple_choice",
-      "content": "Câu hỏi rõ ràng, trực tiếp, liên quan đến ${finalTitle}...",
-      "options": [
-        "A. Nội dung đáp án A",
-        "B. Nội dung đáp án B", 
-        "C. Nội dung đáp án C",
-        "D. Nội dung đáp án D"
-      ],
-      "correctAnswer": "B. Nội dung đáp án B",
-      "score": 100,
-      "timeLimit": 30
-    }
-  ]
-}`;
+    const prompt = generateEnhancedPrompt({
+      topicTitle: topicInfo.title,
+      topicDescription: topicInfo.description,
+      keywords: topicInfo.keywords,
+      difficulty,
+      contentHints,
+      customTopic: null,
+      textbookContext, // NEW: Context từ 4 file PDF giáo trình
+    });
 
     // Enhanced answer distribution validation với scoring system
     const validateAnswerDistribution = (questions) => {
@@ -546,6 +531,57 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
               severity: validation.severity,
             }
           );
+
+          // 🔄 POST-PROCESSING: Try to fix distribution by shuffling correct answers
+          if (
+            validation.severity === "MEDIUM" ||
+            validation.severity === "HIGH"
+          ) {
+            console.log(
+              "🔄 Attempting post-processing shuffle to fix distribution..."
+            );
+
+            const shuffleResult = shuffleCorrectAnswers(
+              aiResult.data.questions
+            );
+
+            if (shuffleResult.success) {
+              console.log("✅ Shuffle successful! Re-validating...");
+              console.log(
+                "📊 Before shuffle:",
+                shuffleResult.originalDistribution
+              );
+              console.log("📊 After shuffle:", shuffleResult.newDistribution);
+
+              // Re-validate after shuffle
+              const postShuffleValidation = validateAnswerDistribution(
+                shuffleResult.questions
+              );
+
+              if (postShuffleValidation.isValid) {
+                lessonData = {
+                  ...aiResult.data,
+                  questions: shuffleResult.questions,
+                };
+                console.log(
+                  `✅ POST-PROCESSING SUCCESS! Fixed distribution from ${
+                    aiResult.provider
+                  } on attempt ${attempt + 1}`
+                );
+                console.log(
+                  "📊 Final distribution after shuffle:",
+                  postShuffleValidation.distribution
+                );
+                break;
+              } else {
+                console.warn(
+                  "⚠️ Shuffle did not improve validation, continuing with retry..."
+                );
+              }
+            } else {
+              console.warn("⚠️ Shuffle failed:", shuffleResult.message);
+            }
+          }
 
           // Nếu chỉ là LOW severity và đã thử nhiều lần, có thể chấp nhận
           if (validation.severity === "LOW" && attempt >= 3) {
@@ -1690,62 +1726,59 @@ const _generateCustomMarxistLessonInternal = async (userId, options = {}) => {
 
     console.log(`🎯 Final topic: "${finalTopic}"`);
 
-    // Enhanced prompt với custom topic
-    const prompt = `
-Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lênin với nhiều năm kinh nghiệm giảng dạy.  
-Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTopic}" với độ khó cấp độ ${difficulty}/5.
+    // 📚 LẤY NỘI DUNG TỪ GIÁO TRÌNH PDF CHO CUSTOM TOPIC
+    console.log(`📚 Loading textbook content for custom topic: ${finalTopic}`);
+    let textbookContext = null;
 
-🎯 CHỦ ĐỀ TÙY CHỌN: ${finalTopic}
-📊 ĐỘ KHÓ: ${difficulty}/5
+    try {
+      // Tìm keywords cho custom topic
+      const searchKeywords = [
+        finalTopic,
+        sanitizedTopic,
+        ...philosophyKeywords.filter((k) =>
+          topicLower.includes(k.toLowerCase())
+        ),
+      ]
+        .filter((k) => k && k.length > 2)
+        .join(", ");
 
-⚠️ YÊU CẦU TUYỆT ĐỐI:
-1. Nội dung CHỈ về **triết học Mác-Lênin** (thế giới quan duy vật, phép biện chứng, nhận thức luận, quy luật cơ bản, vai trò trong đời sống xã hội).
-2. TUYỆT ĐỐI KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột (không thuộc phạm vi triết học).
-3. TUYỆT ĐỐI KHÔNG được đưa ra đáp án sai lệch, phản Mác-Lênin (ví dụ: ca ngợi duy tâm, cá nhân chủ nghĩa cực đoan, phủ nhận vai trò thực tiễn...).
-4. Đúng 10 câu hỏi, mỗi câu có 4 đáp án (A, B, C, D).
-5. Mỗi đáp án sai phải hợp lý nhưng KHÔNG trái với bản chất triết học Mác-Lênin.
-6. Đáp án đúng phải phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu).
-7. Liên quan TRỰC TIẾP đến chủ đề: "${finalTopic}"
+      console.log(
+        `🔍 Searching textbook with custom keywords: ${searchKeywords}`
+      );
+      textbookContext = await marxistTextbookService.getContextForAI(
+        searchKeywords,
+        2500
+      );
 
-🚨 FORMAT CHÍNH XÁC - QUAN TRỌNG NHẤT:
-- Mỗi options array phải có đúng 4 phần tử
-- Format chính xác: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]
-- correctAnswer phải khớp CHÍNH XÁC với một trong 4 options (bao gồm cả ký tự A., B., C., D.)
-- VÍ DỤ ĐÚNG: correctAnswer: "A. Quy luật thống nhất và đấu tranh của các mặt đối lập"
-
-📝 TIÊU CHUẨN CHẤT LƯỢNG CAO:
-- Câu hỏi rõ ràng, trực tiếp, liên quan chặt chẽ với "${finalTopic}"
-- Đáp án sai hợp lý, có tính học thuật nhưng KHÔNG đúng và KHÔNG phản triết học
-- Độ khó phù hợp với cấp độ ${difficulty}/5
-- Thời gian làm mỗi câu: 30 giây
-- Nội dung chính xác, phù hợp với lý luận Mác-Lênin chính thống
-
-🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
-1. Đếm số câu có đáp án A, B, C, D → đảm bảo phân bố đều.
-2. Kiểm tra \`correctAnswer\` khớp chính xác với một trong 4 options.
-3. Đảm bảo nội dung phù hợp lý luận Mác-Lênin, không phản triết học.
-4. Mỗi câu phải rõ ràng, logic, độ khó phù hợp ${difficulty}/5.
-
-⚠️ CHỈ trả về kết quả ở định dạng JSON CHÍNH XÁC. KHÔNG thêm text giải thích.
-
-{
-  "title": "${finalTopic}",
-  "questions": [
-    {
-      "type": "multiple_choice",
-      "content": "Câu hỏi rõ ràng, trực tiếp về '${finalTopic}' trong triết học Mác-Lênin...",
-      "options": [
-        "A. Nội dung đáp án A",
-        "B. Nội dung đáp án B", 
-        "C. Nội dung đáp án C",
-        "D. Nội dung đáp án D"
-      ],
-      "correctAnswer": "B. Nội dung đáp án B",
-      "score": 100,
-      "timeLimit": 30
+      if (textbookContext && textbookContext.length > 100) {
+        console.log(
+          `✅ Found ${textbookContext.length} chars of textbook content for custom topic`
+        );
+      } else {
+        console.log(
+          `⚠️ Limited textbook content found for custom topic, using general context`
+        );
+        textbookContext = await marxistTextbookService.getGeneralContext(1500);
+      }
+    } catch (error) {
+      console.warn(
+        `⚠️ Error loading textbook content for custom topic: ${error.message}`
+      );
+      textbookContext = null;
     }
-  ]
-}`;
+
+    // Enhanced prompt với custom topic và textbook context
+    const prompt = generateEnhancedPrompt({
+      topicTitle: finalTopic,
+      topicDescription: `Triết học Mác-Lênin về ${sanitizedTopic}`,
+      keywords: philosophyKeywords.filter((k) =>
+        topicLower.includes(k.toLowerCase())
+      ),
+      difficulty,
+      contentHints: null,
+      customTopic: finalTopic,
+      textbookContext, // NEW: Context từ 4 file PDF giáo trình
+    });
 
     // Enhanced answer distribution validation với scoring system
     const validateAnswerDistribution = (questions) => {
@@ -1953,6 +1986,63 @@ Câu 4: correctAnswer: "D. [Nội dung liên quan ${finalTopic}]"
               severity: validation.severity,
             }
           );
+
+          // 🔄 POST-PROCESSING: Try to fix distribution by shuffling correct answers
+          if (
+            validation.severity === "MEDIUM" ||
+            validation.severity === "HIGH"
+          ) {
+            console.log(
+              "🔄 Attempting post-processing shuffle to fix custom lesson distribution..."
+            );
+
+            const shuffleResult = shuffleCorrectAnswers(
+              aiResult.data.questions
+            );
+
+            if (shuffleResult.success) {
+              console.log(
+                "✅ Custom lesson shuffle successful! Re-validating..."
+              );
+              console.log(
+                "📊 Before shuffle:",
+                shuffleResult.originalDistribution
+              );
+              console.log("📊 After shuffle:", shuffleResult.newDistribution);
+
+              // Re-validate after shuffle
+              const postShuffleValidation = validateAnswerDistribution(
+                shuffleResult.questions
+              );
+
+              if (postShuffleValidation.isValid) {
+                lessonData = {
+                  ...aiResult.data,
+                  questions: shuffleResult.questions,
+                };
+                console.log(
+                  `✅ CUSTOM LESSON POST-PROCESSING SUCCESS! Fixed distribution from ${
+                    aiResult.provider
+                  } on attempt ${attempt + 1}`
+                );
+                console.log(
+                  "📊 Final distribution after shuffle:",
+                  postShuffleValidation.distribution
+                );
+                console.log(`🎯 Custom topic: "${finalTopic}"`);
+                break;
+              } else {
+                console.warn(
+                  "⚠️ Custom lesson shuffle did not improve validation, continuing with retry..."
+                );
+              }
+            } else {
+              console.warn(
+                "⚠️ Custom lesson shuffle failed:",
+                shuffleResult.message
+              );
+            }
+          }
 
           // Nếu chỉ là LOW severity và đã thử nhiều lần, có thể chấp nhận
           if (validation.severity === "LOW" && attempt >= 3) {
