@@ -820,6 +820,36 @@ const getGenerationStats = async (req, res, next) => {
   }
 };
 
+/**
+ * Clear stuck generations (Admin only)
+ * POST /api/marxist-philosophy/admin/clear-stuck-generations
+ */
+const clearStuckGenerations = async (req, res, next) => {
+  try {
+    // This should be admin-only in production
+    const userId = req.body?.userId || null; // Optional: clear specific user
+
+    const result = await marxistPhilosophyService.clearStuckGenerations(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: {
+        cleared: result.cleared || result.clearedCount || 0,
+        specificUser: userId || null,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error("Clear stuck generations error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi clear stuck generations",
+      error: error.message,
+    });
+  }
+};
+
 export default {
   generateLesson,
   generateCustomLesson,
@@ -839,4 +869,5 @@ export default {
   getGenerationStats,
   testAiAccuracy,
   testAnswerDistribution,
+  clearStuckGenerations,
 };
