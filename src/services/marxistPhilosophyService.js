@@ -123,9 +123,9 @@ const analyzeUserProgress = async (userId) => {
     else newDifficulty = Math.max(1, recentPaths[0].difficultyLevel - 2);
 
     // Xác định chủ đề tiếp theo
-    const studiedTopicIds = recentPaths.map((path) =>
-      path.marxistTopic.toString()
-    );
+    const studiedTopicIds = recentPaths
+      .filter((path) => path.marxistTopic) // Filter out paths with undefined marxistTopic
+      .map((path) => path.marxistTopic.toString());
     const allTopics = await getAllMarxistTopics();
     const unstudiedTopics = allTopics.filter(
       (topic) => !studiedTopicIds.includes(topic._id.toString())
@@ -233,8 +233,10 @@ const _generateMarxistLessonInternal = async (userId, options = {}) => {
       }
     );
 
+    // Extract parameters from options
     let topicId = options.topic;
     let difficulty = options.difficulty;
+    let contentHints = options.contentHints || null; // Extract contentHints to prevent undefined error
 
     // Luôn random topic thay vì dùng recommended (trừ khi có topic cụ thể)
     if (!topicId) {
