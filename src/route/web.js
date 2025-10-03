@@ -512,25 +512,27 @@ const initWebRoutes = (app) => {
     protect,
     contentController.generateLessonFromContent
   );
-  router.get(
-    "/marxist-philosophy/test-connection",
-    protect,
-    authorize("admin"),
-    marxistPhilosophyController.testGeminiConnection
-  );
-  router.post(
-    "/marxist-philosophy/test-gemini",
-    protect,
-    authorize("admin"),
-    marxistPhilosophyController.testGemini
-  );
-
   // Rate limiter monitoring route
   router.get(
     "/marxist-philosophy/rate-limiter-stats",
     protect,
     authorize("admin"),
     marxistPhilosophyController.getRateLimiterStats
+  );
+
+  // Background generation status route
+  router.get(
+    "/marxist-philosophy/background-status",
+    protect,
+    marxistPhilosophyController.getBackgroundGenerationStatus
+  );
+
+  // Admin route to clear stuck users
+  router.post(
+    "/marxist-philosophy/admin/clear-stuck-users",
+    protect,
+    authorize("admin"),
+    marxistPhilosophyController.clearStuckUsers
   );
 
   // Multi-AI monitoring routes
