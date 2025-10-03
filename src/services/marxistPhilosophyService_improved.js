@@ -370,7 +370,7 @@ const normalizeCorrectAnswer = (question) => {
 };
 
 /**
- * Improved prompt engineering cho AI generation
+ * Improved prompt engineering cho AI generation với textbook context
  * @param {Object} params - Parameters for prompt generation
  * @returns {string} Enhanced prompt
  */
@@ -381,6 +381,7 @@ const generateEnhancedPrompt = ({
   difficulty,
   contentHints = null,
   customTopic = null,
+  textbookContext = null, // NEW: Context từ 4 file PDF giáo trình
 }) => {
   const finalTitle = customTopic || contentHints?.title || topicTitle;
   const finalDescription = contentHints?.summary || topicDescription;
@@ -392,9 +393,18 @@ const generateEnhancedPrompt = ({
       ).join(", ")}`
     : "";
 
+  // NEW: Thêm context từ giáo trình nếu có
+  const textbookText = textbookContext
+    ? `\n\n📚 NỘI DUNG THAM KHẢO TỪ GIÁO TRÌNH CHÍNH THỐNG:\n${textbookContext}\n`
+    : "";
+
   return `
 Bạn là chuyên gia cao cấp về TRIẾT HỌC Mác-Lênin với nhiều năm kinh nghiệm giảng dạy.  
-Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}
+Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "${finalTitle}" với độ khó cấp độ ${difficulty}/5.${hintsText}${
+    textbookContext
+      ? "\n\n🎯 QUAN TRỌNG: Sử dụng nội dung từ giáo trình chính thống bên dưới làm cơ sở để tạo câu hỏi."
+      : ""
+  }${textbookText}
 
 🎯 THÔNG TIN CHỦ ĐỀ:
 - Tiêu đề: ${finalTitle}
@@ -404,11 +414,16 @@ Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "$
 
 ⚠️ YÊU CẦU TUYỆT ĐỐI:
 1. Nội dung CHỈ về **triết học Mác-Lênin** (thế giới quan duy vật, phép biện chứng, nhận thức luận, quy luật cơ bản, vai trò trong đời sống xã hội).
-2. TUYỆT ĐỐI KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột (không thuộc phạm vi triết học).
-3. TUYỆT ĐỐI KHÔNG được đưa ra đáp án sai lệch, phản Mác-Lênin (ví dụ: ca ngợi duy tâm, cá nhân chủ nghĩa cực đoan, phủ nhận vai trò thực tiễn...).
-4. Đúng 10 câu hỏi, mỗi câu có 4 đáp án (A, B, C, D).
-5. Mỗi đáp án sai phải hợp lý nhưng KHÔNG trái với bản chất triết học Mác-Lênin.
-6. Đáp án đúng phải phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu).
+2. ${
+    textbookContext
+      ? "DỰA TRÊN GIÁO TRÌNH CHÍNH THỐNG đã cung cấp bên trên để tạo câu hỏi chính xác."
+      : ""
+  }
+3. TUYỆT ĐỐI KHÔNG hỏi về kinh tế chính trị, giá trị thặng dư, tư bản, bóc lột (không thuộc phạm vi triết học).
+4. TUYỆT ĐỐI KHÔNG được đưa ra đáp án sai lệch, phản Mác-Lênin (ví dụ: ca ngợi duy tâm, cá nhân chủ nghĩa cực đoan, phủ nhận vai trò thực tiễn...).
+5. Đúng 10 câu hỏi, mỗi câu có 4 đáp án (A, B, C, D).
+6. Mỗi đáp án sai phải hợp lý nhưng KHÔNG trái với bản chất triết học Mác-Lênin.
+7. Đáp án đúng phải phân bố đều: A (2-3 câu), B (2-3 câu), C (2-3 câu), D (2-3 câu).
 
 🚨 FORMAT CHÍNH XÁC - QUAN TRỌNG NHẤT:
 - Mỗi options array phải có đúng 4 phần tử
@@ -418,6 +433,39 @@ Hãy tạo 10 câu hỏi trắc nghiệm chất lượng cao về chủ đề "$
 
 📝 TIÊU CHUẨN CHẤT LƯỢNG CAO:
 - Câu hỏi rõ ràng, trực tiếp, liên quan chặt chẽ đến "${finalTitle}"
+- ${
+    textbookContext
+      ? "Câu hỏi phải dựa trên nội dung CHÍNH XÁC từ giáo trình đã cung cấp"
+      : ""
+  }
+- Đáp án sai hợp lý, có tính học thuật nhưng KHÔNG đúng và KHÔNG phản triết học
+- Độ khó phù hợp với cấp độ ${difficulty}/5
+- Thời gian làm mỗi câu: 30 giây
+- Nội dung chính xác, phù hợp với lý luận Mác-Lênin chính thống${
+    textbookContext ? " THEO GIÁO TRÌNH" : ""
+  }
+
+🔍 KIỂM TRA TRƯỚC KHI TRẢ VỀ:
+1. Đếm số câu có đáp án A, B, C, D → đảm bảo phân bố đều.
+2. Kiểm tra \`correctAnswer\` khớp chính xác với một trong 4 options.
+3. ${
+    textbookContext
+      ? "Đảm bảo nội dung câu hỏi dựa trên giáo trình chính thống."
+      : "Đảm bảo nội dung phù hợp lý luận Mác-Lênin."
+  }
+4. Mỗi câu phải rõ ràng, logic, độ khó phù hợp ${difficulty}/5.
+
+⚠️ CHỈ trả về kết quả ở định dạng JSON CHÍNH XÁC. KHÔNG thêm text giải thích.
+
+{
+  "title": "${finalTitle}",
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "content": "Câu hỏi rõ ràng, trực tiếp, liên quan đến ${finalTitle}${
+    textbookContext ? " dựa trên giáo trình" : ""
+  }...",
+      "options": [
 - Đáp án sai hợp lý, có tính học thuật nhưng KHÔNG đúng và KHÔNG phản triết học
 - Độ khó phù hợp với cấp độ ${difficulty}/5
 - Thời gian làm mỗi câu: 30 giây
@@ -562,6 +610,227 @@ const getNextMarxistOrder = async (userId) => {
   return lastPath ? lastPath.order + 1 : 1;
 };
 
+/**
+ * Tự động shuffle lại đáp án đúng để đảm bảo phân bố đều A, B, C, D
+ * @param {Array} questions - Danh sách câu hỏi từ AI
+ * @returns {Object} Kết quả shuffle với questions đã được cập nhật
+ */
+const shuffleCorrectAnswers = (questions) => {
+  try {
+    console.log(
+      "🔄 Starting post-processing: shuffling correct answers for better distribution..."
+    );
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      console.warn("⚠️ No questions to shuffle");
+      return {
+        success: false,
+        questions: questions,
+        message: "No questions provided",
+      };
+    }
+
+    // Đầu tiên, kiểm tra phân bố hiện tại
+    const currentDistribution = { A: 0, B: 0, C: 0, D: 0, Unknown: 0 };
+    const questionAnswerMap = [];
+
+    questions.forEach((q, index) => {
+      const answer = q.correctAnswer || "";
+      let letter = "Unknown";
+
+      // Extract current answer letter
+      const match = answer.match(/^([A-Da-d])/);
+      if (match) {
+        letter = match[1].toUpperCase();
+      } else if (Array.isArray(q.options)) {
+        // Try to find by matching content
+        const cleanAnswer = answer
+          .replace(/^\s*[A-Da-d][\.)\-\s]*/, "")
+          .trim()
+          .toLowerCase();
+        const matchingIndex = q.options.findIndex((opt) => {
+          if (!opt || typeof opt !== "string") return false;
+          const cleanOption = opt
+            .replace(/^\s*[A-Da-d][\.)\-\s]*/, "")
+            .trim()
+            .toLowerCase();
+          return cleanOption === cleanAnswer;
+        });
+
+        if (matchingIndex >= 0 && matchingIndex < 4) {
+          letter = String.fromCharCode(65 + matchingIndex);
+        }
+      }
+
+      currentDistribution[letter]++;
+      questionAnswerMap.push({
+        questionIndex: index,
+        currentAnswer: letter,
+        originalCorrectAnswer: q.correctAnswer,
+      });
+    });
+
+    console.log("📊 Current distribution before shuffle:", currentDistribution);
+
+    // Kiểm tra xem có cần shuffle không
+    const validAnswers = ["A", "B", "C", "D"].filter(
+      (letter) => currentDistribution[letter] > 0
+    );
+    const counts = validAnswers.map((letter) => currentDistribution[letter]);
+    const maxCount = Math.max(...counts);
+    const minCount = Math.min(...counts);
+    const totalQuestions = questions.length;
+    const concentrationThreshold = Math.ceil(totalQuestions * 0.6); // 60%
+
+    // Kiểm tra xem có quá tập trung không
+    const hasConcentration = validAnswers.some(
+      (letter) => currentDistribution[letter] >= concentrationThreshold
+    );
+    const hasUnevenDistribution =
+      maxCount - minCount > Math.ceil(totalQuestions / 2);
+
+    if (!hasConcentration && !hasUnevenDistribution) {
+      console.log("✅ Current distribution is already good, no shuffle needed");
+      return {
+        success: true,
+        questions: questions,
+        message: "Distribution already balanced",
+        originalDistribution: currentDistribution,
+        newDistribution: currentDistribution,
+        shuffled: false,
+      };
+    }
+
+    // Tạo target distribution (phân bố lý tưởng)
+    const questionsPerAnswer = Math.floor(totalQuestions / 4); // 2-3 câu mỗi đáp án
+    const remainder = totalQuestions % 4;
+
+    const targetDistribution = {
+      A: questionsPerAnswer + (remainder > 0 ? 1 : 0),
+      B: questionsPerAnswer + (remainder > 1 ? 1 : 0),
+      C: questionsPerAnswer + (remainder > 2 ? 1 : 0),
+      D: questionsPerAnswer,
+    };
+
+    console.log("🎯 Target distribution:", targetDistribution);
+
+    // Shuffle algorithm: Reassign correct answers to achieve target distribution
+    const updatedQuestions = [...questions];
+    const newDistribution = { A: 0, B: 0, C: 0, D: 0 };
+    const targetLetters = [];
+
+    // Tạo danh sách target letters theo target distribution
+    Object.entries(targetDistribution).forEach(([letter, count]) => {
+      for (let i = 0; i < count; i++) {
+        targetLetters.push(letter);
+      }
+    });
+
+    // Shuffle target letters để random hóa
+    for (let i = targetLetters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [targetLetters[i], targetLetters[j]] = [
+        targetLetters[j],
+        targetLetters[i],
+      ];
+    }
+
+    console.log("🎲 Shuffled target letters:", targetLetters);
+
+    // Reassign correct answers
+    updatedQuestions.forEach((question, index) => {
+      if (
+        index < targetLetters.length &&
+        Array.isArray(question.options) &&
+        question.options.length >= 4
+      ) {
+        const newLetter = targetLetters[index];
+        const newAnswerIndex = newLetter.charCodeAt(0) - 65; // A->0, B->1, etc.
+
+        if (newAnswerIndex >= 0 && newAnswerIndex < question.options.length) {
+          const newCorrectAnswer = question.options[newAnswerIndex];
+
+          // Validate new answer exists and is not empty
+          if (
+            newCorrectAnswer &&
+            typeof newCorrectAnswer === "string" &&
+            newCorrectAnswer.trim().length > 0
+          ) {
+            question.correctAnswer = newCorrectAnswer;
+            newDistribution[newLetter]++;
+
+            console.log(
+              `📝 Question ${index + 1}: ${
+                questionAnswerMap[index]?.currentAnswer
+              } → ${newLetter}`
+            );
+          } else {
+            console.warn(
+              `⚠️ Question ${
+                index + 1
+              }: Invalid option ${newLetter}, keeping original`
+            );
+            // Keep original if new option is invalid
+            const originalLetter =
+              questionAnswerMap[index]?.currentAnswer || "A";
+            if (originalLetter !== "Unknown") {
+              newDistribution[originalLetter]++;
+            }
+          }
+        }
+      }
+    });
+
+    console.log("📊 New distribution after shuffle:", newDistribution);
+
+    // Validate shuffle results
+    const shuffleValidation = validateAnswerDistribution(updatedQuestions);
+
+    if (shuffleValidation.isValid || shuffleValidation.score > 70) {
+      console.log("✅ Shuffle successful! New distribution is better.");
+      return {
+        success: true,
+        questions: updatedQuestions,
+        message:
+          "Successfully shuffled correct answers for better distribution",
+        originalDistribution: currentDistribution,
+        newDistribution: newDistribution,
+        shuffled: true,
+        validationScore: shuffleValidation.score,
+        improvementDetails: {
+          beforeSeverity: hasConcentration
+            ? "HIGH"
+            : hasUnevenDistribution
+            ? "MEDIUM"
+            : "LOW",
+          afterSeverity: shuffleValidation.severity,
+        },
+      };
+    } else {
+      console.warn(
+        "⚠️ Shuffle resulted in worse distribution, reverting to original"
+      );
+      return {
+        success: false,
+        questions: questions, // Return original
+        message: "Shuffle did not improve distribution, kept original",
+        originalDistribution: currentDistribution,
+        newDistribution: newDistribution,
+        shuffled: false,
+        validationScore: shuffleValidation.score,
+      };
+    }
+  } catch (error) {
+    console.error("❌ Error in shuffleCorrectAnswers:", error);
+    return {
+      success: false,
+      questions: questions, // Return original on error
+      message: `Shuffle failed: ${error.message}`,
+      shuffled: false,
+    };
+  }
+};
+
 // Export improved functions
 export {
   validateAnswerDistribution,
@@ -571,4 +840,5 @@ export {
   getNextMarxistOrder,
   getAllMarxistTopics,
   getRequiredXpForLevel,
+  shuffleCorrectAnswers,
 };
