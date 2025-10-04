@@ -113,9 +113,9 @@ const generateContent = async (prompt, maxRetries = 3) => {
       const statusCode = error.response?.status;
       const statusText = error.response?.statusText;
       const errorData = error.response?.data;
-      
+
       // Kiểm tra lỗi timeout
-      const isTimeout = error.message && error.message.includes('timeout');
+      const isTimeout = error.message && error.message.includes("timeout");
 
       console.error(
         `❌ Generation attempt ${attempt} failed with model ${modelToUse}:`,
@@ -132,13 +132,19 @@ const generateContent = async (prompt, maxRetries = 3) => {
         throw new Error(
           `AI generation failed after ${maxRetries} attempts: ${
             error.message
-          }. ${isTimeout ? 'Timeout errors occurred. Consider increasing timeout limit.' : ''} Error details: ${JSON.stringify(errorData || {})}`
+          }. ${
+            isTimeout
+              ? "Timeout errors occurred. Consider increasing timeout limit."
+              : ""
+          } Error details: ${JSON.stringify(errorData || {})}`
         );
       }
-      
+
       // Nếu là lỗi timeout, chuyển sang model nhẹ hơn ngay lập tức
       if (isTimeout && attempt < maxRetries) {
-        console.log('⚠️ Timeout detected, switching to a lighter model immediately...');
+        console.log(
+          "⚠️ Timeout detected, switching to a lighter model immediately..."
+        );
         attempt = Math.ceil(maxRetries / 2); // Force using fallback model on next attempt
       }
 
@@ -217,7 +223,9 @@ GENERATE JSON NOW:`;
 
       // Kiểm tra và sửa số lượng câu hỏi nếu vượt quá 10
       if (parsedJson.questions.length > 10) {
-        console.log(`⚠️ Question count exceeds limit: ${parsedJson.questions.length}/10. Truncating to 10 questions.`);
+        console.log(
+          `⚠️ Question count exceeds limit: ${parsedJson.questions.length}/10. Truncating to 10 questions.`
+        );
         // Chỉ giữ lại 10 câu hỏi đầu tiên
         parsedJson.questions = parsedJson.questions.slice(0, 10);
       }
