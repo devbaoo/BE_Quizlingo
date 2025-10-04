@@ -1,18 +1,18 @@
-import grokService from "./grokService.js";
+import qwenService from "./qwenService.js";
 
 // Multi-AI Load Balancer Configuration - Enhanced for robustness
 const AI_PROVIDERS = [
   {
-    name: "grok",
-    service: grokService,
+    name: "qwen",
+    service: qwenService,
     priority: 1,
-    weight: 60, // Reduced weight for Grok4 due to potential instability
-    maxConcurrent: 3, // Reduced concurrent requests for Grok4
+    weight: 100, // 100% weight for Qwen2.5 as it's the only provider now
+    maxConcurrent: 5, // Higher concurrent requests for Qwen2.5
     rateLimit: {
-      free: { requestsPerMinute: 25, requestsPerSecond: 1 }, // More conservative
+      free: { requestsPerMinute: 30, requestsPerSecond: 2 }, // More generous
       paid: { requestsPerMinute: 150, requestsPerSecond: 8 },
     },
-    reliability: 0.75, // Reliability score for weighted selection
+    reliability: 1.0, // Full reliability as it's our only provider
   },
 ];
 
