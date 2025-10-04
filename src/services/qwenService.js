@@ -109,43 +109,84 @@ const generateContent = async (prompt, maxRetries = 3) => {
         throw new Error("Invalid response structure from OpenRouter API");
       }
     } catch (error) {
+      // Lưu lại model đang sử dụng cho việc báo lỗi
+      const currentModel = modelToUse;
+
       // Chi tiết lỗi hơn để debug
       const statusCode = error.response?.status;
       const statusText = error.response?.statusText;
       const errorData = error.response?.data;
 
-      // Kiểm tra lỗi timeout
+      // Kiểm tra lỗi timeout và lỗi network
       const isTimeout = error.message && error.message.includes("timeout");
+      const isNetworkError =
+        error.message &&
+        (error.message.includes("network") ||
+          error.message.includes("ECONNREFUSED") ||
+          error.message.includes("ENOTFOUND") ||
+          !error.response);
 
+      // Ghi log đầy đủ chi tiết lỗi
       console.error(
-        `❌ Generation attempt ${attempt} failed with model ${modelToUse}:`,
+        `❌ Generation attempt ${attempt} failed with model ${currentModel}:`,
         {
           statusCode,
           statusText,
           message: error.message || "Unknown error",
           isTimeout: isTimeout,
+          isNetworkError: isNetworkError,
           errorDetails: errorData ? JSON.stringify(errorData) : undefined,
+          stack: error.stack
+            ? error.stack.split("\n").slice(0, 3).join("\n")
+            : undefined,
         }
       );
 
       if (attempt === maxRetries) {
-        throw new Error(
-          `AI generation failed after ${maxRetries} attempts: ${
-            error.message
-          }. ${
-            isTimeout
-              ? "Timeout errors occurred. Consider increasing timeout limit."
-              : ""
-          } Error details: ${JSON.stringify(errorData || {})}`
-        );
+        const errorMessage = `AI generation failed after ${maxRetries} attempts: ${
+          error.message || "Unknown error"
+        }. ${
+          isTimeout
+            ? "Timeout errors occurred. Consider increasing timeout limit."
+            : ""
+        }${
+          isNetworkError
+            ? "Network errors occurred. Check your internet connection and API access."
+            : ""
+        } Status: ${statusCode || "N/A"}. Error details: ${JSON.stringify(
+          errorData || {}
+        )}`;
+
+        console.error(`❌ FINAL ERROR: ${errorMessage}`);
+        throw new Error(errorMessage);
       }
 
-      // Nếu là lỗi timeout, chuyển sang model nhẹ hơn ngay lập tức
-      if (isTimeout && attempt < maxRetries) {
+      // Xử lý lỗi timeout hoặc network
+      if ((isTimeout || isNetworkError) && attempt < maxRetries) {
+        // Ngay lập tức chuyển sang model nhẹ nhất có thể
         console.log(
-          "⚠️ Timeout detected, switching to a lighter model immediately..."
+          `⚠️ ${
+            isTimeout ? "Timeout" : "Network error"
+          } detected, switching to the lightest model...`
         );
-        attempt = Math.ceil(maxRetries / 2); // Force using fallback model on next attempt
+
+        // Nếu model là POWERFUL_MODEL_ID, chuyển sang PRIMARY_MODEL_ID
+        if (currentModel === POWERFUL_MODEL_ID) {
+          preferredModelId = PRIMARY_MODEL_ID;
+          console.log(
+            `🔄 Switching from ${POWERFUL_MODEL_ID} to ${PRIMARY_MODEL_ID}`
+          );
+        }
+        // Nếu model là PRIMARY_MODEL_ID, chuyển sang FALLBACK_MODEL_ID
+        else if (currentModel === PRIMARY_MODEL_ID) {
+          preferredModelId = FALLBACK_MODEL_ID;
+          console.log(
+            `🔄 Switching from ${PRIMARY_MODEL_ID} to ${FALLBACK_MODEL_ID}`
+          );
+        }
+
+        // Giảm độ phức tạp và các tham số khác
+        isComplexPrompt = false;
       }
 
       // Exponential backoff với jitter - tăng thời gian chờ
@@ -185,7 +226,7 @@ const generateJsonContent = async (prompt) => {
 }
 
 Tuân thủ các quy tắc sau:
-- TỐI ĐA 10 câu hỏi trong mảng questions, KHÔNG được vượt quá 10 câu
+- TỐI ĐA 10 câu hỏi trong mảng questions, KHÔNG ĐƯỢC vượt quá 10 câu
 - Bắt đầu ngay bằng {, kết thúc bằng }
 - Chỉ sử dụng dấu nháy kép " cho chuỗi
 - Không có dấu phẩy ở cuối các phần tử
@@ -194,23 +235,72 @@ Tuân thủ các quy tắc sau:
 GENERATE JSON NOW:`;
 
     console.log("🎯 Generating JSON content via OpenRouter API...");
-    const response = await generateContent(jsonPrompt, 3); // Tăng số lần thử lên 3
+    console.log(`📝 Prompt length: ${jsonPrompt.length} characters`);
 
-    if (!response || !response.success) {
-      throw new Error(response?.message || "Empty response from AI model");
+    let response;
+    try {
+      response = await generateContent(jsonPrompt, 3); // Tăng số lần thử lên 3
+
+      if (!response) {
+        console.error("❌ No response received from generateContent");
+        throw new Error("No response received from AI generation service");
+      }
+
+      if (!response.success) {
+        console.error(
+          `❌ Generation unsuccessful: ${response.message || "Unknown error"}`
+        );
+        throw new Error(
+          response.message ||
+            "Unsuccessful AI generation with no specific error message"
+        );
+      }
+
+      if (!response.content) {
+        console.error("❌ Empty content in response", response);
+        throw new Error("AI returned empty content");
+      }
+    } catch (genError) {
+      console.error("❌ Error during content generation:", genError.message);
+      throw genError; // Re-throw to be caught by the outer catch block
     }
 
     const result = response.content;
     const usedModel = response.model || QWEN_MODEL_ID;
 
     console.log(`🔧 Cleaning and parsing JSON from ${usedModel}...`);
+    console.log(`📝 Raw content length: ${result.length} characters`);
+
+    // Log a preview of the raw content for debugging
+    if (result.length > 0) {
+      console.log(
+        `📄 Content preview: ${result.substring(
+          0,
+          Math.min(200, result.length)
+        )}...`
+      );
+    } else {
+      console.error("❌ Empty content received from AI");
+      throw new Error("Empty content received from AI");
+    }
+
     const cleanedJson = cleanAndRepairJson(result);
+    console.log(`📝 Cleaned JSON length: ${cleanedJson.length} characters`);
 
     try {
       const parsedJson = JSON.parse(cleanedJson);
       console.log(`✅ JSON parsing successful from ${usedModel}`);
 
       // Kiểm tra cấu trúc JSON có đúng không
+      if (!parsedJson) {
+        throw new Error("JSON parsing resulted in null or undefined object");
+      }
+
+      if (!parsedJson.title) {
+        console.warn("⚠️ Missing title in JSON - adding default title");
+        parsedJson.title = "Bài học về triết học Mác-Lênin";
+      }
+
       if (
         !parsedJson.questions ||
         !Array.isArray(parsedJson.questions) ||
@@ -230,6 +320,32 @@ GENERATE JSON NOW:`;
         parsedJson.questions = parsedJson.questions.slice(0, 10);
       }
 
+      // Validate each question has the required structure
+      const validQuestions = parsedJson.questions.filter((q) => {
+        return (
+          q.type &&
+          q.content &&
+          Array.isArray(q.options) &&
+          q.options.length >= 2 &&
+          typeof q.correctAnswer === "number" &&
+          q.explanation
+        );
+      });
+
+      if (validQuestions.length < parsedJson.questions.length) {
+        console.warn(
+          `⚠️ Some questions have invalid structure. Keeping ${validQuestions.length}/${parsedJson.questions.length} valid questions.`
+        );
+        parsedJson.questions = validQuestions;
+      }
+
+      if (validQuestions.length === 0) {
+        throw new Error("No valid questions found in the generated content");
+      }
+
+      console.log(
+        `✅ Final JSON structure valid with ${parsedJson.questions.length} questions`
+      );
       return parsedJson;
     } catch (parseError) {
       console.error("❌ JSON parsing error:", parseError.message);
@@ -238,6 +354,39 @@ GENERATE JSON NOW:`;
         "Cleaned JSON preview:",
         cleanedJson.substring(0, 200) + "..."
       );
+
+      // Attempt to fix common JSON issues
+      try {
+        console.log("🔄 Attempting additional JSON repair...");
+        const additionalFixedJson = cleanedJson
+          .replace(/\\n/g, " ")
+          .replace(/\s+/g, " ")
+          .replace(/"\s*:\s*"/g, '":"')
+          .replace(/"\s*:\s*\[/g, '":[')
+          .replace(/"\s*:\s*{/g, '":{');
+
+        const reparsedJson = JSON.parse(additionalFixedJson);
+        console.log("✅ Additional JSON repair successful");
+
+        if (
+          reparsedJson.questions &&
+          Array.isArray(reparsedJson.questions) &&
+          reparsedJson.questions.length > 0
+        ) {
+          console.log(
+            `✅ Recovered ${reparsedJson.questions.length} questions after repair`
+          );
+
+          // Kiểm tra và sửa số lượng câu hỏi nếu vượt quá 10
+          if (reparsedJson.questions.length > 10) {
+            reparsedJson.questions = reparsedJson.questions.slice(0, 10);
+          }
+
+          return reparsedJson;
+        }
+      } catch (repairError) {
+        console.error("❌ Additional JSON repair failed:", repairError.message);
+      }
 
       // Tạo JSON giả để tránh lỗi
       console.log("⚠️ Creating fallback JSON to avoid failure");
@@ -263,6 +412,19 @@ GENERATE JSON NOW:`;
     }
   } catch (error) {
     console.error("❌ JSON generation failed:", error.message);
+    console.error("❌ Error stack:", error.stack);
+
+    // Log detailed error information
+    const errorDetails = {
+      message: error.message,
+      type: error.name,
+      stack: error.stack
+        ? error.stack.split("\n").slice(0, 5).join("\n")
+        : "No stack trace",
+      timestamp: new Date().toISOString(),
+    };
+
+    console.error("❌ DETAILED ERROR INFO:", JSON.stringify(errorDetails));
 
     // Trả về JSON giả trong trường hợp lỗi nghiêm trọng
     return {
@@ -280,6 +442,19 @@ GENERATE JSON NOW:`;
           correctAnswer: 0,
           explanation:
             "Karl Marx và Friedrich Engels là hai nhà tư tưởng đã cùng sáng lập ra chủ nghĩa Mác vào thế kỷ 19.",
+        },
+        {
+          type: "multiple_choice",
+          content: "Phép biện chứng duy vật nghiên cứu điều gì?",
+          options: [
+            "Những quy luật chung nhất của tự nhiên, xã hội và tư duy",
+            "Chỉ nghiên cứu các hiện tượng xã hội",
+            "Chỉ nghiên cứu tự nhiên và vật chất",
+            "Nghiên cứu tôn giáo và tâm linh",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Phép biện chứng duy vật nghiên cứu những quy luật chung nhất của sự vận động và phát triển của tự nhiên, xã hội và tư duy.",
         },
       ],
     };
