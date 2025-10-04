@@ -3,12 +3,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Cấu hình cho Qwen2.5 72B từ OpenRouter API
+// Cấu hình cho Qwen từ OpenRouter API
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const QWEN_MODEL_ID = "qwen/qwen2.5-72b-instruct"; // Model ID cho Qwen2.5 72B
+const QWEN_MODEL_ID = "qwen/qwen-2.5-72b-instruct"; // Model ID cho Qwen 2.5 72B (chính xác theo API)
 // Nếu Qwen2.5 không khả dụng, sử dụng model thay thế
-const FALLBACK_MODEL_ID = "google/gemini-pro-1.5"; // Fallback model
+const FALLBACK_MODEL_ID = "qwen/qwen-2.5-72b-instruct:free"; // Fallback model (miễn phí)
 
 // Helper function để làm sạch JSON trong kết quả từ Qwen
 const cleanAndRepairJson = (text) => {
@@ -109,20 +109,38 @@ const generateContent = async (prompt, maxRetries = 3) => {
         throw new Error("Invalid response structure from OpenRouter API");
       }
     } catch (error) {
+      // Chi tiết lỗi hơn để debug
+      const statusCode = error.response?.status;
+      const statusText = error.response?.statusText;
+      const errorData = error.response?.data;
+
       console.error(
-        `❌ Generation attempt ${attempt} failed:`,
-        error.message || error
+        `❌ Generation attempt ${attempt} failed with model ${modelToUse}:`,
+        {
+          statusCode,
+          statusText,
+          message: error.message || "Unknown error",
+          errorDetails: errorData ? JSON.stringify(errorData) : undefined,
+        }
       );
 
       if (attempt === maxRetries) {
         throw new Error(
-          `AI generation failed after ${maxRetries} attempts: ${error.message}`
+          `AI generation failed after ${maxRetries} attempts with status ${statusCode}: ${
+            error.message
+          }. Error details: ${JSON.stringify(errorData || {})}`
         );
       }
 
       // Exponential backoff với jitter - tăng thời gian chờ
       const delayMs = Math.min(5000, attempt * 1500 + Math.random() * 1000);
-      console.log(`⏳ Retrying in ${delayMs}ms...`);
+      console.log(
+        `⏳ Retrying in ${delayMs}ms with ${
+          attempt < maxRetries / 2
+            ? "another attempt using same model"
+            : "fallback model"
+        }...`
+      );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -243,33 +261,189 @@ GENERATE JSON NOW:`;
 };
 
 /**
- * Kiểm tra kết nối với OpenRouter API
+ * Kiểm tra kết nối với OpenRouter API và các model đã cấu hình
  */
 const validateConnection = async () => {
   try {
     console.log("🔍 Testing OpenRouter API connection...");
 
-    // Sử dụng prompt đơn giản và ngắn để kiểm tra kết nối
-    const testPrompt = "Trả lời ngắn gọn (1-2 câu): Triết học Mác-LêNin là gì?";
-    const response = await generateContent(testPrompt, 1);
+    // Lấy danh sách các model có sẵn từ OpenRouter API
+    console.log("📊 Fetching available models from OpenRouter...");
+    let availableModels = [];
+    try {
+      const response = await axios.get("https://openrouter.ai/api/v1/models", {
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer":
+            process.env.SITE_URL || "https://marx-edu.netlify.app",
+        },
+      });
 
-    if (
-      response &&
-      response.success &&
-      response.content &&
-      response.content.length > 10
-    ) {
-      const modelUsed = response.model || QWEN_MODEL_ID;
-      console.log(`✅ Connection successful with model: ${modelUsed}`);
-      return {
-        success: true,
-        message: `OpenRouter API connection validated successfully using ${modelUsed}`,
-        model: modelUsed,
-        response: response.content.substring(0, 100) + "...",
-      };
-    } else {
-      throw new Error("Invalid response from OpenRouter API");
+      if (response.data && response.data.data) {
+        availableModels = response.data.data.map((model) => model.id);
+        console.log(`✅ Found ${availableModels.length} available models`);
+
+        // Kiểm tra xem model chính và fallback có sẵn không
+        const primaryAvailable = availableModels.includes(QWEN_MODEL_ID);
+        const fallbackAvailable = availableModels.includes(FALLBACK_MODEL_ID);
+
+        console.log(
+          `Primary model ${QWEN_MODEL_ID}: ${
+            primaryAvailable ? "✅ Available" : "❌ Not available"
+          }`
+        );
+        console.log(
+          `Fallback model ${FALLBACK_MODEL_ID}: ${
+            fallbackAvailable ? "✅ Available" : "❌ Not available"
+          }`
+        );
+
+        // Kiểm tra và gợi ý các model thay thế nếu cần
+        if (!primaryAvailable) {
+          const qwenModels = availableModels.filter((m) =>
+            m.startsWith("qwen/")
+          );
+          if (qwenModels.length > 0) {
+            console.log("🔄 Available Qwen models you could use instead:");
+            qwenModels.slice(0, 5).forEach((m) => console.log(`   - ${m}`));
+          }
+        }
+
+        if (!fallbackAvailable) {
+          const googleModels = availableModels.filter((m) =>
+            m.startsWith("google/")
+          );
+          if (googleModels.length > 0) {
+            console.log("🔄 Available Google models you could use instead:");
+            googleModels.slice(0, 5).forEach((m) => console.log(`   - ${m}`));
+          }
+
+          // Find free models as alternatives
+          const freeModels = availableModels.filter((m) => m.includes(":free"));
+          if (freeModels.length > 0) {
+            console.log("🔄 Available free models you could use instead:");
+            freeModels.slice(0, 5).forEach((m) => console.log(`   - ${m}`));
+          }
+        }
+      }
+    } catch (modelError) {
+      console.warn("⚠️ Could not fetch model list:", modelError.message);
     }
+
+    // Sử dụng prompt đơn giản và ngắn để kiểm tra kết nối với model
+    const testPrompt = "Trả lời ngắn gọn (1-2 câu): Triết học Mác-LêNin là gì?";
+
+    // Thử với model chính trước
+    console.log(`🚀 Testing with primary model: ${QWEN_MODEL_ID}`);
+    try {
+      const response = await axios.post(
+        OPENROUTER_API_URL,
+        {
+          model: QWEN_MODEL_ID,
+          messages: [
+            {
+              role: "system",
+              content: "Bạn là trợ lý AI chuyên về triết học Mác-Lênin.",
+            },
+            {
+              role: "user",
+              content: testPrompt,
+            },
+          ],
+          max_tokens: 100,
+          temperature: 0.7,
+          stream: false,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer":
+              process.env.SITE_URL || "https://marx-edu.netlify.app",
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data && response.data.choices && response.data.choices[0]) {
+        const content = response.data.choices[0].message.content;
+        console.log(`✅ Connection successful with model: ${QWEN_MODEL_ID}`);
+        return {
+          success: true,
+          message: `OpenRouter API connection validated successfully using ${QWEN_MODEL_ID}`,
+          model: QWEN_MODEL_ID,
+          availableModels:
+            availableModels.length > 0 ? availableModels : undefined,
+          response: content.substring(0, 100) + "...",
+        };
+      }
+    } catch (primaryError) {
+      console.error(
+        `❌ Primary model ${QWEN_MODEL_ID} failed: ${primaryError.message}`
+      );
+      console.log(`🔄 Trying fallback model: ${FALLBACK_MODEL_ID}`);
+
+      try {
+        // Thử với fallback model
+        const fallbackResponse = await axios.post(
+          OPENROUTER_API_URL,
+          {
+            model: FALLBACK_MODEL_ID,
+            messages: [
+              {
+                role: "system",
+                content: "Bạn là trợ lý AI chuyên về triết học Mác-Lênin.",
+              },
+              {
+                role: "user",
+                content: testPrompt,
+              },
+            ],
+            max_tokens: 100,
+            temperature: 0.7,
+            stream: false,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer":
+                process.env.SITE_URL || "https://marx-edu.netlify.app",
+            },
+            timeout: 30000,
+          }
+        );
+
+        if (
+          fallbackResponse.data &&
+          fallbackResponse.data.choices &&
+          fallbackResponse.data.choices[0]
+        ) {
+          const content = fallbackResponse.data.choices[0].message.content;
+          console.log(
+            `✅ Connection successful with fallback model: ${FALLBACK_MODEL_ID}`
+          );
+          return {
+            success: true,
+            message: `OpenRouter API connection validated successfully using ${FALLBACK_MODEL_ID}`,
+            model: FALLBACK_MODEL_ID,
+            availableModels:
+              availableModels.length > 0 ? availableModels : undefined,
+            response: content.substring(0, 100) + "...",
+          };
+        }
+      } catch (fallbackError) {
+        console.error(
+          `❌ Fallback model ${FALLBACK_MODEL_ID} also failed: ${fallbackError.message}`
+        );
+        throw new Error(
+          `Both primary and fallback models failed. Primary: ${primaryError.message}, Fallback: ${fallbackError.message}`
+        );
+      }
+    }
+
+    throw new Error("Invalid response from OpenRouter API");
   } catch (error) {
     console.error("❌ OpenRouter API connection failed:", error.message);
     return {
