@@ -1,19 +1,20 @@
-import grokService from "./grokService.js";
-import extremeFastMode from "../config/extremeFastMode.js";
+import qwenService from "./qwenService.js";
+
 
 // GROK ONLY - No more Gemini, no more demo lessons
 const AI_PROVIDERS = [
   {
-    name: "grok",
-    service: grokService,
+    name: "qwen",
+    service: qwenService,
     priority: 1,
-    weight: 100, // 100% weight since it's the only provider
-    maxConcurrent: extremeFastMode.MAX_CONCURRENT || 10, // Use config
+    weight: 100, // 100% weight for Qwen2.5 as it's the only provider now
+    maxConcurrent: 5, // Higher concurrent requests for Qwen2.5
     rateLimit: {
-      free: { requestsPerMinute: 60, requestsPerSecond: 3 }, // More aggressive
-      paid: { requestsPerMinute: 300, requestsPerSecond: 15 },
+      free: { requestsPerMinute: 30, requestsPerSecond: 2 }, // More generous
+      paid: { requestsPerMinute: 150, requestsPerSecond: 8 },
     },
-    reliability: 0.90, // Higher reliability score
+    reliability: 1.0, // Full reliability as it's our only provider
+
   },
 ];
 
