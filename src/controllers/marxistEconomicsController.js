@@ -24,12 +24,24 @@ const generateLesson = async (req, res, next) => {
       }
     );
 
+    // Debug log để kiểm tra response
+    console.log("📝 Controller result:", {
+      success: result.success,
+      statusCode: result.statusCode,
+      message: result.message,
+      hasLesson: !!result.lesson,
+      hasLearningPath: !!result.learningPath,
+    });
+
     return res.status(result.statusCode).json(result);
   } catch (error) {
     console.error("Generate Marxist lesson error:", error);
     return res.status(500).json({
       success: false,
+      statusCode: 500,
       message: "Lỗi server khi tạo bài học",
+      error: "CONTROLLER_ERROR",
+      details: error.message,
     });
   }
 };
@@ -363,5 +375,4 @@ export default {
   getStats,
   getTopics,
   analyzeProgress,
-  };
-
+};

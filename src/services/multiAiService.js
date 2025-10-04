@@ -1,6 +1,5 @@
 import qwenService from "./qwenService.js";
 
-
 // GROK ONLY - No more Gemini, no more demo lessons
 const AI_PROVIDERS = [
   {
@@ -14,7 +13,6 @@ const AI_PROVIDERS = [
       paid: { requestsPerMinute: 150, requestsPerSecond: 8 },
     },
     reliability: 1.0, // Full reliability as it's our only provider
-
   },
 ];
 
@@ -49,7 +47,8 @@ class MultiAiLoadBalancer {
       const currentLoad = this.currentLoads.get(provider.name);
 
       // DEMO MODE: Very lenient circuit breaker - allow more failures
-      if (failures >= 10) { // Increased from 5 to 10
+      if (failures >= 10) {
+        // Increased from 5 to 10
         console.log(
           `🚫 Provider ${provider.name} circuit breaker activated (${failures} failures)`
         );
@@ -241,11 +240,36 @@ class MultiAiLoadBalancer {
       }
     }
 
-    // All providers failed
+    // All providers failed - generate specific error message
     console.error("❌ All AI providers failed!");
+
+    let specificMessage =
+      "Không thể tạo nội dung AI sau khi thử tất cả các nhà cung cấp";
+    if (lastError && lastError.message) {
+      if (lastError.message.includes("timeout")) {
+        specificMessage =
+          "Hệ thống AI mất quá nhiều thời gian để phản hồi. Vui lòng thử lại sau ít phút.";
+      } else if (
+        lastError.message.includes("rate limit") ||
+        lastError.message.includes("429")
+      ) {
+        specificMessage =
+          "Hệ thống AI đang quá tải. Vui lòng thử lại sau 1-2 phút.";
+      } else if (lastError.message.includes("OpenRouter API key")) {
+        specificMessage = "Lỗi cấu hình hệ thống AI. Vui lòng liên hệ admin.";
+      } else if (
+        lastError.message.includes("network") ||
+        lastError.message.includes("ECONNREFUSED")
+      ) {
+        specificMessage =
+          "Lỗi kết nối mạng với hệ thống AI. Vui lòng kiểm tra kết nối internet.";
+      }
+    }
+
     return {
       success: false,
-      message: "All AI providers failed",
+      statusCode: 500,
+      message: specificMessage,
       error: lastError,
       loadBalancer: {
         strategy,
@@ -384,10 +408,34 @@ class MultiAiLoadBalancer {
       }
     }
 
+    // Generate a more specific error message based on the last error
+    let specificMessage =
+      "Không thể tạo nội dung AI sau khi thử tất cả các nhà cung cấp";
+    if (lastError && lastError.message) {
+      if (lastError.message.includes("timeout")) {
+        specificMessage =
+          "Hệ thống AI mất quá nhiều thời gian để phản hồi. Vui lòng thử lại sau ít phút.";
+      } else if (
+        lastError.message.includes("rate limit") ||
+        lastError.message.includes("429")
+      ) {
+        specificMessage =
+          "Hệ thống AI đang quá tải. Vui lòng thử lại sau 1-2 phút.";
+      } else if (lastError.message.includes("OpenRouter API key")) {
+        specificMessage = "Lỗi cấu hình hệ thống AI. Vui lòng liên hệ admin.";
+      } else if (
+        lastError.message.includes("network") ||
+        lastError.message.includes("ECONNREFUSED")
+      ) {
+        specificMessage =
+          "Lỗi kết nối mạng với hệ thống AI. Vui lòng kiểm tra kết nối internet.";
+      }
+    }
+
     return {
       success: false,
-      message:
-        "All AI providers failed for JSON generation after enhanced retries",
+      statusCode: 500,
+      message: specificMessage,
       error: lastError,
       loadBalancer: {
         strategy,
