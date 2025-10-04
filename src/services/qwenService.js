@@ -90,7 +90,7 @@ const generateContent = async (prompt, maxRetries = 3) => {
             "X-Title":
               process.env.SITE_NAME || "Marx-Edu - Marxist Philosophy Learning",
           },
-          timeout: 60000, // Tăng timeout lên 60 giây
+          timeout: 120000, // Tăng timeout lên 120 giây
         }
       );
 
@@ -113,6 +113,9 @@ const generateContent = async (prompt, maxRetries = 3) => {
       const statusCode = error.response?.status;
       const statusText = error.response?.statusText;
       const errorData = error.response?.data;
+      
+      // Kiểm tra lỗi timeout
+      const isTimeout = error.message && error.message.includes('timeout');
 
       console.error(
         `❌ Generation attempt ${attempt} failed with model ${modelToUse}:`,
@@ -120,16 +123,23 @@ const generateContent = async (prompt, maxRetries = 3) => {
           statusCode,
           statusText,
           message: error.message || "Unknown error",
+          isTimeout: isTimeout,
           errorDetails: errorData ? JSON.stringify(errorData) : undefined,
         }
       );
 
       if (attempt === maxRetries) {
         throw new Error(
-          `AI generation failed after ${maxRetries} attempts with status ${statusCode}: ${
+          `AI generation failed after ${maxRetries} attempts: ${
             error.message
-          }. Error details: ${JSON.stringify(errorData || {})}`
+          }. ${isTimeout ? 'Timeout errors occurred. Consider increasing timeout limit.' : ''} Error details: ${JSON.stringify(errorData || {})}`
         );
+      }
+      
+      // Nếu là lỗi timeout, chuyển sang model nhẹ hơn ngay lập tức
+      if (isTimeout && attempt < maxRetries) {
+        console.log('⚠️ Timeout detected, switching to a lighter model immediately...');
+        attempt = Math.ceil(maxRetries / 2); // Force using fallback model on next attempt
       }
 
       // Exponential backoff với jitter - tăng thời gian chờ
@@ -169,6 +179,7 @@ const generateJsonContent = async (prompt) => {
 }
 
 Tuân thủ các quy tắc sau:
+- TỐI ĐA 10 câu hỏi trong mảng questions, KHÔNG được vượt quá 10 câu
 - Bắt đầu ngay bằng {, kết thúc bằng }
 - Chỉ sử dụng dấu nháy kép " cho chuỗi
 - Không có dấu phẩy ở cuối các phần tử
@@ -202,6 +213,13 @@ GENERATE JSON NOW:`;
         throw new Error(
           "Invalid JSON structure - missing questions array or empty array"
         );
+      }
+
+      // Kiểm tra và sửa số lượng câu hỏi nếu vượt quá 10
+      if (parsedJson.questions.length > 10) {
+        console.log(`⚠️ Question count exceeds limit: ${parsedJson.questions.length}/10. Truncating to 10 questions.`);
+        // Chỉ giữ lại 10 câu hỏi đầu tiên
+        parsedJson.questions = parsedJson.questions.slice(0, 10);
       }
 
       return parsedJson;
@@ -362,7 +380,7 @@ const validateConnection = async () => {
             "HTTP-Referer":
               process.env.SITE_URL || "https://marx-edu.netlify.app",
           },
-          timeout: 30000,
+          timeout: 60000, // Tăng timeout lên 60 giây cho validation
         }
       );
 
@@ -411,7 +429,7 @@ const validateConnection = async () => {
               "HTTP-Referer":
                 process.env.SITE_URL || "https://marx-edu.netlify.app",
             },
-            timeout: 30000,
+            timeout: 60000, // Tăng timeout lên 60 giây cho validation
           }
         );
 
