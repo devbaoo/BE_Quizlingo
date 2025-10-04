@@ -46,14 +46,14 @@ const generateContent = async (prompt, maxRetries = 3) => {
     prompt.length > 24000 ? prompt.substring(0, 24000) : prompt;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Xác định model ID để sử dụng - thử Qwen trước, nếu không được thì dùng fallback
+    const modelToUse =
+      attempt <= maxRetries / 2 ? QWEN_MODEL_ID : FALLBACK_MODEL_ID;
+
     try {
       if (!OPENROUTER_API_KEY) {
         throw new Error("OpenRouter API key is missing");
       }
-
-      // Xác định model ID để sử dụng - thử Qwen trước, nếu không được thì dùng fallback
-      const modelToUse =
-        attempt <= maxRetries / 2 ? QWEN_MODEL_ID : FALLBACK_MODEL_ID;
 
       console.log(
         `🤖 Generating with ${
@@ -143,22 +143,38 @@ const generateContent = async (prompt, maxRetries = 3) => {
       );
 
       if (attempt === maxRetries) {
-        const errorMessage = `AI generation failed after ${maxRetries} attempts: ${
-          error.message || "Unknown error"
-        }. ${
-          isTimeout
-            ? "Timeout errors occurred. Consider increasing timeout limit."
-            : ""
-        }${
-          isNetworkError
-            ? "Network errors occurred. Check your internet connection and API access."
-            : ""
-        } Status: ${statusCode || "N/A"}. Error details: ${JSON.stringify(
-          errorData || {}
-        )}`;
+        // Tạo thông báo lỗi cụ thể cho người dùng
+        let userFriendlyMessage = "Không thể tạo nội dung do lỗi hệ thống AI";
 
-        console.error(`❌ FINAL ERROR: ${errorMessage}`);
-        throw new Error(errorMessage);
+        if (isTimeout) {
+          userFriendlyMessage =
+            "Hệ thống AI mất quá nhiều thời gian để phản hồi. Vui lòng thử lại sau ít phút.";
+        } else if (isNetworkError) {
+          userFriendlyMessage =
+            "Lỗi kết nối với hệ thống AI. Vui lòng kiểm tra kết nối internet và thử lại.";
+        } else if (statusCode === 401) {
+          userFriendlyMessage =
+            "Lỗi xác thực hệ thống AI. Vui lòng liên hệ admin.";
+        } else if (statusCode === 429) {
+          userFriendlyMessage =
+            "Hệ thống AI đang quá tải. Vui lòng thử lại sau 1-2 phút.";
+        } else if (statusCode === 500 || statusCode >= 500) {
+          userFriendlyMessage =
+            "Hệ thống AI gặp lỗi nội bộ. Vui lòng thử lại sau ít phút.";
+        }
+
+        const technicalDetails = `AI generation failed after ${maxRetries} attempts: ${
+          error.message || "Unknown error"
+        }. Status: ${statusCode || "N/A"}`;
+
+        console.error(`❌ FINAL ERROR: ${technicalDetails}`);
+
+        // Throw error với thông báo thân thiện người dùng
+        const finalError = new Error(userFriendlyMessage);
+        finalError.technicalDetails = technicalDetails;
+        finalError.statusCode = statusCode || 500;
+        finalError.isUserFriendly = true;
+        throw finalError;
       }
 
       // Xử lý lỗi timeout hoặc network
@@ -167,26 +183,13 @@ const generateContent = async (prompt, maxRetries = 3) => {
         console.log(
           `⚠️ ${
             isTimeout ? "Timeout" : "Network error"
-          } detected, switching to the lightest model...`
+          } detected, switching to fallback model...`
         );
 
-        // Nếu model là POWERFUL_MODEL_ID, chuyển sang PRIMARY_MODEL_ID
-        if (currentModel === POWERFUL_MODEL_ID) {
-          preferredModelId = PRIMARY_MODEL_ID;
-          console.log(
-            `🔄 Switching from ${POWERFUL_MODEL_ID} to ${PRIMARY_MODEL_ID}`
-          );
-        }
-        // Nếu model là PRIMARY_MODEL_ID, chuyển sang FALLBACK_MODEL_ID
-        else if (currentModel === PRIMARY_MODEL_ID) {
-          preferredModelId = FALLBACK_MODEL_ID;
-          console.log(
-            `🔄 Switching from ${PRIMARY_MODEL_ID} to ${FALLBACK_MODEL_ID}`
-          );
-        }
-
-        // Giảm độ phức tạp và các tham số khác
-        isComplexPrompt = false;
+        // Chuyển sang fallback model cho lần thử tiếp theo
+        console.log(
+          `🔄 Switching to fallback model ${FALLBACK_MODEL_ID} for next attempt`
+        );
       }
 
       // Exponential backoff với jitter - tăng thời gian chờ
@@ -414,10 +417,31 @@ GENERATE JSON NOW:`;
     console.error("❌ JSON generation failed:", error.message);
     console.error("❌ Error stack:", error.stack);
 
-    // Log detailed error information
+    // Tạo thông báo lỗi thân thiện với người dùng
+    let userFriendlyMessage = "Không thể tạo bài học do lỗi hệ thống AI";
+
+    if (error.isUserFriendly) {
+      // Nếu lỗi đã được xử lý từ generateContent
+      userFriendlyMessage = error.message;
+    } else if (error.message.includes("timeout")) {
+      userFriendlyMessage =
+        "Hệ thống AI mất quá nhiều thời gian để phản hồi. Vui lòng thử lại sau ít phút.";
+    } else if (
+      error.message.includes("network") ||
+      error.message.includes("ECONNREFUSED")
+    ) {
+      userFriendlyMessage =
+        "Lỗi kết nối với hệ thống AI. Vui lòng kiểm tra kết nối internet.";
+    } else if (error.message.includes("OpenRouter API key")) {
+      userFriendlyMessage = "Lỗi cấu hình hệ thống AI. Vui lòng liên hệ admin.";
+    }
+
+    // Log detailed error information for debugging
     const errorDetails = {
       message: error.message,
+      userMessage: userFriendlyMessage,
       type: error.name,
+      statusCode: error.statusCode || 500,
       stack: error.stack
         ? error.stack.split("\n").slice(0, 5).join("\n")
         : "No stack trace",
@@ -426,38 +450,11 @@ GENERATE JSON NOW:`;
 
     console.error("❌ DETAILED ERROR INFO:", JSON.stringify(errorDetails));
 
-    // Trả về JSON giả trong trường hợp lỗi nghiêm trọng
-    return {
-      title: "Bài học về triết học Mác-Lênin (Emergency Fallback)",
-      questions: [
-        {
-          type: "multiple_choice",
-          content: "Ai là người sáng lập ra chủ nghĩa Mác?",
-          options: [
-            "Karl Marx và Friedrich Engels",
-            "Vladimir Lenin",
-            "Joseph Stalin",
-            "Rosa Luxemburg",
-          ],
-          correctAnswer: 0,
-          explanation:
-            "Karl Marx và Friedrich Engels là hai nhà tư tưởng đã cùng sáng lập ra chủ nghĩa Mác vào thế kỷ 19.",
-        },
-        {
-          type: "multiple_choice",
-          content: "Phép biện chứng duy vật nghiên cứu điều gì?",
-          options: [
-            "Những quy luật chung nhất của tự nhiên, xã hội và tư duy",
-            "Chỉ nghiên cứu các hiện tượng xã hội",
-            "Chỉ nghiên cứu tự nhiên và vật chất",
-            "Nghiên cứu tôn giáo và tâm linh",
-          ],
-          correctAnswer: 0,
-          explanation:
-            "Phép biện chứng duy vật nghiên cứu những quy luật chung nhất của sự vận động và phát triển của tự nhiên, xã hội và tư duy.",
-        },
-      ],
-    };
+    // Ném lỗi với thông báo thân thiện thay vì trả về fallback JSON
+    const friendlyError = new Error(userFriendlyMessage);
+    friendlyError.statusCode = error.statusCode || 500;
+    friendlyError.technicalDetails = error.message;
+    throw friendlyError;
   }
 };
 

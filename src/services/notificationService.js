@@ -63,8 +63,16 @@ class NotificationService {
 
       return notification;
     } catch (error) {
-      console.error("[DEBUG] Error in createNotification:", error);
-      throw error;
+      console.error("[DEBUG] Error in createNotification:", error.message);
+      console.error("[DEBUG] Error details:", {
+        userId,
+        title: title?.substring(0, 50),
+        type,
+        error: error.message,
+      });
+
+      // Trả về null thay vì throw error để không làm gián đoạn service chính
+      return null;
     }
   }
 
