@@ -1,5 +1,6 @@
 import axios from "axios";
 import dotenv from "dotenv";
+import extremeFastMode from "../config/extremeFastMode.js";
 
 dotenv.config();
 
@@ -139,7 +140,7 @@ const generateContent = async (prompt, maxRetries = 2) => {
             "X-Title":
               process.env.SITE_NAME || "Marx-Edu - Marxist Philosophy Learning",
           },
-          timeout: 30000, // 30 seconds timeout
+          timeout: extremeFastMode.AI_TIMEOUT || 15000, // Use config or fallback
         }
       );
 
@@ -162,8 +163,8 @@ const generateContent = async (prompt, maxRetries = 2) => {
         );
       }
 
-      // Exponential backoff với jitter
-      const delayMs = attempt * 1000 + Math.random() * 1000;
+      // Exponential backoff với jitter (use extreme fast mode delay)
+      const delayMs = extremeFastMode.BACKOFF_DELAY || (attempt * 500 + Math.random() * 500);
       console.log(`⏳ Retrying Grok4 in ${delayMs}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }

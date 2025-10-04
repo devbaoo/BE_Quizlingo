@@ -1,6 +1,7 @@
 import qwenService from "./qwenService.js";
 
-// Multi-AI Load Balancer Configuration - Enhanced for robustness
+
+// GROK ONLY - No more Gemini, no more demo lessons
 const AI_PROVIDERS = [
   {
     name: "qwen",
@@ -13,6 +14,7 @@ const AI_PROVIDERS = [
       paid: { requestsPerMinute: 150, requestsPerSecond: 8 },
     },
     reliability: 1.0, // Full reliability as it's our only provider
+
   },
 ];
 
@@ -46,8 +48,8 @@ class MultiAiLoadBalancer {
       const failures = this.failureCount.get(provider.name);
       const currentLoad = this.currentLoads.get(provider.name);
 
-      // More lenient circuit breaker - allow more failures before disabling
-      if (failures >= 5) {
+      // DEMO MODE: Very lenient circuit breaker - allow more failures
+      if (failures >= 10) { // Increased from 5 to 10
         console.log(
           `🚫 Provider ${provider.name} circuit breaker activated (${failures} failures)`
         );
@@ -264,7 +266,7 @@ class MultiAiLoadBalancer {
   async generateJsonContent(prompt, options = {}) {
     const strategy = options.strategy || "weighted";
     const maxProviderRetries = options.maxProviderRetries || 3; // Increased default
-    const baseDelay = options.baseDelay || 1000;
+    const baseDelay = options.baseDelay || 0; // EXTREME FAST: Không delay để đạt 10-15s
 
     let lastError = null;
     let attemptedProviders = new Set();
@@ -363,8 +365,8 @@ class MultiAiLoadBalancer {
           error.message.includes("quota")
         ) {
           const backoffDelay = Math.min(
-            10000,
-            baseDelay * Math.pow(2, providerAttempt - 1)
+            2000, // ULTRA FAST: Giảm từ 10000ms xuống 2000ms
+            baseDelay * Math.pow(1.5, providerAttempt - 1) // Giảm multiplier từ 2 xuống 1.5
           );
           console.log(
             `⏳ Rate limited by ${provider.name}, waiting ${backoffDelay}ms...`
@@ -375,9 +377,9 @@ class MultiAiLoadBalancer {
         this.decrementLoad(provider.name);
       }
 
-      // Delay between provider attempts
+      // ULTRA FAST delay between provider attempts
       if (providerAttempt < maxProviderRetries) {
-        const delay = Math.min(3000, 500 * providerAttempt);
+        const delay = Math.min(1000, 200 * providerAttempt); // Giảm từ 3000/500 xuống 1000/200
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

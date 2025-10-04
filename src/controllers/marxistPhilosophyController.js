@@ -405,10 +405,10 @@ const getLessonByPath = async (req, res, next) => {
         // Handle both regular and custom lessons
         marxistTopic: pathDoc.marxistTopic
           ? {
-              id: pathDoc.marxistTopic._id,
-              name: pathDoc.marxistTopic.name,
-              title: pathDoc.marxistTopic.title,
-            }
+            id: pathDoc.marxistTopic._id,
+            name: pathDoc.marxistTopic.name,
+            title: pathDoc.marxistTopic.title,
+          }
           : null,
         customTopic: pathDoc.customTopic || null,
         isCustomLesson: !pathDoc.marxistTopic && !!pathDoc.customTopic,
@@ -426,35 +426,7 @@ const getLessonByPath = async (req, res, next) => {
   }
 };
 
-/**
- * Test Gemini API connection
- * GET /api/marxist-philosophy/test-gemini
- */
-const testGeminiConnection = async (req, res, next) => {
-  try {
-    const geminiService = await import("../services/geminiService.js");
-    const result = await geminiService.default.validateConnection();
 
-    const statusCode = result.success ? 200 : 400;
-
-    return res.status(statusCode).json({
-      success: result.success,
-      message: result.message,
-      connected: result.connected,
-      config: result.config,
-      response: result.response,
-      error: result.error,
-    });
-  } catch (error) {
-    console.error("Test Gemini connection error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi server khi test kết nối Gemini",
-      connected: false,
-      error: error.message,
-    });
-  }
-};
 
 /**
  * Làm lại bài học triết học Mác-LêNin
@@ -495,60 +467,6 @@ const retryMarxistLesson = async (req, res, next) => {
   }
 };
 
-// Test Gemini connection with real Marxist question
-const testGemini = async (req, res) => {
-  try {
-    console.log("🧪 Testing Gemini connection...");
-
-    // Test simple connection first
-    const connectionTest = await geminiService.validateConnection();
-    if (!connectionTest.success) {
-      return res.status(500).json({
-        success: false,
-        message: "Gemini API connection failed",
-        error: connectionTest.message,
-      });
-    }
-
-    // Test generating actual Marxist question
-    const testPrompt = `Tạo 1 câu hỏi trắc nghiệm về TRIẾT HỌC Mác-LêNin:
-
-⚠️ QUAN TRỌNG: CHỈ VỀ TRIẾT HỌC, KHÔNG PHẢI KINH TẺ!
-
-Chủ đề: Duy vật biện chứng - Quy luật mâu thuận
-Yêu cầu: 
-- 1 câu hỏi multiple choice với 4 đáp án A,B,C,D
-- Nội dung CHỈ VỀ triết học Mác-LêNin (quy luật, phương pháp luận, nhận thức)
-- KHÔNG hỏi về kinh tế, giá trị, tư bản, bóc lột
-- Format JSON
-
-Trả về JSON:
-{
-  "question": {
-    "content": "Câu hỏi...",
-    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-    "correctAnswer": "A. ...",
-    "explanation": "Giải thích..."
-  }
-}`;
-
-    const result = await geminiService.generateJsonContent(testPrompt);
-
-    res.json({
-      success: true,
-      message: "Gemini AI working correctly",
-      connectionModel: connectionTest.model,
-      testResult: result,
-    });
-  } catch (error) {
-    console.error("❌ Gemini test failed:", error);
-    res.status(500).json({
-      success: false,
-      message: "Gemini test failed",
-      error: error.message,
-    });
-  }
-};
 
 /**
  * Lấy thống kê Rate Limiter (Admin only)
@@ -628,7 +546,7 @@ const getMultiAiStats = async (req, res, next) => {
       data: {
         multiAi: {
           ...multiAiStats,
-          description: "Load balancing between Gemini and DeepSeek",
+          description: "Load balancing between GROK only",
         },
         rateLimiter: {
           ...rateLimiterStats,
@@ -747,10 +665,10 @@ const testAnswerDistribution = async (req, res, next) => {
         : result.message,
       data: result.success
         ? {
-            ...result,
-            timestamp: new Date().toISOString(),
-            testParameters: { topic, difficulty: parseInt(difficulty) },
-          }
+          ...result,
+          timestamp: new Date().toISOString(),
+          testParameters: { topic, difficulty: parseInt(difficulty) },
+        }
         : null,
       error: result.success ? null : result.message,
     });
@@ -781,10 +699,10 @@ const testAiAccuracy = async (req, res, next) => {
       message: result.success ? "AI accuracy test completed" : result.message,
       data: result.success
         ? {
-            ...result,
-            timestamp: new Date().toISOString(),
-            testParameters: { topic, difficulty: parseInt(difficulty) },
-          }
+          ...result,
+          timestamp: new Date().toISOString(),
+          testParameters: { topic, difficulty: parseInt(difficulty) },
+        }
         : null,
       error: result.success ? null : result.message,
     });
@@ -850,6 +768,70 @@ const clearStuckGenerations = async (req, res, next) => {
   }
 };
 
+/**
+ * Check background generation status for user
+ * GET /api/marxist-philosophy/background-status
+ */
+const getBackgroundGenerationStatus = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Yêu cầu đăng nhập",
+      });
+    }
+
+    const status = await marxistPhilosophyService.getBackgroundGenerationStatus(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: status,
+      message: status.isGenerating ? "Background generation in progress" : "No background generation"
+    });
+  } catch (error) {
+    console.error("Get background status error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi kiểm tra trạng thái background generation",
+    });
+  }
+};
+
+/**
+ * Clear stuck users from rate limiter (Admin only)
+ * POST /api/marxist-philosophy/clear-stuck-users
+ */
+const clearStuckUsers = async (req, res, next) => {
+  try {
+    const { userId } = req.body;
+
+    if (userId) {
+      // Clear specific user
+      const wasStuck = generationRateLimiter.forceCleanupUser(userId);
+      return res.status(200).json({
+        success: true,
+        message: wasStuck ? `Cleared stuck user ${userId}` : `User ${userId} was not stuck`,
+        cleared: wasStuck,
+      });
+    } else {
+      // Clear all stuck users
+      const count = generationRateLimiter.forceCleanupAllUsers();
+      return res.status(200).json({
+        success: true,
+        message: `Cleared ${count} stuck users`,
+        clearedCount: count,
+      });
+    }
+  } catch (error) {
+    console.error("Clear stuck users error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi clear stuck users",
+    });
+  }
+};
+
 export default {
   generateLesson,
   generateCustomLesson,
@@ -861,8 +843,6 @@ export default {
   getStats,
   getTopics,
   analyzeProgress,
-  testGeminiConnection,
-  testGemini,
   getRateLimiterStats,
   testAllAiConnections,
   getMultiAiStats,
@@ -870,4 +850,7 @@ export default {
   testAiAccuracy,
   testAnswerDistribution,
   clearStuckGenerations,
+  getBackgroundGenerationStatus,
+  clearStuckUsers,
 };
+
