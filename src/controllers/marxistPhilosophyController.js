@@ -118,15 +118,38 @@ const generateCustomLesson = async (req, res, next) => {
  * POST /api/marxist-philosophy/generate-lesson
  */
 const generateLesson = async (req, res, next) => {
+  console.log("🎯 Controller: generateLesson called");
+
+  // Wrap response methods để track
+  const originalJson = res.json;
+  const originalStatus = res.status;
+
+  res.json = function (body) {
+    console.log("📤 Controller: res.json called with:", {
+      status: res.statusCode,
+      hasBody: !!body,
+      success: body?.success,
+      message: body?.message?.substring(0, 50),
+    });
+    return originalJson.call(this, body);
+  };
+
+  res.status = function (code) {
+    console.log("📊 Controller: res.status called with:", code);
+    return originalStatus.call(this, code);
+  };
+
   try {
     const userId = req.user?.id;
     if (!userId) {
+      console.log("❌ Controller: No userId found");
       return res.status(401).json({
         success: false,
         message: "Yêu cầu đăng nhập",
       });
     }
 
+    console.log("🔄 Controller: Calling service for user:", userId);
     const { topic, difficulty } = req.body;
 
     const result = await marxistPhilosophyService.generateMarxistLesson(
@@ -137,12 +160,54 @@ const generateLesson = async (req, res, next) => {
       }
     );
 
+    console.log("📝 Controller: Service returned result");
+
+    // Debug log để kiểm tra response
+    console.log("📝 Controller result:", {
+      success: result?.success,
+      statusCode: result?.statusCode,
+      message: result?.message?.substring(0, 50),
+      hasLesson: !!result?.lesson,
+      hasLearningPath: !!result?.learningPath,
+    });
+
+    // Validate result object
+    if (!result || typeof result !== "object") {
+      console.error("❌ Controller: Invalid result object:", result);
+      return res.status(500).json({
+        success: false,
+        statusCode: 500,
+        message: "Lỗi server: Kết quả không hợp lệ",
+        error: "INVALID_RESULT",
+      });
+    }
+
+    // Validate required fields
+    if (!result.statusCode || !result.message) {
+      console.error("❌ Controller: Missing required fields:", {
+        hasStatusCode: !!result.statusCode,
+        hasMessage: !!result.message,
+      });
+      return res.status(500).json({
+        success: false,
+        statusCode: 500,
+        message: "Lỗi server: Thiếu thông tin bắt buộc",
+        error: "MISSING_FIELDS",
+      });
+    }
+
+    console.log(`✅ Controller: Returning status ${result.statusCode}`);
     return res.status(result.statusCode).json(result);
   } catch (error) {
-    console.error("Generate Marxist lesson error:", error);
+    console.error("❌ Controller: Generate Marxist lesson error:", error);
+    console.error("❌ Controller: Error stack:", error.stack);
+
     return res.status(500).json({
       success: false,
+      statusCode: 500,
       message: "Lỗi server khi tạo bài học",
+      error: "CONTROLLER_ERROR",
+      details: error.message,
     });
   }
 };
@@ -405,10 +470,10 @@ const getLessonByPath = async (req, res, next) => {
         // Handle both regular and custom lessons
         marxistTopic: pathDoc.marxistTopic
           ? {
-            id: pathDoc.marxistTopic._id,
-            name: pathDoc.marxistTopic.name,
-            title: pathDoc.marxistTopic.title,
-          }
+              id: pathDoc.marxistTopic._id,
+              name: pathDoc.marxistTopic.name,
+              title: pathDoc.marxistTopic.title,
+            }
           : null,
         customTopic: pathDoc.customTopic || null,
         isCustomLesson: !pathDoc.marxistTopic && !!pathDoc.customTopic,
@@ -425,8 +490,6 @@ const getLessonByPath = async (req, res, next) => {
     });
   }
 };
-
-
 
 /**
  * Làm lại bài học triết học Mác-LêNin
@@ -466,7 +529,6 @@ const retryMarxistLesson = async (req, res, next) => {
     });
   }
 };
-
 
 /**
  * Lấy thống kê Rate Limiter (Admin only)
@@ -665,10 +727,10 @@ const testAnswerDistribution = async (req, res, next) => {
         : result.message,
       data: result.success
         ? {
-          ...result,
-          timestamp: new Date().toISOString(),
-          testParameters: { topic, difficulty: parseInt(difficulty) },
-        }
+            ...result,
+            timestamp: new Date().toISOString(),
+            testParameters: { topic, difficulty: parseInt(difficulty) },
+          }
         : null,
       error: result.success ? null : result.message,
     });
@@ -699,10 +761,10 @@ const testAiAccuracy = async (req, res, next) => {
       message: result.success ? "AI accuracy test completed" : result.message,
       data: result.success
         ? {
-          ...result,
-          timestamp: new Date().toISOString(),
-          testParameters: { topic, difficulty: parseInt(difficulty) },
-        }
+            ...result,
+            timestamp: new Date().toISOString(),
+            testParameters: { topic, difficulty: parseInt(difficulty) },
+          }
         : null,
       error: result.success ? null : result.message,
     });
@@ -782,12 +844,16 @@ const getBackgroundGenerationStatus = async (req, res, next) => {
       });
     }
 
-    const status = await marxistPhilosophyService.getBackgroundGenerationStatus(userId);
+    const status = await marxistPhilosophyService.getBackgroundGenerationStatus(
+      userId
+    );
 
     return res.status(200).json({
       success: true,
       data: status,
-      message: status.isGenerating ? "Background generation in progress" : "No background generation"
+      message: status.isGenerating
+        ? "Background generation in progress"
+        : "No background generation",
     });
   } catch (error) {
     console.error("Get background status error:", error);
@@ -811,7 +877,9 @@ const clearStuckUsers = async (req, res, next) => {
       const wasStuck = generationRateLimiter.forceCleanupUser(userId);
       return res.status(200).json({
         success: true,
-        message: wasStuck ? `Cleared stuck user ${userId}` : `User ${userId} was not stuck`,
+        message: wasStuck
+          ? `Cleared stuck user ${userId}`
+          : `User ${userId} was not stuck`,
         cleared: wasStuck,
       });
     } else {
@@ -853,4 +921,3 @@ export default {
   getBackgroundGenerationStatus,
   clearStuckUsers,
 };
-

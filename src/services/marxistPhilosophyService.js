@@ -224,11 +224,11 @@ const generateMarxistLesson = async (userId, options = {}) => {
 
   // Sử dụng Rate Limiter với timeout wrapper
   try {
-    // EXTREME FAST: Target 10-15s response time
+    // EXTREME FAST: Target 10-15s response time nhưng cho phép 45s timeout để tránh false timeout
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
-        () => reject(new Error("Lesson generation timeout after 20 seconds")),
-        20000 // Giảm từ 30s xuống 20s để đạt target
+        () => reject(new Error("Lesson generation timeout after 45 seconds")),
+        45000 // Tăng từ 20s lên 45s để tránh timeout khi AI generation đang thành công
       )
     );
 
@@ -1040,7 +1040,7 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
       // Không throw error để không ảnh hưởng đến response chính
     }
 
-    return {
+    const responseObject = {
       success: true,
       statusCode: 201,
       message: "Tạo bài học triết học Mác-LêNin thành công",
@@ -1064,6 +1064,16 @@ Câu 4: correctAnswer: "D. Thực tiễn là tiêu chuẩn chân lý"
         recommendedReason: analysis.reason,
       },
     };
+
+    console.log("✅ Service response prepared:", {
+      success: responseObject.success,
+      statusCode: responseObject.statusCode,
+      hasLesson: !!responseObject.lesson,
+      hasLearningPath: !!responseObject.learningPath,
+      lessonId: responseObject.lesson?.lessonId,
+    });
+
+    return responseObject;
   } catch (error) {
     console.error("Error in _generateMarxistLessonInternal:", error);
     throw error; // Re-throw để rate limiter xử lý
