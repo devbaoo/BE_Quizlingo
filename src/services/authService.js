@@ -7,7 +7,7 @@ import moment from "moment-timezone";
 
 const verifyRecaptcha = async (token) => {
   // 🧩 Dùng key demo của Google để test
-  const secret = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe";
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
 
   const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
     method: "POST",
